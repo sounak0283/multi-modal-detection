@@ -92,7 +92,7 @@ on D-Fire is a few hours on one modern GPU; cost is not a real constraint here.
 | Layer | Choice | Licence |
 |---|---|---|
 | Person detection | YOLOX-nano ONNX | Apache-2.0 |
-| Tracking | ByteTrack via `supervision` | MIT |
+| Tracking | ByteTrack via **`trackers`** (Roboflow) | Apache-2.0 |
 | Fire & smoke | YOLOX-nano trained in-house | Apache-2.0 (arch) / ours (weights) |
 | Face detection | YuNet | see model dir LICENSE |
 | Face recognition | SFace | Apache-2.0 |
@@ -191,6 +191,37 @@ at frame rate.
 
 Consequence for §6: `min_frames: 4` means ~0.5–0.7 s of hysteresis, not 4/15 s. Tune with that in
 mind.
+
+**Occlusion tolerance must be configured in seconds, not frames.** ByteTrack's `lost_track_buffer`
+counts *update calls*, and we update at the detection cadence rather than the library's default
+assumption of 30 Hz. Left at defaults it would silently deliver a quarter of the intended tolerance.
+`PersonTracker` takes `lost_track_seconds` and converts internally.
+
+**Two implementation traps, both measured against `trackers` 2.6.0 (2026-08-11):**
+
+- Detections the tracker has seen but not yet *confirmed* return the sentinel id **−1**, not `None`
+  — `tracker_id` is an integer array and cannot hold `None`. Every unconfirmed detection in a frame
+  carries the same −1, so passing them through collapses several different people into one track
+  identity. Since §6.3 keys entry/exit state on track id, two strangers entering a zone would share
+  one state and cancel each other's events. Unconfirmed detections must be dropped.
+- Valid track ids start at **0**, not 1 (unlike the original ByteTrack). Filtering with `> 0` would
+  silently drop the first person to appear after every camera start.
+
+### Measured track stability
+
+400 frames of pedestrian footage at 7.5 Hz detection cadence, `tools/track_preview.py`:
+
+| Metric | Value |
+|---|---|
+| Unique track IDs | 16 |
+| Peak concurrent tracks | 8 |
+| Churn ratio (IDs / peak concurrent) | 2.0 |
+| Track fragments (< 1 s) | 0 % |
+| Median track length | 53 detection frames (~7 s) |
+
+Stable enough that §6.3's born-settled initialisation is sufficient. **This must be rerun on the
+customer's own footage** — warehouse racking produces far more occlusion than an open courtyard, and
+churn is what decides whether the hysteresis holds.
 
 ### Camera health is an alert kind, not just a reconnect
 

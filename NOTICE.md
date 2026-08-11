@@ -121,7 +121,12 @@ Not a licence obligation under CC0, but requested by the authors and worth honou
 | `onnxruntime` | MIT | |
 | `numpy` | BSD-3-Clause | |
 | `shapely` | BSD-3-Clause | GEOS backend is LGPL, dynamically linked. |
-| `supervision` (ByteTrack) | MIT | |
+| `supervision` | MIT | Used for the `Detections` container only. **Not** its `ByteTrack`, which is deprecated since v0.28 and removed in v0.31 — hence the pin below 1.0 and the separate tracker below. |
+| `trackers` | Apache-2.0 | Roboflow. Clean-room reimplementation of ByteTrack — relevant to licence hygiene, since it does not inherit the original ByteTrack repository's dependency graph. Replaces `supervision.ByteTrack`. |
+| `scipy` | BSD-3-Clause | Transitive via `trackers` (Hungarian assignment). |
+| `rich`, `markdown-it-py`, `mdurl` | MIT | Transitive via `trackers` (console output). |
+| `pyDeprecate` | Apache-2.0 | Transitive via `trackers`. |
+| `Pygments` | BSD-2-Clause | Transitive via `rich`. |
 | `fastapi` | MIT | |
 | `uvicorn` | BSD-3-Clause | |
 | `pydantic` | MIT | |

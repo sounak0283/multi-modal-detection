@@ -12,8 +12,44 @@ CPU-only, permissive licences throughout, intended for commercial deployment.
 
 ## Status
 
-**Phase 0 complete.** Repo skeleton, licence gates, and the site recorder that feeds
-negative collection. No detection pipeline yet — see PLAN.md section 9 for the phase plan.
+**Phases 0–2 complete.** Licence gates, site recorder, person detection, and tracking.
+No boundary engine yet — see PLAN.md section 9 for the phase plan.
+
+| Phase | Deliverable | Result |
+|---|---|---|
+| 0 | Repo, licence gates, site recorder | ✅ |
+| 1 | Capture, YOLOX ONNX person detection, fps gate | ✅ **39 fps**, gate passed |
+| 2 | ByteTrack tracking, ID-stability measurement | ✅ churn 2.0, 0 % fragments |
+| 3 | Zone editor + boundary state machine | next |
+
+## Models
+
+Weights are **not** in git — they are recorded in [NOTICE.md](NOTICE.md) and
+`models/*/manifest.json` with SHA-256. Fetch the person detector:
+
+```bash
+curl -L -o models/yolox_person/yolox_nano.onnx \
+  https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_nano.onnx
+```
+
+`manifest.json` is load-bearing for correctness, not just licensing: it records each
+model's expected colour order. Megvii's exports expect BGR; OpenCV Zoo's re-export of
+the same architecture expects RGB, and the wrong choice costs ~25 % recall **silently**.
+A model without a manifest entry fails at load rather than under-detecting quietly.
+
+## Benchmark and preview tools
+
+```bash
+# Phase 1 gate - inference throughput on this machine
+python tools/benchmark_fps.py --models models/yolox_person/*.onnx --source clip.mp4
+
+# Phase 2 - track stability. Run against REAL site footage, not a test clip.
+python tools/track_preview.py --source clip.mp4 --out annotated.mp4
+```
+
+`track_preview` reports churn ratio and fragment rate, which is what decides whether the
+boundary state machine's hysteresis is sufficient in a given space. Warehouse racking
+produces far more occlusion than open ground, so this must be rerun per site.
 
 ## Setup
 
