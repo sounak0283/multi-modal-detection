@@ -1,0 +1,72 @@
+name: licence-gate
+
+# This product is sold. A copyleft dependency reaching a customer deployment is a
+# commercial incident, not a bug. Blocking one at PR time is free.
+# Policy and rationale: NOTICE.md sections 6 and 6.1.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  licences:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pip-licenses
+
+      # Gate 1: Python packages.
+      #
+      # --ignore-packages carries deliberate exceptions only. Both entries below are
+      # dynamically linked native libraries bundled inside an otherwise-permissive
+      # wheel; neither imposes a source obligation on our code. Full reasoning in
+      # NOTICE.md section 6. Do not add to this list without a NOTICE.md row.
+      #   opencv-python -> bundled FFmpeg (LGPL, dynamically linked)
+      #   shapely       -> GEOS backend  (LGPL, dynamically linked)
+      - name: Gate 1 - dependency licences
+        run: |
+          pip-licenses --format=markdown --with-urls \
+            --fail-on="GPL;AGPL;LGPL;CC-BY-NC;CC-BY-SA;Proprietary;Unknown" \
+            --ignore-packages opencv-python shapely fsbd
+
+      - name: Licence inventory (informational)
+        if: always()
+        run: pip-licenses --format=markdown --with-urls
+
+      # Gate 2: models and datasets.
+      #
+      # pip-licenses reads package metadata only and is blind to .onnx files and
+      # dataset directories - which is where this project's real risk sits.
+      - name: Gate 2 - model and dataset provenance
+        run: python tools/check_notice.py --assets models data --notice NOTICE.md
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Lint
+        run: ruff check src tools tests
+
+      - name: Test
+        run: pytest -q

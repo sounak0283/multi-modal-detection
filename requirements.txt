@@ -1,0 +1,13 @@
+# Runtime dependencies - shipped to customers.
+# Mirror of pyproject.toml [project.dependencies], kept for `pip install -r` workflows.
+# Every entry must have a row in NOTICE.md section 3. Permissive licences only.
+numpy>=2.0,<3
+opencv-python>=4.10,<5
+onnxruntime>=1.22,<2
+shapely>=2.0,<3
+supervision>=0.25,<1
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+pydantic>=2.7,<3
+requests>=2.32,<3
+PyYAML>=6.0,<7

@@ -1,0 +1,61 @@
+# Application configuration.
+#
+# Camera credentials do NOT belong here - this file is committed. Put them in
+# config/app.local.yaml (git-ignored) or the FSBD_SOURCE environment variable.
+#
+# Zone definitions live separately in config/zones.yaml (PLAN.md section 6.5).
+
+camera:
+  id: cam_01
+  # source: set in app.local.yaml or FSBD_SOURCE
+  decode_fps: 12
+  # Prefer a 640x360 substream for inference if the camera exposes one - it removes
+  # almost all decode cost (PLAN.md section 11, question 2).
+  substream: null
+
+inference:
+  # Cadences are frame counters, deliberately offset so the two models never run on
+  # the same frame (PLAN.md section 4).
+  person_every_n: 2
+  firesmoke_every_n: 8
+  firesmoke_offset: 3
+  input_size: 416
+  # Set from the Phase 1 benchmark, not by assumption (PLAN.md section 9.2).
+  precision: fp32 # fp32 | fp16 | int8
+  intra_op_threads: null # null = physical_cores - 1
+
+firesmoke:
+  conf_fire: 0.45
+  # Lower than fire: indoors, smoke reaches the camera first (PLAN.md section 5.4).
+  conf_smoke: 0.35
+  # K-of-N temporal gate. At firesmoke_every_n=8 this is a ~5 s window, ~3 s minimum
+  # latency to alert. Shrinking it is how false alarms are made.
+  gate_k: 6
+  gate_n: 10
+  gate_iou: 0.3
+
+boundary:
+  # Hysteresis in *detection frames*, which run at ~6-8 Hz, not at frame rate.
+  # 4 frames is therefore ~0.5-0.7 s (PLAN.md section 6.3).
+  default_min_frames: 4
+
+identity:
+  # Default OFF. Biometric processing requires a consent story per deployment
+  # (PLAN.md section 10.3). The rest of the product works without it.
+  enabled: false
+  min_person_box_px: 120
+  cosine_threshold: 0.363
+
+storage:
+  db_path: events.db
+  ring_buffer_seconds: 15
+  snapshot_dir: snapshots
+  clip_dir: clips
+  retention_days: 30
+
+health:
+  feed_lost_after_s: 10
+  lens_obscured_after_s: 30
+
+alerts:
+  sinks: [] # telegram | mqtt | smtp | webhook

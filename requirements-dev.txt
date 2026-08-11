@@ -1,0 +1,6 @@
+# Development and training dependencies - NEVER shipped.
+# See NOTICE.md section 4: a training-only dependency can still taint the weights.
+-r requirements.txt
+pytest>=8.0
+ruff>=0.6
+pip-licenses>=5.0

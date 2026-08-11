@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Model weights - tracked in NOTICE.md, not in git (size + provenance)
+models/**/*.onnx
+models/**/*.pth
+models/**/*.npz
+
+# Datasets - never in git. Provenance recorded in NOTICE.md.
+data/**
+!data/**/.gitkeep
+!data/**/README.md
+
+# Site recordings (Phase 0 negative collection) - large, customer premises footage
+recordings/
+
+# Runtime artefacts
+*.db
+*.db-wal
+*.db-shm
+snapshots/
+clips/
+logs/
+*.log
+
+# Local config overrides (may contain camera credentials)
+config/*.local.yaml
+.env
+
+# OS
+Thumbs.db
+.DS_Store
