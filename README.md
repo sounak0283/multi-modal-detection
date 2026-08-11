@@ -20,7 +20,8 @@ No boundary engine yet — see PLAN.md section 9 for the phase plan.
 | 0 | Repo, licence gates, site recorder | ✅ |
 | 1 | Capture, YOLOX ONNX person detection, fps gate | ✅ **39 fps**, gate passed |
 | 2 | ByteTrack tracking, ID-stability measurement | ✅ churn 2.0, 0 % fragments |
-| 3 | Zone editor + boundary state machine | next |
+| 3 | Zone dashboard + boundary state machine | ✅ 4 zone types, live events |
+| 4 | Alerts: SQLite, snapshot, clip, Telegram | next |
 
 ## Models
 
@@ -36,6 +37,55 @@ curl -L -o models/yolox_person/yolox_nano.onnx \
 model's expected colour order. Megvii's exports expect BGR; OpenCV Zoo's re-export of
 the same architecture expects RGB, and the wrong choice costs ~25 % recall **silently**.
 A model without a manifest entry fails at load rather than under-detecting quietly.
+
+## Configuration
+
+Two files, deliberately split:
+
+| File | Contains | Committed? |
+|---|---|---|
+| `.env` | **secrets** — camera URL/password, alert tokens | ❌ git-ignored |
+| `config/app.yaml` | tuning constants — cadences, thresholds, retention | ✅ yes |
+| `config/zones.yaml` | zone definitions, written by the dashboard | ✅ yes |
+
+```bash
+cp .env.example .env      # then set FSBD_CAMERA_SOURCE
+```
+
+Precedence is environment variable → `.env` → `app.yaml` → code default.
+
+An RTSP URL embeds the camera password in plain text, so every path that logs or displays
+a source runs it through `redact()` first — otherwise it lands in log archives, the
+`/api/health` response, and support bundles.
+
+## Dashboard
+
+```bash
+fsbd-dashboard                          # uses .env
+python -m fsbd.main --source clip.mp4   # or point it at a file
+```
+
+Then open <http://127.0.0.1:8000>.
+
+- **Live** — MJPEG stream with zones, tracked IDs and foot points drawn on it
+- **Edit** — freezes a frame; click to place vertices, double-click or Enter to close,
+  drag handles to adjust, right-click a handle to delete
+- Four zone types: **Zone** (entry/exit), **Tripwire** (directional), **Exclusion**
+  (suppress detections), **Fire ROI** (bias fire/smoke confidence)
+- Per-zone rules: name, classes, events, direction, severity, hysteresis, schedule
+- **Save** writes `config/zones.yaml`; the engine hot-reloads without a restart
+
+> ⚠️ The API binds to `127.0.0.1` and has **no authentication**. It is a commissioning
+> tool — anyone who can reach it can redraw the zones that arm the site. Exposing it on
+> `0.0.0.0` needs a reverse proxy with auth in front.
+
+**Exclusion masks are the highest value-per-hour feature here.** The worst false-alarm
+sources are fixed in place — the welding bay, the beacon on the forklift charger, the
+skylight that throws sunlight at 16:00. Masking them does more for the false-alarm rate
+than another twenty thousand training images.
+
+**Schedules matter almost as much.** A warehouse zone without one fires four hundred
+times during the working day and gets switched off in week one.
 
 ## Benchmark and preview tools
 

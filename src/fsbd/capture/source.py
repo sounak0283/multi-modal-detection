@@ -19,6 +19,7 @@ import cv2
 import numpy as np
 
 from fsbd.capture.latest_slot import LatestSlot
+from fsbd.settings import redact
 
 log = logging.getLogger("fsbd.capture")
 
@@ -118,12 +119,14 @@ class CaptureThread:
             cap = self._open()
             if not cap.isOpened():
                 self._check_feed_lost()
-                log.warning("cannot open %s, retrying in %.0fs", self.source, backoff)
+                # redact(): an RTSP URL embeds the camera password in plain text, and a
+                # reconnect loop would otherwise write it to the log on every retry.
+                log.warning("cannot open %s, retrying in %.0fs", redact(self.source), backoff)
                 self._sleep(backoff)
                 backoff = min(backoff * 2, RECONNECT_BACKOFF_MAX_S)
                 continue
 
-            log.info("capture connected to %s", self.source)
+            log.info("capture connected to %s", redact(self.source))
             backoff = RECONNECT_BACKOFF_START_S
             self._last_frame_ts = time.time()
 

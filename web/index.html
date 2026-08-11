@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boundary Zones</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+
+<header>
+  <h1>Boundary Zones</h1>
+  <div class="status" id="status">
+    <span class="dot" id="feed-dot"></span>
+    <span id="feed-text">connecting…</span>
+    <span class="sep">·</span>
+    <span id="perf">—</span>
+  </div>
+  <div class="header-actions">
+    <button id="btn-live" class="toggle active" title="Live view with detections">Live</button>
+    <button id="btn-edit" class="toggle" title="Freeze a frame and draw zones">Edit</button>
+    <button id="btn-save" class="primary" disabled>Save</button>
+  </div>
+</header>
+
+<main>
+  <section class="stage">
+    <div class="canvas-wrap" id="canvas-wrap">
+      <img id="backdrop" alt="camera view">
+      <canvas id="overlay"></canvas>
+      <div class="hint" id="hint"></div>
+    </div>
+
+    <div class="toolbar" id="toolbar">
+      <span class="label">Draw</span>
+      <button class="tool" data-type="polygon">
+        <i class="swatch polygon"></i>Zone
+      </button>
+      <button class="tool" data-type="tripwire">
+        <i class="swatch tripwire"></i>Tripwire
+      </button>
+      <button class="tool" data-type="exclusion">
+        <i class="swatch exclusion"></i>Exclusion
+      </button>
+      <button class="tool" data-type="fire_roi">
+        <i class="swatch fire_roi"></i>Fire ROI
+      </button>
+      <span class="spacer"></span>
+      <button id="btn-finish" disabled>Finish shape</button>
+      <button id="btn-cancel" disabled>Cancel</button>
+    </div>
+  </section>
+
+  <aside class="sidebar">
+    <div class="panel">
+      <h2>Zones <span class="count" id="zone-count">0</span></h2>
+      <ul class="zone-list" id="zone-list"></ul>
+    </div>
+
+    <div class="panel" id="rules-panel" hidden>
+      <h2>Rules</h2>
+      <label>Name
+        <input type="text" id="f-name" placeholder="Loading Bay">
+      </label>
+
+      <div class="row" id="row-detect">
+        <span class="field-label">Detect</span>
+        <div class="chips" id="f-detect">
+          <label><input type="checkbox" value="person" checked>person</label>
+          <label><input type="checkbox" value="fire">fire</label>
+          <label><input type="checkbox" value="smoke">smoke</label>
+        </div>
+      </div>
+
+      <div class="row" id="row-events">
+        <span class="field-label">Events</span>
+        <div class="chips" id="f-events">
+          <label><input type="checkbox" value="entry" checked>entry</label>
+          <label><input type="checkbox" value="exit" checked>exit</label>
+        </div>
+      </div>
+
+      <label id="row-direction" hidden>Direction
+        <select id="f-direction">
+          <option value="both">both ways</option>
+          <option value="a_to_b">A → B only</option>
+          <option value="b_to_a">B → A only</option>
+        </select>
+      </label>
+
+      <label id="row-severity">Severity
+        <select id="f-severity">
+          <option value="low">low</option>
+          <option value="medium" selected>medium</option>
+          <option value="high">high</option>
+        </select>
+      </label>
+
+      <label id="row-minframes">Hysteresis (detection frames)
+        <input type="number" id="f-minframes" min="1" max="60" placeholder="default">
+      </label>
+
+      <label id="row-confdelta" hidden>Confidence delta
+        <input type="number" id="f-confdelta" step="0.01" min="-0.5" max="0.5" value="-0.08">
+        <small>Negative = more sensitive in this area.</small>
+      </label>
+
+      <fieldset id="row-schedule">
+        <legend>Schedule</legend>
+        <label class="inline">
+          <input type="checkbox" id="f-sched-on"> Restrict to hours
+        </label>
+        <div id="sched-fields" hidden>
+          <div class="times">
+            <label>From <input type="time" id="f-sched-from" value="18:00"></label>
+            <label>To <input type="time" id="f-sched-to" value="06:00"></label>
+          </div>
+          <div class="days" id="f-days"></div>
+          <small id="sched-note"></small>
+        </div>
+      </fieldset>
+
+      <div class="panel-actions">
+        <button id="btn-delete" class="danger">Delete zone</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Recent events</h2>
+      <ul class="events" id="events"></ul>
+    </div>
+  </aside>
+</main>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

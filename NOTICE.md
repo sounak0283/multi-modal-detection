@@ -132,6 +132,7 @@ Not a licence obligation under CC0, but requested by the authors and worth honou
 | `pydantic` | MIT | |
 | `requests` | Apache-2.0 | |
 | `PyYAML` | MIT | |
+| `python-dotenv` | BSD-3-Clause | Loads `.env`, keeping camera credentials out of the repository. No runtime dependencies. |
 | SQLite | Public domain | Bundled with CPython. |
 | `certifi` | **MPL-2.0** | Transitive via `requests`. File-level copyleft — acceptable **unmodified only**, see policy note above. |
 | `tqdm` | **MPL-2.0 AND MIT** | Transitive via `supervision`. Same condition as `certifi`. |
@@ -153,6 +154,9 @@ training-only dependency can taint the *weights* even when it never ships.
 | YOLOX (trainer) | Apache-2.0 |
 | `pycocotools` | BSD-2-Clause |
 | `pip-licenses` (CI gate) | MIT |
+| `pytest` | MIT |
+| `ruff` | MIT |
+| `httpx` | BSD-3-Clause — FastAPI TestClient transport, test-only |
 
 ---
 

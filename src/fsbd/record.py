@@ -36,6 +36,8 @@ from pathlib import Path
 
 import cv2
 
+from fsbd.settings import parse_source, redact  # re-exported: shared with the app config
+
 log = logging.getLogger("fsbd.record")
 
 # Tried in order; the first fourcc the platform can actually open wins.
@@ -57,14 +59,6 @@ class RecorderConfig:
     height: int | None = None
     still_interval_s: float = 0.0  # 0 disables JPEG stills
     jpeg_quality: int = 92
-
-
-def parse_source(raw: str) -> str | int:
-    """A bare integer means a local camera index; anything else is a URL or file path."""
-    try:
-        return int(raw)
-    except ValueError:
-        return raw
 
 
 def open_capture(source: str | int) -> cv2.VideoCapture:
@@ -193,7 +187,7 @@ class Recorder:
                 self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.cfg.width)
                 self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.cfg.height)
 
-            log.info("connected to %s", self.cfg.source)
+            log.info("connected to %s", redact(self.cfg.source))
             backoff = RECONNECT_BACKOFF_START_S
             consecutive_failures = 0
 
@@ -304,7 +298,7 @@ def main(argv: list[str] | None = None) -> int:
 
     log.info(
         "recording %s at %.1f fps, %.0f min segments, %.0f GB budget -> %s",
-        cfg.source,
+        redact(cfg.source),
         cfg.fps,
         cfg.segment_minutes,
         cfg.disk_budget_gb,

@@ -419,24 +419,27 @@ false alarm does.
 Rev 1 contained two functional bugs. Both are fixed below; both are documented because the naive
 implementation reintroduces them.
 
+**Rev 3 (implementation):** the rev 2 pseudocode below was itself wrong — see bug 3. Two
+states are required, not one plus a flag.
+
 ```
-track_state = { state: IN|OUT, state_age: int, emitted: bool }
+track_state = { confirmed: IN|OUT, candidate: IN|OUT, age: int }
 
 on track creation:
-    state     = test(foot_point)   # born already settled at its true position
-    state_age = min_frames
-    emitted   = True               # the initial observation is NOT an event
+    observed  = test(foot_point)
+    confirmed = candidate = observed   # born already settled at its true position
+    age       = min_frames             # the initial observation is NOT an event
 
 on each detection-frame update:
-    new = test(foot_point)
-    if new != state:
-        state = new; state_age = 1; emitted = False
+    observed = test(foot_point)
+    if observed != candidate:
+        candidate = observed; age = 1
     else:
-        state_age += 1
+        age += 1
 
-    if state_age >= min_frames and not emitted:
-        emit(ENTRY if state == IN else EXIT)
-        emitted = True
+    if age >= min_frames and candidate != confirmed:
+        emit(ENTRY if candidate == IN else EXIT)
+        confirmed = candidate
 ```
 
 **Bug 1 — a time-based cooldown swallows EXIT events.** Rev 1 guarded emission with
@@ -452,6 +455,13 @@ ByteTrack reassigns IDs after occlusion, which in a warehouse with racking happe
 new track defaults to `OUT`, *every person who appears already inside a zone fires a false ENTRY* —
 including the same person who just acquired a new ID while standing still. Initialising from the
 observed position with `emitted = True` means only a genuinely observed transition emits.
+
+**Bug 3 — a single state plus an `emitted` flag fires spurious events.** Found while implementing
+rev 2's pseudocode above. Sequence with `min_frames: 3`: a person is settled OUTSIDE, flickers
+inside for one frame (candidate IN, age 1 — never confirmed), then returns outside. With one state,
+the return to OUT looks like a fresh transition that has not been emitted, so it fires an **EXIT
+with no matching ENTRY**. Comparing the settled candidate against the last *confirmed* state makes
+the round trip the no-op it actually was. Both directions of this are covered by regression tests.
 
 **The tradeoff, accepted deliberately:** someone who crosses the boundary while fully occluded and
 re-emerges with a new track ID produces no event. That is the correct trade against ID-churn alert

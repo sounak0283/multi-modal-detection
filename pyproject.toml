@@ -24,6 +24,7 @@ dependencies = [
     "pydantic>=2.7,<3",       # MIT
     "requests>=2.32,<3",      # Apache-2.0
     "PyYAML>=6.0,<7",         # MIT
+    "python-dotenv>=1.0,<2",  # BSD-3-Clause  secrets out of the repo
 ]
 
 [project.optional-dependencies]
@@ -36,6 +37,7 @@ dev = [
 
 [project.scripts]
 fsbd-record = "fsbd.record:main"
+fsbd-dashboard = "fsbd.main:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
