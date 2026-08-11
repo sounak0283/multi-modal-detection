@@ -22,24 +22,37 @@ deliberate rather than accidental — it was found by running the CI gate, not b
 
 ## 1. Models — shipped in the product
 
-| Asset | Version | Licence | Source | Verified |
-|---|---|---|---|---|
-| YOLOX (architecture, COCO pretrained weights) | | Apache-2.0 | https://github.com/Megvii-BaseDetection/YOLOX | ☐ |
-| YuNet — face detection | | *see model dir LICENSE* | https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet | ☐ |
-| SFace — face recognition | | Apache-2.0 | https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface | ☐ |
-| Fire/smoke detector | | **Ours** — trained in-house | see §2 for training data provenance | ☐ |
+| Asset | Directory | Version | Licence | Source | Verified |
+|---|---|---|---|---|---|
+| YOLOX-Nano / Tiny — person detection | `models/yolox_person` | release 0.1.1rc0 | **Apache-2.0** | https://github.com/Megvii-BaseDetection/YOLOX/releases/tag/0.1.1rc0 | ☑ 2026-08-11 |
+| YOLOX-S — person detection (benchmark reference) | `models/yolox_person` | 2022nov | **Apache-2.0** | https://github.com/opencv/opencv_zoo/tree/main/models/object_detection_yolox | ☑ 2026-08-11 |
+| YuNet — face detection | *(Phase 8)* | 2023mar | **MIT** — © 2020 Shiqi Yu | https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet | ☑ 2026-08-11 |
+| SFace — face recognition | *(Phase 8)* | 2021dec | **Apache-2.0** | https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface | ☑ 2026-08-11 |
+| Fire/smoke detector | *(Phase 7)* | — | **Ours** — trained in-house | see §2 for training data provenance | ☐ |
 
-Every in-house checkpoint ships with `models/<name>/manifest.json` recording the dataset versions and
-content hashes it was trained on, the training config, and the git commit. Without this there is no
-way to answer *"which shipped weights are affected?"* if a dataset's terms later prove different from
-what is recorded here — which, for a product being sold, is the question that actually matters.
+Every model directory ships a `manifest.json` recording licence, source, SHA-256 per weight file,
+and — for in-house checkpoints — the dataset versions and hashes it was trained on, the training
+config, and the git commit. Without this there is no way to answer *"which shipped weights are
+affected?"* if a dataset's terms later prove different from what is recorded here, which for a
+product being sold is the question that actually matters. Enforced by CI (§6.1).
 
-> **Action before first release:** open each `opencv_zoo` model directory and read its own
-> `LICENSE` file. The zoo repository carries a top-level licence, but individual model directories
-> carry their own and they are not all identical. Record the exact licence found, then tick Verified.
+The manifest is also **load-bearing for correctness**, not only for licensing: it records each
+model's expected colour order. Megvii's own exports expect BGR while OpenCV Zoo's re-export of the
+same architecture expects RGB, and feeding the wrong one degrades recall by roughly a quarter
+without raising any error. A model dropped into `models/` without a manifest fails at load.
 
-> **Action:** confirm on the YOLOX repository that the released `.pth` / ONNX weights are covered by
-> the same Apache-2.0 licence as the code, and record the answer here.
+### Verification record — 2026-08-11
+
+Each `opencv_zoo` model directory carries its own `LICENSE`, and they are **not** all identical, so
+each was read directly rather than inferred from the repository's top-level licence:
+
+- `models/object_detection_yolox/LICENSE` → Apache License 2.0
+- `models/face_detection_yunet/LICENSE` → **MIT License**, © 2020 Shiqi Yu <shiqi.yu@gmail.com>
+- `models/face_recognition_sface/LICENSE` → Apache License 2.0
+
+YuNet being MIT rather than Apache-2.0 is the reason this check mattered. The YOLOX release weights
+are covered by the YOLOX repository's Apache-2.0 licence; the ONNX files are published as release
+assets of that same repository.
 
 ### Deliberately excluded
 

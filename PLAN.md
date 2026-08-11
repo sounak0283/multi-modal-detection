@@ -210,12 +210,25 @@ OpenCV and ORT each grabbing every core is the classic cause of *"it got slower 
 
 ### Latency budget (target, 4–8 core CPU)
 
-| Stage | Model | Input | Cadence | Est. |
-|---|---|---|---|---|
-| Person | YOLOX-nano | 416×416 | every 2nd frame (~6–8 fps) | 25–40 ms (INT8) / 50–90 ms (FP32) |
-| Fire/smoke | YOLOX-nano | 416×416 | every 8th frame, offset (~1.5–2 fps) | as above |
-| Track + boundary | ByteTrack (Kalman) | — | **detection frames only** | < 2 ms |
-| Face | YuNet + SFace | 320 crop from **full-res** frame | on event only | ~15 + 20 ms |
+**Measured 2026-08-11** on the dev machine (AMD Zen 2, 6 physical cores, ORT 1.28, 5 intra-op
+threads), 30 timed passes over 768×576 pedestrian footage:
+
+| Stage | Model | Input | Cadence | Median | Result |
+|---|---|---|---|---|---|
+| Person | **YOLOX-nano FP32** | 416×416 | every 2nd frame | **25.6 ms → 39 fps** | ✅ ~5× headroom |
+| Person (alt) | YOLOX-tiny FP32 | 416×416 | every 2nd frame | 52.4 ms → 19 fps | ✅ affordable if nano's accuracy falls short |
+| Person (ref) | YOLOX-S FP32 | 640×640 | — | 172.7 ms → 5.8 fps | ❌ too heavy |
+| Person (ref) | YOLOX-S **INT8** | 640×640 | — | 2217 ms → 0.5 fps | ❌ see §9.2 |
+| Fire/smoke | YOLOX-nano | 416×416 | every 8th frame, offset | ~26 ms expected | same architecture |
+| Track + boundary | ByteTrack (Kalman) | — | **detection frames only** | < 2 ms | |
+| Face | YuNet + SFace | 320 crop from **full-res** frame | on event only | ~15 + 20 ms | not yet measured |
+
+Nano's stage split is 2.7 ms preprocess / 19.2 ms forward / 3.5 ms postprocess. Preprocess and
+postprocess are ~24 % of the budget, so a faster model alone would yield less than it appears —
+worth remembering before optimising the network further.
+
+The headroom is real but should not be spent casually: it is what absorbs the fire/smoke model,
+the tracker, JPEG encoding for the ring buffer, and the decode thread competing for the same cores.
 
 A person walking at 1.5 m/s moves ~20 cm between person-inference frames and the Kalman filter
 interpolates that comfortably. Someone *running* at 4 m/s moves ~60 cm — still fine for a tripwire
@@ -631,19 +644,30 @@ lands under 8 fps on the target machine, the entire cadence table in §4 needs r
 decode fps, larger frame skip, or 320 input. Discovering that in week one is cheap. Discovering it in
 week six means rebuilding the threading model.
 
-### 9.2 Quantisation is an experiment, not a mandate
+### 9.2 Quantisation — SETTLED, and the answer is no
 
-Rev 1 mandated INT8 in Phase 1 as "roughly a 2–3× speedup for a small mAP cost." That figure assumes
-**AVX512-VNNI**. On a plain AVX2 laptop, ORT INT8 typically lands ~1.3–1.8×, and on an
-already-tiny nano model the quantise/dequantise overhead sometimes makes it a wash. INT8 also tends
-to cost disproportionate accuracy on small objects — distant wisps of smoke, i.e. the priority class.
+Rev 1 mandated INT8 as "roughly a 2–3× speedup for a small mAP cost." Rev 2 downgraded it to an
+experiment. **The experiment has now run, and INT8 is a dead end on this hardware.**
 
-So: **benchmark FP32, FP16 and INT8 in Phase 1 and pick from data.** Confirm the target CPU's
-instruction set first (§11). Calibrate INT8 with ~300 images from the actual camera using
-`onnxruntime.quantization.quantize_static`.
+Measured 2026-08-11, YOLOX-S @640 on AMD Zen 2:
 
-It still belongs in Phase 1 rather than as a final polish pass, because it determines which input
-resolution is affordable — it changes design decisions rather than merely optimising them.
+| Precision | Median forward | Throughput | vs FP32 |
+|---|---|---|---|
+| FP32 | 158 ms | 5.8 fps | — |
+| INT8 | 2206 ms | 0.5 fps | **0.01× — 14× slower** |
+
+Not merely "less than 2–3×" — an order of magnitude *worse*. Zen 2 has AVX2 but no AVX512-VNNI, so
+ORT has no fast INT8 convolution kernel and falls back to a path dominated by per-operator
+quantise/dequantise conversion. The quoted speedups in the literature quietly assume VNNI.
+
+**Decision: ship FP32.** It is unnecessary anyway — YOLOX-nano FP32 at 416 already delivers 39 fps
+against an 8 fps requirement (§4). Quantisation was solving a problem that the correct model size
+had already solved.
+
+Revisit only if the deployment CPU is confirmed to be Intel with AVX512-VNNI, or if the fire/smoke
+model turns out heavier than nano. The benchmark tool (`tools/benchmark_fps.py`) makes rerunning
+this a single command on any candidate machine, and it should be rerun on the actual target box
+before deployment rather than assumed from these numbers.
 
 ### 9.3 Site validation — positives, not just negatives
 

@@ -1,0 +1,66 @@
+{
+  "name": "yolox_person",
+  "role": "person detection (COCO class 0)",
+  "licence": "Apache-2.0",
+  "licence_verified": "2026-08-11. opencv_zoo weights: read models/object_detection_yolox/LICENSE, confirmed Apache-2.0. Megvii release weights: covered by the YOLOX repository's Apache-2.0 licence.",
+  "source": "https://github.com/Megvii-BaseDetection/YOLOX/releases/tag/0.1.1rc0",
+  "source_zoo": "https://github.com/opencv/opencv_zoo/tree/main/models/object_detection_yolox",
+  "downloaded": "2026-08-11",
+  "preprocessing": {
+    "resize": "letterbox to the model input size, pad value 114, ratio = min(H_in/h, W_in/w), top-left placement",
+    "normalisation": "none - raw 0-255 float32",
+    "layout": "NCHW",
+    "colour": "PER-MODEL, see files[].to_rgb below",
+    "colour_note": "Upstream YOLOX preproc does no colour conversion, so Megvii release exports expect BGR. OpenCV Zoo's demo applies cvtColor(BGR2RGB) before inference, so the zoo re-export expects RGB. Measured 2026-08-11 on a pedestrian clip: official yolox_nano found 8 people with BGR vs 6 with RGB. Wrong order degrades silently."
+  },
+  "files": [
+    {
+      "file": "yolox_nano.onnx",
+      "architecture": "YOLOX-Nano",
+      "input": [416, 416],
+      "anchors": 3549,
+      "precision": "fp32",
+      "to_rgb": false,
+      "bytes": 3659407,
+      "sha256": "c789161ed43c8269fcd4e67c67eeeb4e80c622da2eb296a20bc6007bd18a0b7d",
+      "note": "The PLAN.md section 4 target model."
+    },
+    {
+      "file": "yolox_tiny.onnx",
+      "architecture": "YOLOX-Tiny",
+      "input": [416, 416],
+      "anchors": 3549,
+      "precision": "fp32",
+      "to_rgb": false,
+      "bytes": 20219662,
+      "sha256": "427cc366d34e27ff7a03e2899b5e3671425c262ea2291f88bb942bc1cc70b0f7",
+      "note": "Fallback if nano's accuracy proves insufficient and the fps budget allows."
+    },
+    {
+      "file": "object_detection_yolox_2022nov.onnx",
+      "architecture": "YOLOX-S",
+      "input": [640, 640],
+      "anchors": 8400,
+      "precision": "fp32",
+      "to_rgb": true,
+      "bytes": 35849216,
+      "sha256": "c5c2d13e59ae883e6af3b45daea64af4833a4951c92d116ec270d9ddbe998063",
+      "note": "OpenCV Zoo re-export. Benchmarked as an upper bound on cost; too heavy for the target CPU."
+    },
+    {
+      "file": "object_detection_yolox_2022nov_int8.onnx",
+      "architecture": "YOLOX-S",
+      "input": [640, 640],
+      "anchors": 8400,
+      "precision": "int8",
+      "to_rgb": true,
+      "bytes": 9083904,
+      "sha256": "01a3b0f400b30bc1e45230e991b2e499ab42622485a330021947333fbaf03935",
+      "note": "Benchmarked 11x SLOWER than fp32 on AMD Zen 2 (no AVX512-VNNI). See PLAN.md section 9.2."
+    }
+  ],
+  "io": {
+    "output_layout": "[1, anchors, 85] undecoded: 4 box + 1 objectness + 80 COCO classes",
+    "anchor_note": "anchors = sum over strides 8/16/32 of (H/s * W/s). 416 -> 52^2+26^2+13^2 = 3549. 640 -> 80^2+40^2+20^2 = 8400."
+  }
+}

@@ -1,0 +1,9 @@
+# Normalise line endings so Windows dev boxes and Linux CI agree.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.mp4 binary
+*.onnx binary
+*.pth binary
+*.npz binary
