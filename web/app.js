@@ -19,7 +19,8 @@ const HIT_RADIUS = 9;
 const $ = (id) => document.getElementById(id);
 
 const state = {
-  mode: 'live',
+  mode: 'live',   // canvas engine vocabulary: live | edit | camera | events
+  view: 'live',   // navigation vocabulary:    live | zones | camera | history
   zones: [],
   selected: -1,
   drawing: null,   // { type, points: [] }
@@ -345,8 +346,8 @@ function updateHint() {
       : 'Click the two ends of the line · Esc to cancel';
   } else {
     hint.textContent = state.zones.length
-      ? 'Click a zone to select · drag a handle to move · right-click a handle to delete'
-      : 'Pick a tool below to draw your first zone';
+      ? 'Click a boundary to select · drag a handle to move · right-click a handle to delete'
+      : 'Choose a boundary type below to draw your first one';
   }
 }
 
@@ -358,7 +359,7 @@ function renderList() {
   list.innerHTML = '';
 
   if (!state.zones.length) {
-    list.innerHTML = '<li class="empty">No zones yet.</li>';
+    list.innerHTML = '<li class="empty">No boundaries yet.</li>';
     return;
   }
   state.zones.forEach((zone, index) => {
@@ -382,7 +383,7 @@ function select(index) {
   state.selected = index;
   renderList();
   const panel = $('rules-panel');
-  panel.hidden = index < 0 || state.mode === 'camera';
+  panel.hidden = index < 0 || state.view !== 'zones';
   if (index >= 0) loadRules(state.zones[index]);
   draw();
 }
@@ -528,12 +529,14 @@ async function validateSelected() {
 
 function markDirty() {
   state.dirty = true;
-  $('btn-save').disabled = false;
+  const save = $('btn-save');
+  if (save) save.disabled = false;
 }
 
-$('btn-save').addEventListener('click', async () => {
+async function saveZones() {
   collectRules();
-  $('btn-save').disabled = true;
+  const save = $('btn-save');
+  if (save) save.disabled = true;
   try {
     const response = await fetch('/api/zones', {
       method: 'PUT',
@@ -546,12 +549,13 @@ $('btn-save').addEventListener('click', async () => {
     }
     const result = await response.json();
     state.dirty = false;
-    toast(`Saved ${result.saved} zone(s). The engine reloaded without a restart.`, 'ok');
+    const noun = result.saved === 1 ? 'boundary' : 'boundaries';
+    toast(`Saved ${result.saved} ${noun}. Applied without a restart.`, 'ok');
   } catch (error) {
-    $('btn-save').disabled = false;
+    if (save) save.disabled = false;
     toast(error.message, 'error');
   }
-});
+}
 
 window.addEventListener('beforeunload', (event) => {
   if (state.dirty) { event.preventDefault(); event.returnValue = ''; }
@@ -579,7 +583,8 @@ function updateCadenceNote() {
   // camera frames.
   const detection = decode / 2;
   $('cadence-note').textContent = decode
-    ? `Detection runs at ~${detection.toFixed(1)} Hz. Zone hysteresis is counted in these frames.`
+    ? `Detection runs at ~${detection.toFixed(1)} Hz. `
+      + 'Boundary hysteresis is counted in these frames, not camera frames.'
     : '';
 }
 $('f-decode').addEventListener('input', updateCadenceNote);
@@ -713,15 +718,34 @@ function pillClass(event) {
   return event.kind || 'health';
 }
 
-function renderStats(summary) {
-  const today = summary.today || {};
-  const total = summary.counts || {};
+function renderStats(summary, events) {
   const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+  let today;
+  let total;
+  let suffix = '';
+
+  if (summary.available) {
+    today = summary.today || {};
+    total = summary.counts || {};
+  } else {
+    // Without PostgreSQL there is nothing to aggregate, but showing "0 today" above a
+    // table listing today's alerts is a flat contradiction an operator would rightly
+    // distrust. Count what is actually on screen and label it as partial.
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    today = {};
+    for (const e of events) {
+      if (new Date(e.ts) >= midnight) today[e.kind] = (today[e.kind] || 0) + 1;
+    }
+    total = today;
+    suffix = ' (in memory)';
+  }
+
   const cells = [
-    ['Today', sum(today)],
+    ['Today' + suffix, sum(today)],
     ['Boundary today', today.boundary || 0],
     ['Fire / smoke today', (today.fire || 0) + (today.smoke || 0)],
-    ['All time', sum(total)],
+    [summary.available ? 'All time' : 'Held in memory', sum(total)],
   ];
   $('h-stats').innerHTML = cells
     .map(([k, n]) => `<div class="stat"><div class="n">${n}</div><div class="k">${k}</div></div>`)
@@ -743,7 +767,7 @@ async function loadHistory() {
       (await fetch('/api/events/summary')).json(),
     ]);
 
-    renderStats(summary);
+    renderStats(summary, data.events);
     const rows = $('h-rows');
 
     if (!data.events.length) {
@@ -773,7 +797,7 @@ async function loadHistory() {
 function refreshZoneFilter() {
   const select = $('h-zone');
   const current = select.value;
-  select.innerHTML = '<option value="">All zones</option>' +
+  select.innerHTML = '<option value="">All boundaries</option>' +
     state.zones.filter((z) => z.type === 'polygon' || z.type === 'tripwire')
       .map((z) => `<option value="${escapeHtml(z.id)}">${escapeHtml(z.name || z.id)}</option>`)
       .join('');
@@ -783,31 +807,65 @@ function refreshZoneFilter() {
 ['h-kind', 'h-zone', 'h-limit'].forEach((id) => $(id).addEventListener('change', loadHistory));
 $('h-refresh').addEventListener('click', loadHistory);
 
-/* ------------------------------------------------------------------ modes */
+/* ------------------------------------------------------------------ views */
 
-function setMode(mode) {
-  state.mode = mode;
-  $('btn-live').classList.toggle('active', mode === 'live');
-  $('btn-edit').classList.toggle('active', mode === 'edit');
-  $('btn-camera').classList.toggle('active', mode === 'camera');
-  $('btn-events').classList.toggle('active', mode === 'events');
+const VIEWS = {
+  live:    { title: 'Live view',     sub: 'Detections and boundaries as they happen.' },
+  zones:   { title: 'Boundaries',    sub: 'Draw the areas and lines that raise alerts.' },
+  camera:  { title: 'Camera',        sub: 'Source, resolution and capture rate.' },
+  history: { title: 'Alert history', sub: 'Every alert this system has recorded.' },
+};
 
-  $('history-stage').hidden = mode !== 'events';
-  $('video-stage').hidden = mode === 'events';
-  $('toolbar').hidden = mode !== 'edit';
-  $('camera-panel').hidden = mode !== 'camera';
-  $('zones-panel').hidden = mode === 'camera' || mode === 'events';
-  if (mode === 'camera' || mode === 'events') $('rules-panel').hidden = true;
+function renderTopbarActions(view) {
+  const host = $('topbar-actions');
+  host.innerHTML = '';
+  if (view !== 'zones') return;
 
-  if (mode === 'events') {
+  const save = document.createElement('button');
+  save.id = 'btn-save';
+  save.className = 'primary';
+  save.textContent = 'Save boundaries';
+  save.disabled = !state.dirty;
+  save.addEventListener('click', saveZones);
+  host.appendChild(save);
+}
+
+function setView(view) {
+  // `state.mode` keeps the drawing engine's vocabulary ('edit'), while the nav uses the
+  // operator's ('zones'). Renaming inside the canvas code would touch far more than it
+  // is worth.
+  state.mode = view === 'zones' ? 'edit' : view === 'history' ? 'events' : view;
+  state.view = view;
+
+  document.querySelectorAll('.nav-item').forEach((b) =>
+    b.classList.toggle('active', b.dataset.view === view));
+
+  $('view-title').textContent = VIEWS[view].title;
+  $('view-sub').textContent = VIEWS[view].sub;
+  renderTopbarActions(view);
+
+  $('view-video').hidden = view !== 'live' && view !== 'zones';
+  $('view-camera').hidden = view !== 'camera';
+  $('view-history').hidden = view !== 'history';
+
+  $('toolbar').hidden = view !== 'zones';
+  $('zones-panel').hidden = view !== 'zones';
+  $('recent-panel').hidden = view !== 'live';
+  if (view !== 'zones') $('rules-panel').hidden = true;
+
+  if (view === 'history') {
     refreshZoneFilter();
     loadHistory();
     return;
   }
+  if (view === 'camera') {
+    if (!cameraLoaded) loadCamera();
+    return;
+  }
 
-  if (mode === 'edit') {
+  if (view === 'zones') {
     // Freeze a still as the drawing backdrop: a moving image makes precise clicking
-    // miserable, and the zone is static anyway.
+    // miserable, and the boundary is static anyway.
     backdrop.src = `/api/snapshot?t=${Date.now()}`;
     select(state.selected);
   } else {
@@ -819,13 +877,9 @@ function setMode(mode) {
   draw();
 }
 
-$('btn-live').addEventListener('click', () => setMode('live'));
-$('btn-edit').addEventListener('click', () => setMode('edit'));
-$('btn-camera').addEventListener('click', () => {
-  if (!cameraLoaded) loadCamera();
-  setMode('camera');
+document.querySelectorAll('.nav-item').forEach((button) => {
+  button.addEventListener('click', () => setView(button.dataset.view));
 });
-$('btn-events').addEventListener('click', () => setMode('events'));
 
 /* ----------------------------------------------------------------- polling */
 
@@ -834,7 +888,7 @@ async function loadZones() {
     const data = await (await fetch('/api/zones')).json();
     if (state.dirty) return;
     state.zones = data.zones || [];
-    if (data.error) toast(`zones.yaml rejected: ${data.error}`, 'error');
+    if (data.error) toast(`Boundary file rejected — previous config kept: ${data.error}`, 'error');
     renderList();
     updateHint();
     draw();
@@ -856,12 +910,15 @@ async function pollHealth() {
       ? 'recording'
       : db.configured ? 'db down' : 'not recording';
 
-    $('perf').textContent = health.inference_ms != null
-      ? `${health.inference_ms} ms · ${health.people_tracked ?? 0} tracked · ${health.events_fired ?? 0} events`
-      : '—';
+    $('sys-zones').textContent = health.zones ?? 0;
+    $('sys-perf').textContent = health.inference_ms != null
+      ? `${health.render_fps ?? 0} fps · ${health.inference_ms} ms · `
+        + `${health.people_tracked ?? 0} tracked · ${health.events_fired ?? 0} alerts`
+      : 'pipeline not running';
   } catch {
     $('feed-dot').className = 'dot lost';
-    $('feed-text').textContent = 'api unreachable';
+    $('feed-text').textContent = 'unreachable';
+    $('sys-perf').textContent = 'API unreachable';
   }
 }
 
@@ -890,7 +947,7 @@ window.addEventListener('resize', resizeCanvas);
 
 renderDays();
 loadZones();
-setMode('live');
+setView('live');
 pollHealth();
 pollEvents();
 setInterval(pollHealth, 2000);

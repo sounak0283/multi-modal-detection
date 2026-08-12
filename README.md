@@ -126,12 +126,34 @@ python -m fsbd.main --source clip.mp4   # or point it at a file
 
 Then open <http://127.0.0.1:8000>.
 
-- **Live** — MJPEG stream with zones, tracked IDs and foot points drawn on it
-- **Zones** — freezes a frame; click to place vertices, double-click or Enter to close,
-  drag handles to adjust, right-click a handle to delete
+Four views in a sidebar shell:
+
+- **Live view** — MJPEG stream with boundaries, tracked IDs and foot points drawn on it
+- **Boundaries** — freezes a frame; pick a type, click to place vertices, double-click or
+  Enter to close, drag handles to adjust, right-click a handle to delete. Properties
+  panel for name, classes, events, direction, severity, hysteresis and active hours
 - **Camera** — webcam/CCTV toggle, resolution, fps, **Test connection**, save and
   hot-reconnect without restarting
-- **History** — every recorded alert, with type/zone filters and daily counts
+- **Alert history** — every recorded alert with type and boundary filters, plus counts
+
+The status rail shows **camera and recording as separate indicators**, because they fail
+independently: a dead camera means the site is unwatched, a dead database means alerts
+are firing but not being kept.
+
+### UI end-to-end test
+
+```bash
+python -m fsbd.main --source clip.mp4 --port 8081 &
+python tools/ui_e2e.py http://127.0.0.1:8081 ./shots
+```
+
+Drives the real browser: draws a boundary by clicking the canvas, saves, verifies the
+stored coordinates match where it clicked, then waits for alerts to fire. It is the only
+test that exercises canvas coordinate mapping, and it has already earned its keep — it
+caught a transparent hint overlay silently swallowing clicks in the bottom-left of the
+frame, which cost a vertex on any boundary drawn near that corner.
+
+Needs `pip install playwright && playwright install chromium` (dev only).
 - Four zone types: **Zone** (entry/exit), **Tripwire** (directional), **Exclusion**
   (suppress detections), **Fire ROI** (bias fire/smoke confidence)
 - Per-zone rules: name, classes, events, direction, severity, hysteresis, schedule

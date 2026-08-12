@@ -164,7 +164,15 @@ def test_health_redacts_camera_credentials():
 def test_index_is_served(client):
     response = client.get("/")
     assert response.status_code == 200
-    assert "Boundary Zones" in response.text
+    assert "Perimeter" in response.text
+
+
+def test_index_exposes_every_navigation_view(client):
+    """tools/ui_e2e.py drives the UI by these data-view values, so a rename here
+    would silently disarm the only test that exercises canvas interaction."""
+    body = client.get("/").text
+    for view in ("live", "zones", "camera", "history"):
+        assert f'data-view="{view}"' in body
 
 
 def test_editor_assets_are_served(client):
