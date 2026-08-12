@@ -50,6 +50,33 @@ jobs:
       - name: Gate 2 - model and dataset provenance
         run: python tools/check_notice.py --assets models data --notice NOTICE.md
 
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+        working-directory: frontend
+
+      # Gate 3: npm packages.
+      #
+      # pip-licenses is blind to node_modules, and the frontend is the half that
+      # actually compiles into the bundle a customer receives.
+      - name: Gate 3 - npm licences
+        run: npm run licences
+        working-directory: frontend
+
+      - name: Build
+        run: npm run build
+        working-directory: frontend
+
   tests:
     runs-on: ubuntu-latest
     steps:

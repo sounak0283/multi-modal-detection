@@ -18,7 +18,14 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, FastAPI, HTTPException
-from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    Response,
+    StreamingResponse,
+)
+from fastapi.staticfiles import StaticFiles
 
 from fsbd.alerts.messages import boundary_message
 from fsbd.boundary.geometry import polygon_warnings, validate_polygon, validate_tripwire
@@ -37,6 +44,8 @@ from fsbd.settings import (
 log = logging.getLogger("fsbd.api")
 
 WEB_DIR = Path(__file__).resolve().parent.parent.parent.parent / "web"
+# Vite build output. Not in git - built from frontend/ during packaging.
+DIST_DIR = WEB_DIR / "dist"
 STREAM_BOUNDARY = "frame"
 
 MAX_DIMENSION = 7680  # 8K; beyond this is a typo, not a camera
@@ -135,27 +144,6 @@ def create_app(
         if pipeline is None:
             raise HTTPException(503, "pipeline is not running")
         return pipeline
-
-    # -- pages -------------------------------------------------------------
-
-    @app.get("/", include_in_schema=False)
-    def index() -> FileResponse:
-        return FileResponse(WEB_DIR / "index.html")
-
-    @app.get("/{filename}.js", include_in_schema=False)
-    def script(filename: str) -> FileResponse:
-        path = (WEB_DIR / f"{filename}.js").resolve()
-        # Path traversal guard: a crafted filename must not escape web/.
-        if not path.is_file() or WEB_DIR.resolve() not in path.parents:
-            raise HTTPException(404, "not found")
-        return FileResponse(path, media_type="application/javascript")
-
-    @app.get("/{filename}.css", include_in_schema=False)
-    def stylesheet(filename: str) -> FileResponse:
-        path = (WEB_DIR / f"{filename}.css").resolve()
-        if not path.is_file() or WEB_DIR.resolve() not in path.parents:
-            raise HTTPException(404, "not found")
-        return FileResponse(path, media_type="text/css")
 
     # -- zones -------------------------------------------------------------
 
@@ -436,4 +424,51 @@ def create_app(
         return JSONResponse(active.engine.track_states())
 
     app.include_router(router)
+    _mount_frontend(app)
     return app
+
+
+def _mount_frontend(app: FastAPI) -> None:
+    """Serve the built React dashboard.
+
+    Mounted AFTER the API router so /api always wins. One process on one port keeps
+    deployment to a single service on a customer's box - no separate web server to
+    install, configure and keep patched.
+    """
+    index = DIST_DIR / "index.html"
+    if not index.is_file():
+        @app.get("/", include_in_schema=False)
+        def missing_build() -> HTMLResponse:
+            # A blank page would look like a crashed backend; say what is actually wrong.
+            return HTMLResponse(
+                "<h1>Dashboard not built</h1>"
+                "<p>Run <code>npm install &amp;&amp; npm run build</code> in "
+                "<code>frontend/</code>, then reload.</p>",
+                status_code=503,
+            )
+        log.warning("no built frontend at %s - run the frontend build", DIST_DIR)
+        return
+
+    assets = DIST_DIR / "assets"
+    if assets.is_dir():
+        app.mount("/assets", StaticFiles(directory=assets), name="assets")
+
+    @app.get("/", include_in_schema=False)
+    def spa_root() -> FileResponse:
+        return FileResponse(index)
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def spa_fallback(path: str) -> FileResponse:
+        """Serve real files, otherwise hand back index.html.
+
+        The catch-all must not shadow the API: a mistyped /api/... would otherwise
+        return the HTML page with a 200, and the client would fail on JSON parsing
+        instead of showing a clean 404.
+        """
+        if path.startswith("api/"):
+            raise HTTPException(404, "not found")
+
+        candidate = (DIST_DIR / path).resolve()
+        if candidate.is_file() and DIST_DIR.resolve() in candidate.parents:
+            return FileResponse(candidate)
+        return FileResponse(index)

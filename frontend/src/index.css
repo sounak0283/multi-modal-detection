@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+/* Design tokens.
+ *
+ * Dark by convention rather than taste: this sits alongside VMS software in a control
+ * room, and a bright page next to a video wall is fatiguing over a long shift.
+ *
+ * The neutral ramp is deliberately low-chroma so that STATUS is the only saturated
+ * colour on screen. A red dot means something because nothing else is red.
+ */
+@theme {
+  --color-ink-950: #0b0e13;
+  --color-ink-900: #10141b;
+  --color-ink-850: #141922;
+  --color-ink-800: #1a202a;
+  --color-ink-700: #232a36;
+  --color-ink-600: #2e3644;
+  --color-ink-500: #3d4756;
+  --color-ink-400: #6b7686;
+  --color-ink-300: #9aa5b5;
+  --color-ink-200: #c6cedb;
+  --color-ink-100: #e8ecf2;
+
+  --color-brand-500: #3d8bfd;
+  --color-brand-600: #2f6fd0;
+  --color-brand-900: #16304f;
+
+  --color-ok-400: #34d399;
+  --color-ok-900: #10291f;
+  --color-warn-400: #fbbf24;
+  --color-warn-900: #2a2110;
+  --color-alarm-400: #f87171;
+  --color-alarm-900: #2a1414;
+
+  /* Boundary types keep one colour across the canvas, the list and the legend, so an
+     operator learns the mapping once. */
+  --color-zone-area: #34d399;
+  --color-zone-wire: #fbbf24;
+  --color-zone-mask: #f87171;
+  --color-zone-roi: #fb923c;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Consolas, monospace;
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  background: var(--color-ink-950);
+  color: var(--color-ink-100);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Native form controls do not inherit the dark palette on Windows, which leaves white
+   dropdown arrows and light calendar icons on dark inputs. */
+select { color-scheme: dark; }
+input[type="time"], input[type="number"] { color-scheme: dark; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--color-ink-900); }
+::-webkit-scrollbar-thumb { background: var(--color-ink-600); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-ink-500); }

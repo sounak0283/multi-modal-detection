@@ -154,6 +154,43 @@ onnxruntime 1.28.0, numpy 2.5.2, shapely 2.1.2, supervision 0.30.0). Nothing in 
 shipped closure carries GPL, AGPL, LGPL, or a non-commercial term. The only non-permissive
 entries are the two MPL-2.0 components above and the dynamically linked LGPL natives in §6.
 
+## 3.1 Frontend — shipped as compiled assets
+
+The dashboard is a React single-page app built with Vite and Tailwind. Only the **built
+output** ships (`web/dist`), but the build inputs still determine what is redistributed,
+so they are recorded here.
+
+| Package | Licence | Notes |
+|---|---|---|
+| `react`, `react-dom` | MIT | Meta. Code from these ends up in the shipped bundle. |
+| `vite` | MIT | Build tool. Not itself shipped, but its runtime helpers are inlined. |
+| `@vitejs/plugin-react` | MIT | Build only. |
+| `tailwindcss`, `@tailwindcss/vite` | MIT | Generates the shipped stylesheet. |
+
+No icon or component library is used — the handful of navigation glyphs are inline SVG.
+That is a deliberate call: six icons are not worth a dependency, a licence row here, or
+the bundle weight, and icon packs are a common source of unexpected non-commercial or
+attribution-required terms.
+
+### Build-time transitive dependencies worth naming
+
+`npm run licences` audits all 78 installed packages. Two carry terms other than
+MIT/ISC/BSD/Apache. **Neither appears in the shipped bundle** — both are consumed by the
+build and discarded — but both are recorded so the decision is deliberate.
+
+| Package | Licence | Position |
+|---|---|---|
+| `lightningcss` (+ its platform binary) | **MPL-2.0** | Tailwind's CSS transformer. File-level copyleft, accepted **unmodified only** — the same standing position as `certifi` and `tqdm` in §3. Patching it would trigger a publication obligation on the patched file. |
+| `caniuse-lite` | **CC-BY-4.0** | Browser-support *data* used to decide which CSS prefixes to emit. Attribution required; see below. |
+
+> **caniuse-lite attribution.** Browser support data from
+> [caniuse.com](https://caniuse.com), © Alexis Deveria and contributors, used under
+> CC BY 4.0. Reproduce this line in `THIRD_PARTY_LICENSES.md` at release.
+
+> **Verified 2026-08-12.** Re-run `npm run licences` whenever `package.json` changes —
+> the Python gate in §6 cannot see npm packages at all, and the frontend is the half
+> that actually compiles into what a customer receives.
+
 ## 4. Development / training dependencies — not shipped
 
 Not distributed to customers, so obligations are lighter — but still recorded, because a

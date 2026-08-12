@@ -126,6 +126,18 @@ python -m fsbd.main --source clip.mp4   # or point it at a file
 
 Then open <http://127.0.0.1:8000>.
 
+**React 19 + Vite 8 + Tailwind 4**, built to `web/dist` and served by the same FastAPI
+process — one service on one port, no separate web server to install and patch on a
+customer's box.
+
+```bash
+cd frontend
+npm install
+npm run build        # → web/dist, served at /
+npm run dev          # or: Vite on :5173, proxying /api to :8000
+npm run licences     # npm licence gate (pip-licenses cannot see node_modules)
+```
+
 Four views in a sidebar shell:
 
 - **Live view** — MJPEG stream with boundaries, tracked IDs and foot points drawn on it

@@ -10,7 +10,7 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
-from fsbd.api.app import create_app
+from fsbd.api.app import DIST_DIR, create_app
 from fsbd.boundary.zones import ZoneStore
 from fsbd.settings import Settings
 
@@ -161,24 +161,40 @@ def test_health_redacts_camera_credentials():
 # -- static files ---------------------------------------------------------
 
 
-def test_index_is_served(client):
+BUILT = (DIST_DIR / "index.html").is_file()
+needs_build = pytest.mark.skipif(BUILT is False, reason="frontend not built (npm run build)")
+
+
+@needs_build
+def test_spa_shell_is_served(client):
     response = client.get("/")
     assert response.status_code == 200
-    assert "Perimeter" in response.text
+    assert 'id="root"' in response.text, "the React mount point should be present"
 
 
-def test_index_exposes_every_navigation_view(client):
-    """tools/ui_e2e.py drives the UI by these data-view values, so a rename here
-    would silently disarm the only test that exercises canvas interaction."""
-    body = client.get("/").text
-    for view in ("live", "zones", "camera", "history"):
-        assert f'data-view="{view}"' in body
+def test_missing_build_says_so_rather_than_showing_a_blank_page(client):
+    """A white screen looks like a crashed backend. If the bundle is absent the server
+    must say which command to run."""
+    if BUILT:
+        pytest.skip("frontend is built")
+    response = client.get("/")
+    assert response.status_code == 503
+    assert "npm run build" in response.text
 
 
-def test_editor_assets_are_served(client):
-    assert client.get("/app.js").status_code == 200
-    assert client.get("/app.css").status_code == 200
+def test_unknown_api_paths_404_rather_than_returning_the_spa(client):
+    """The SPA catch-all must not shadow the API. Otherwise a mistyped endpoint returns
+    HTML with a 200 and the client fails on JSON parsing instead of a clean 404."""
+    response = client.get("/api/definitely-not-an-endpoint")
+    assert response.status_code == 404
+    assert "<html" not in response.text.lower()
 
 
-def test_path_traversal_is_blocked(client):
-    assert client.get("/../../secrets.js").status_code in (404, 400)
+@needs_build
+def test_traversal_cannot_read_files_outside_the_bundle(client):
+    """An SPA answers unknown paths with index.html, which is correct - what must never
+    happen is a file from outside web/dist coming back."""
+    for attack in ("/../NOTICE.md", "/..%2fNOTICE.md", "/assets/../../NOTICE.md"):
+        response = client.get(attack)
+        assert response.status_code in (200, 404)
+        assert "Third-party models" not in response.text, f"{attack} escaped the bundle"

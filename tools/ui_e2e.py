@@ -56,9 +56,9 @@ def main(argv: list[str]) -> int:
         page.wait_for_timeout(2500)
 
         # -- draw ----------------------------------------------------------
-        page.click('.nav-item[data-view="zones"]')
+        page.click('[data-view="boundaries"]')
         page.wait_for_timeout(1500)
-        page.click('.tool[data-type="polygon"]')
+        page.click('[data-type="polygon"]')
 
         box = page.locator("#overlay").bounding_box()
         print(f"canvas: {box['width']:.0f}x{box['height']:.0f}")
@@ -110,7 +110,7 @@ def main(argv: list[str]) -> int:
             problems.append("no alerts fired after drawing the boundary")
 
         for view in ("live", "history"):
-            page.click(f'.nav-item[data-view="{view}"]')
+            page.click(f'[data-view="{view}"]')
             page.wait_for_timeout(2000)
             page.screenshot(path=str(out / f"ui_{view}.png"))
 

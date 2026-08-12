@@ -1,0 +1,23 @@
+{
+  "name": "fsbd-dashboard",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Perimeter - control console for fire, smoke and boundary detection",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "licences": "node scripts/check-licences.mjs"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "tailwindcss": "^4.3.0",
+    "vite": "^8.2.0"
+  }
+}
