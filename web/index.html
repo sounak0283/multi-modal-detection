@@ -14,18 +14,63 @@
     <span class="dot" id="feed-dot"></span>
     <span id="feed-text">connecting…</span>
     <span class="sep">·</span>
+    <!-- Storage is a separate indicator from the camera on purpose: they fail
+         independently and the operator response differs. A dead camera means the site
+         is unwatched; a dead database means alerts fire but are not recorded. -->
+    <span class="dot" id="db-dot" title="Alert storage"></span>
+    <span id="db-text">db</span>
+    <span class="sep">·</span>
     <span id="perf">—</span>
   </div>
   <div class="header-actions">
     <button id="btn-live" class="toggle active" title="Live view with detections">Live</button>
-    <button id="btn-edit" class="toggle" title="Freeze a frame and draw zones">Edit</button>
+    <button id="btn-edit" class="toggle" title="Freeze a frame and draw zones">Zones</button>
     <button id="btn-camera" class="toggle" title="Camera source and resolution">Camera</button>
+    <button id="btn-events" class="toggle" title="Alert history">History</button>
     <button id="btn-save" class="primary" disabled>Save</button>
   </div>
 </header>
 
 <main>
-  <section class="stage">
+  <section class="stage" id="history-stage" hidden>
+    <div class="panel history-panel">
+      <div class="history-head">
+        <h2>Alert history</h2>
+        <div class="history-filters">
+          <select id="h-kind">
+            <option value="">All types</option>
+            <option value="boundary">Boundary</option>
+            <option value="fire">Fire</option>
+            <option value="smoke">Smoke</option>
+            <option value="health">Camera health</option>
+          </select>
+          <select id="h-zone"><option value="">All zones</option></select>
+          <select id="h-limit">
+            <option value="50">Last 50</option>
+            <option value="200" selected>Last 200</option>
+            <option value="500">Last 500</option>
+          </select>
+          <button id="h-refresh">Refresh</button>
+        </div>
+      </div>
+
+      <div class="stat-row" id="h-stats"></div>
+      <div class="table-scroll">
+        <table class="history">
+          <thead>
+            <tr>
+              <th>Time</th><th>Alert</th><th>Zone</th><th>Type</th>
+              <th>Track</th><th>Severity</th>
+            </tr>
+          </thead>
+          <tbody id="h-rows"></tbody>
+        </table>
+      </div>
+      <p class="history-source" id="h-source"></p>
+    </div>
+  </section>
+
+  <section class="stage" id="video-stage">
     <div class="canvas-wrap" id="canvas-wrap">
       <img id="backdrop" alt="camera view">
       <canvas id="overlay"></canvas>

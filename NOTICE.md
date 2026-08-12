@@ -60,6 +60,7 @@ Recorded so the decision is not silently reversed by a future contributor.
 
 | Excluded | Licence | Reason |
 |---|---|---|
+| `psycopg2` / `psycopg` (PostgreSQL drivers) | LGPL-with-exceptions / LGPL-3.0 | The default choice for Postgres in Python. Replaced by `pg8000` (BSD-3-Clause). |
 | Ultralytics YOLOv5 / v8 / v11 (code + weights) | AGPL-3.0 | Network use or distribution triggers full source disclosure. |
 | YOLOv6 (Meituan), YOLOv7 | GPL-3.0 | Copyleft. |
 | YOLO-NAS | Apache code, non-commercial weights | Repo badge looks clean; the weights are not. |
@@ -133,6 +134,16 @@ Not a licence obligation under CC0, but requested by the authors and worth honou
 | `requests` | Apache-2.0 | |
 | `PyYAML` | MIT | |
 | `python-dotenv` | BSD-3-Clause | Loads `.env`, keeping camera credentials out of the repository. No runtime dependencies. |
+| `pg8000` | BSD-3-Clause | PostgreSQL driver. Pure Python — also removes a compiler from the installer. **Chosen over psycopg for licence reasons, see below.** |
+| PostgreSQL server | PostgreSQL Licence (permissive, BSD-style) | Not redistributed by us; the customer runs their own instance. |
+
+> **Why not psycopg.** The obvious PostgreSQL driver is `psycopg2` (LGPL-with-exceptions)
+> or `psycopg` v3 (LGPL-3.0). Both are excluded by the policy above and would be caught
+> by the CI gate in §6 on the first `pip install` — the default choice would have broken
+> this project's own rules. `pg8000` is BSD-3-Clause and DB-API 2.0 compliant.
+> `asyncpg` (Apache-2.0) is also clean but async-only, which does not fit a threaded
+> pipeline. Recorded so the decision is not silently reversed by someone reaching for the
+> more familiar library.
 | SQLite | Public domain | Bundled with CPython. |
 | `certifi` | **MPL-2.0** | Transitive via `requests`. File-level copyleft — acceptable **unmodified only**, see policy note above. |
 | `tqdm` | **MPL-2.0 AND MIT** | Transitive via `supervision`. Same condition as `certifi`. |

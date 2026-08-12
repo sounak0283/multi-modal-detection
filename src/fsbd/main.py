@@ -18,10 +18,12 @@ from pathlib import Path
 
 import uvicorn
 
+from fsbd.alerts.bus import AlertBus
 from fsbd.api.app import create_app
 from fsbd.boundary.zones import ZoneStore
 from fsbd.pipeline import Pipeline
 from fsbd.settings import describe_source, load_settings
+from fsbd.store.db import Database
 
 log = logging.getLogger("fsbd")
 
@@ -65,6 +67,23 @@ def main(argv: list[str] | None = None) -> int:
 
     store = ZoneStore(settings.zones_path, camera_id=settings.camera.id)
 
+    # Storage is optional and failure here is non-fatal. Detection outranks persistence:
+    # a database outage must never stop the cameras, which would turn a storage problem
+    # into a security incident.
+    database = None
+    if settings.storage.enabled:
+        try:
+            database = Database(settings.storage.database_url)
+            database.migrate()
+        except Exception as exc:  # noqa: BLE001
+            log.error("PostgreSQL unavailable (%s) - alerts will not be recorded", exc)
+            database = None
+    else:
+        log.warning("FSBD_DATABASE_URL is not set - alerts will not be recorded")
+
+    alerts = AlertBus(database=database)
+    alerts.start()
+
     autostart = settings.camera.autostart and not args.no_pipeline
     if not autostart and not args.no_pipeline:
         log.info("FSBD_AUTOSTART_CAMERA is false - serving the dashboard without a camera")
@@ -76,10 +95,10 @@ def main(argv: list[str] | None = None) -> int:
                 "model not found: %s\nSee README for the download step.", args.model
             )
             return 1
-        pipeline = Pipeline(settings, store, str(args.model))
+        pipeline = Pipeline(settings, store, str(args.model), alerts=alerts)
         pipeline.start()
 
-    app = create_app(settings, store, pipeline)
+    app = create_app(settings, store, pipeline, database=database)
     host = args.host or settings.api.host
     port = args.port or settings.api.port
 
@@ -91,6 +110,9 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         if pipeline is not None:
             pipeline.stop()
+        alerts.stop()
+        if database is not None:
+            database.close()
     return 0
 
 

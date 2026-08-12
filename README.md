@@ -76,6 +76,47 @@ a source runs it through `redact()` first — otherwise it lands in log archives
 `/api/health` response, and support bundles. The dashboard treats the URL as
 **write-only**: you can replace it, never read it back.
 
+## Alert storage (PostgreSQL)
+
+Every alert is written to PostgreSQL and read back by the dashboard's **History** view.
+
+```bash
+# 1. edit the password inside sql/setup.sql, then run it as a superuser
+psql -U postgres -f sql/setup.sql
+
+# 2. put the URL in .env
+FSBD_DATABASE_URL=postgresql://fsbd_app:YOURPASS@localhost:5432/fsbd
+```
+
+The schema is applied automatically at startup and is idempotent. `sql/schema.sql` is the
+readable reference.
+
+Alert wording is `Someone entered <zone>` / `Someone left <zone>`, with a timestamp. The
+sentence is **stored on the row** rather than rebuilt at read time, so history always
+shows what was actually sent even after the wording changes.
+
+**Detection outranks persistence.** If PostgreSQL is unreachable the system keeps
+detecting, the dashboard keeps showing alerts from memory, and the alert bus retries with
+backoff. The header shows storage as a **separate indicator** from the camera — "alerts
+firing but not recorded" needs a different response from "site unwatched".
+
+> Driver note: this uses **pg8000** (BSD-3-Clause), not psycopg. `psycopg2` is
+> LGPL-with-exceptions and `psycopg` v3 is LGPL-3.0 — the obvious choice would have failed
+> the licence gate. See NOTICE.md §3.
+
+### Ready for face recognition, not doing it yet
+
+The schema carries a `persons` table and `identity_status` / `identity_name` /
+`person_id` columns on `events`, created now and unused. Adding YuNet + SFace later
+becomes "populate the table and set three columns" instead of a schema migration against
+a table that by then holds live alert history.
+
+`alerts/messages.py` has the matching seam: `subject_for()` returns `"Someone"` today and
+a person's name once identity lands. A face found but not matched reads *"An unrecognised
+person"*; **no usable face reads the same as having no identity layer at all** — outdoors
+at a gate that is the common case, and rendering abstention as an accusation would be
+worse than saying nothing.
+
 ## Dashboard
 
 ```bash
@@ -86,10 +127,11 @@ python -m fsbd.main --source clip.mp4   # or point it at a file
 Then open <http://127.0.0.1:8000>.
 
 - **Live** — MJPEG stream with zones, tracked IDs and foot points drawn on it
-- **Edit** — freezes a frame; click to place vertices, double-click or Enter to close,
+- **Zones** — freezes a frame; click to place vertices, double-click or Enter to close,
   drag handles to adjust, right-click a handle to delete
 - **Camera** — webcam/CCTV toggle, resolution, fps, **Test connection**, save and
   hot-reconnect without restarting
+- **History** — every recorded alert, with type/zone filters and daily counts
 - Four zone types: **Zone** (entry/exit), **Tripwire** (directional), **Exclusion**
   (suppress detections), **Fire ROI** (bias fire/smoke confidence)
 - Per-zone rules: name, classes, events, direction, severity, hysteresis, schedule

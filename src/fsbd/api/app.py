@@ -13,12 +13,14 @@ from __future__ import annotations
 
 import logging
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 
+from fsbd.alerts.messages import boundary_message
 from fsbd.boundary.geometry import polygon_warnings, validate_polygon, validate_tripwire
 from fsbd.boundary.zones import AREA_TYPES, ZoneStore, ZoneType, zone_from_dict
 from fsbd.capture.probe import probe_source
@@ -104,13 +106,30 @@ def _camera_from_payload(payload: dict[str, Any], current: CameraSettings) -> Ca
     )
 
 
-def create_app(settings: Settings, store: ZoneStore, pipeline: Pipeline | None) -> FastAPI:
+def _database_health(database: Any | None) -> dict[str, Any]:
+    """Storage status, reported separately from pipeline status.
+
+    They fail independently and the operator response differs: a dead camera means the
+    site is unwatched, a dead database means alerts are firing but not being recorded.
+    Collapsing them into one indicator would hide that distinction.
+    """
+    if database is None:
+        return {"configured": False, "connected": False}
+    return {"configured": True, "connected": database.healthy(), "dsn": database.dsn.safe}
+
+
+def create_app(
+    settings: Settings,
+    store: ZoneStore,
+    pipeline: Pipeline | None,
+    database: Any | None = None,
+) -> FastAPI:
     app = FastAPI(title="Fire, Smoke & Boundary Detection", docs_url="/api/docs")
     router = APIRouter(prefix="/api")
 
     # Settings are replaced wholesale when the Camera page saves, so they live in a
     # mutable box rather than being captured by value in each closure.
-    state: dict[str, Settings] = {"settings": settings}
+    state: dict[str, Any] = {"settings": settings, "database": database}
 
     def require_pipeline() -> Pipeline:
         if pipeline is None:
@@ -296,23 +315,64 @@ def create_app(settings: Settings, store: ZoneStore, pipeline: Pipeline | None) 
     # -- status ------------------------------------------------------------
 
     @router.get("/events")
-    def events(limit: int = 50) -> dict[str, Any]:
+    def events(
+        limit: int = 50, kind: str | None = None, zone_id: str | None = None
+    ) -> dict[str, Any]:
+        """Alert history.
+
+        Served from PostgreSQL when it is available, falling back to the pipeline's
+        in-memory ring otherwise. The fallback matters: a database outage must not make
+        the dashboard look like nothing is happening, which would be indistinguishable
+        from a dead camera.
+        """
+        database = state["database"]
+        if database is not None:
+            try:
+                return {
+                    "events": database.recent_events(limit=limit, kind=kind, zone_id=zone_id),
+                    "source": "postgres",
+                }
+            except Exception as exc:  # noqa: BLE001 - fall back rather than 500
+                log.warning("event query failed, serving from memory: %s", exc)
+
         active = require_pipeline()
         return {
+            "source": "memory",
             "events": [
                 {
-                    "ts": e.ts,
+                    "id": None,
+                    "ts": datetime.fromtimestamp(e.ts, tz=UTC).isoformat(),
+                    "camera_id": e.camera_id,
+                    "kind": "boundary",
+                    "subtype": e.kind.value,
                     "zone_id": e.zone_id,
                     "zone_name": e.zone_name,
-                    "kind": e.kind.value,
                     "track_id": e.track_id,
                     "severity": e.severity.value,
+                    "message": boundary_message(e.kind, e.zone_name),
                     "bbox": list(e.bbox),
-                    "description": e.describe(),
+                    "delivered": False,
                 }
                 for e in active.recent_events(limit)
-            ]
+            ],
         }
+
+    @router.get("/events/summary")
+    def events_summary() -> dict[str, Any]:
+        database = state["database"]
+        if database is None:
+            return {"available": False, "counts": {}, "today": {}}
+        try:
+            midnight = datetime.now(UTC).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            return {
+                "available": True,
+                "counts": database.event_counts(),
+                "today": database.event_counts(since=midnight),
+            }
+        except Exception as exc:  # noqa: BLE001
+            return {"available": False, "error": str(exc), "counts": {}, "today": {}}
 
     @router.get("/health")
     def health() -> dict[str, Any]:
@@ -326,6 +386,7 @@ def create_app(settings: Settings, store: ZoneStore, pipeline: Pipeline | None) 
             "zones": len(store.zones()),
             "zones_error": store.last_error,
             "pipeline": pipeline is not None,
+            "database": _database_health(state["database"]),
         }
         if pipeline is not None:
             stats = pipeline.stats

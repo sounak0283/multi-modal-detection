@@ -156,11 +156,29 @@ class ApiSettings:
 
 
 @dataclass(frozen=True)
+class StorageSettings:
+    """PostgreSQL connection and retention.
+
+    The URL is a per-deployment fact containing a password, so it lives in .env.
+    `retention_days` is a policy decision that PLAN.md section 10.3 requires be stated
+    and enforced, so it lives in app.yaml where it is reviewable.
+    """
+
+    database_url: str = ""
+    retention_days: int = 30
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.database_url)
+
+
+@dataclass(frozen=True)
 class Settings:
     camera: CameraSettings = field(default_factory=CameraSettings)
     inference: InferenceSettings = field(default_factory=InferenceSettings)
     boundary: BoundarySettings = field(default_factory=BoundarySettings)
     api: ApiSettings = field(default_factory=ApiSettings)
+    storage: StorageSettings = field(default_factory=StorageSettings)
     zones_path: Path = DEFAULT_ZONES
     # Which .env this was loaded from, so a save writes back to the same file rather
     # than always to the repository root.
@@ -270,12 +288,20 @@ def load_settings(
         port=_env_int("FSBD_API_PORT", 8000) or 8000,
     )
 
+    storage_yaml = _section(data, "storage")
+    storage = StorageSettings(
+        # URL from .env (it holds a password); retention from app.yaml (it is policy).
+        database_url=os.getenv("FSBD_DATABASE_URL", ""),
+        retention_days=int(storage_yaml.get("retention_days", 30)),
+    )
+
     zones_env = os.getenv("FSBD_ZONES")
     settings = Settings(
         camera=camera,
         inference=inference,
         boundary=boundary,
         api=api,
+        storage=storage,
         zones_path=Path(zones_env) if zones_env else DEFAULT_ZONES,
         env_file=env_path,
         raw=data,

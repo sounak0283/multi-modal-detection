@@ -692,6 +692,97 @@ $('btn-camera-save').addEventListener('click', async () => {
   }
 });
 
+/* ---------------------------------------------------------------- history */
+
+const KIND_LABEL = { boundary: 'Boundary', fire: 'Fire', smoke: 'Smoke', health: 'Camera' };
+
+function formatWhen(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  // Local time with seconds: an alert log is read against wall-clock memory
+  // ("what happened just before 2am"), so the viewer's own zone is the useful one.
+  return d.toLocaleString(undefined, {
+    day: '2-digit', month: 'short', hour: '2-digit',
+    minute: '2-digit', second: '2-digit', hour12: false,
+  });
+}
+
+function pillClass(event) {
+  if (event.kind === 'boundary') return event.subtype === 'entry' ? 'entry' : 'exit';
+  return event.kind || 'health';
+}
+
+function renderStats(summary) {
+  const today = summary.today || {};
+  const total = summary.counts || {};
+  const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+  const cells = [
+    ['Today', sum(today)],
+    ['Boundary today', today.boundary || 0],
+    ['Fire / smoke today', (today.fire || 0) + (today.smoke || 0)],
+    ['All time', sum(total)],
+  ];
+  $('h-stats').innerHTML = cells
+    .map(([k, n]) => `<div class="stat"><div class="n">${n}</div><div class="k">${k}</div></div>`)
+    .join('');
+}
+
+async function loadHistory() {
+  const kind = $('h-kind').value;
+  const zone = $('h-zone').value;
+  const limit = $('h-limit').value;
+
+  const params = new URLSearchParams({ limit });
+  if (kind) params.set('kind', kind);
+  if (zone) params.set('zone_id', zone);
+
+  try {
+    const [data, summary] = await Promise.all([
+      (await fetch(`/api/events?${params}`)).json(),
+      (await fetch('/api/events/summary')).json(),
+    ]);
+
+    renderStats(summary);
+    const rows = $('h-rows');
+
+    if (!data.events.length) {
+      rows.innerHTML = '<tr><td colspan="6" class="empty">No alerts recorded yet.</td></tr>';
+    } else {
+      rows.innerHTML = data.events.map((e) => `
+        <tr>
+          <td class="when">${escapeHtml(formatWhen(e.ts))}</td>
+          <td class="msg">${escapeHtml(e.message || '')}</td>
+          <td>${escapeHtml(e.zone_name || e.zone_id || '—')}</td>
+          <td><span class="pill ${pillClass(e)}">${escapeHtml(
+            e.subtype || KIND_LABEL[e.kind] || e.kind)}</span></td>
+          <td>${e.track_id != null ? '#' + e.track_id : '—'}</td>
+          <td class="sev-${escapeHtml(e.severity || 'medium')}">${escapeHtml(e.severity || '—')}</td>
+        </tr>`).join('');
+    }
+
+    $('h-source').textContent = data.source === 'postgres'
+      ? 'Stored in PostgreSQL.'
+      : 'PostgreSQL unavailable — showing recent alerts held in memory only. '
+        + 'These are NOT being recorded.';
+  } catch {
+    toast('Could not load alert history.', 'error');
+  }
+}
+
+function refreshZoneFilter() {
+  const select = $('h-zone');
+  const current = select.value;
+  select.innerHTML = '<option value="">All zones</option>' +
+    state.zones.filter((z) => z.type === 'polygon' || z.type === 'tripwire')
+      .map((z) => `<option value="${escapeHtml(z.id)}">${escapeHtml(z.name || z.id)}</option>`)
+      .join('');
+  select.value = current;
+}
+
+['h-kind', 'h-zone', 'h-limit'].forEach((id) => $(id).addEventListener('change', loadHistory));
+$('h-refresh').addEventListener('click', loadHistory);
+
 /* ------------------------------------------------------------------ modes */
 
 function setMode(mode) {
@@ -699,10 +790,20 @@ function setMode(mode) {
   $('btn-live').classList.toggle('active', mode === 'live');
   $('btn-edit').classList.toggle('active', mode === 'edit');
   $('btn-camera').classList.toggle('active', mode === 'camera');
+  $('btn-events').classList.toggle('active', mode === 'events');
+
+  $('history-stage').hidden = mode !== 'events';
+  $('video-stage').hidden = mode === 'events';
   $('toolbar').hidden = mode !== 'edit';
   $('camera-panel').hidden = mode !== 'camera';
-  $('zones-panel').hidden = mode === 'camera';
-  if (mode === 'camera') $('rules-panel').hidden = true;
+  $('zones-panel').hidden = mode === 'camera' || mode === 'events';
+  if (mode === 'camera' || mode === 'events') $('rules-panel').hidden = true;
+
+  if (mode === 'events') {
+    refreshZoneFilter();
+    loadHistory();
+    return;
+  }
 
   if (mode === 'edit') {
     // Freeze a still as the drawing backdrop: a moving image makes precise clicking
@@ -724,6 +825,7 @@ $('btn-camera').addEventListener('click', () => {
   if (!cameraLoaded) loadCamera();
   setMode('camera');
 });
+$('btn-events').addEventListener('click', () => setMode('events'));
 
 /* ----------------------------------------------------------------- polling */
 
@@ -745,6 +847,15 @@ async function pollHealth() {
     const live = health.feed_state === 'live';
     $('feed-dot').className = `dot ${live ? 'live' : health.feed_state === 'lost' ? 'lost' : ''}`;
     $('feed-text').textContent = health.feed_state || 'unknown';
+
+    // Storage reported separately from the camera. "Alerts firing but not recorded" is
+    // a different problem from "site unwatched", and needs a different response.
+    const db = health.database || {};
+    $('db-dot').className = `dot ${db.connected ? 'live' : db.configured ? 'lost' : ''}`;
+    $('db-text').textContent = db.connected
+      ? 'recording'
+      : db.configured ? 'db down' : 'not recording';
+
     $('perf').textContent = health.inference_ms != null
       ? `${health.inference_ms} ms · ${health.people_tracked ?? 0} tracked · ${health.events_fired ?? 0} events`
       : '—';
@@ -763,9 +874,10 @@ async function pollEvents() {
       : '<li class="empty">Nothing yet.</li>';
     data.events.forEach((event) => {
       const li = document.createElement('li');
-      const when = new Date(event.ts * 1000).toLocaleTimeString();
-      li.innerHTML = `<span class="when">${when}</span>` +
-        `<span class="${event.kind}">${escapeHtml(event.description)}</span>`;
+      const when = new Date(event.ts).toLocaleTimeString(undefined, { hour12: false });
+      li.innerHTML = `<span class="when">${escapeHtml(when)}</span>` +
+        `<span class="${escapeHtml(event.subtype || event.kind)}">` +
+        `${escapeHtml(event.message || '')}</span>`;
       list.appendChild(li);
     });
   } catch { /* transient */ }

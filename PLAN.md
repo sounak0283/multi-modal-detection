@@ -99,7 +99,7 @@ on D-Fire is a few hours on one modern GPU; cost is not a real constraint here.
 | Inference | `onnxruntime` | MIT |
 | Imaging | `opencv-python` | Apache-2.0 |
 | Geometry | `shapely` | BSD-3 |
-| Store | SQLite (WAL mode) | public domain |
+| Store | **PostgreSQL** via `pg8000` | PostgreSQL Licence / BSD-3-Clause |
 | API | `fastapi` + `uvicorn` | MIT / BSD-3 |
 | UI | plain-JS canvas, no framework | — |
 | Notify | `requests` → Telegram REST | Apache-2.0 |
@@ -621,14 +621,27 @@ THIRD_PARTY_LICENSES.md
 PLAN.md
 ```
 
-### SQLite concurrency
+### PostgreSQL, not SQLite
 
-The alert thread writes while the API thread reads. Without care this throws `database is locked` in
-production and nowhere else.
+**Changed from rev 2 at the customer's direction** — they already run PostgreSQL. It is the better
+choice anyway for a product that will eventually watch more than one camera, and `TIMESTAMPTZ`
+removes a whole class of timezone bugs from an alert log that may be used as evidence.
 
-- `PRAGMA journal_mode=WAL` at startup
-- `check_same_thread=False` on the connection
-- **Single writer** — only the alert thread writes; the API reads through its own connection
+The driver is a **licence decision, not a preference**: `psycopg2` is LGPL-with-exceptions and
+`psycopg` v3 is LGPL-3.0, so the obvious choice would have failed this project's own CI gate on the
+first `pip install`. `pg8000` is BSD-3-Clause, pure Python, and needs no compiler — which also
+removes a build dependency from the installer.
+
+Concurrency: pg8000 connections are not thread-safe, so a small fixed pool is checked out one at a
+time. A connection that raised is replaced rather than returned — pg8000 leaves a connection
+unusable after certain errors, and recycling a dead one turns a transient failure into a permanent
+one.
+
+**Detection outranks persistence.** If PostgreSQL is unreachable the pipeline keeps detecting, the
+dashboard keeps serving from its in-memory ring, and the alert bus retries with backoff. A database
+outage must never take the cameras offline — that would turn a storage problem into a security
+incident. The dashboard shows storage as a **separate indicator** from the camera, because "alerts
+firing but not recorded" needs a different response from "site unwatched".
 
 ### Event schema
 

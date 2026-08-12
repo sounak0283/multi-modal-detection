@@ -25,6 +25,9 @@ dependencies = [
     "requests>=2.32,<3",      # Apache-2.0
     "PyYAML>=6.0,<7",         # MIT
     "python-dotenv>=1.0,<2",  # BSD-3-Clause  secrets out of the repo
+    # pg8000, NOT psycopg. psycopg2 is LGPL-with-exceptions and psycopg3 is LGPL-3.0;
+    # both would fail this project's own licence gate. See NOTICE.md section 3.
+    "pg8000>=1.31,<2",        # BSD-3-Clause  pure-Python PostgreSQL driver
 ]
 
 [project.optional-dependencies]

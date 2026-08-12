@@ -29,6 +29,8 @@ from dataclasses import dataclass, field
 import cv2
 import numpy as np
 
+from fsbd.alerts.bus import AlertBus
+from fsbd.alerts.messages import boundary_message
 from fsbd.boundary.engine import BoundaryEngine, BoundaryEvent
 from fsbd.boundary.zones import ZoneStore, ZoneType
 from fsbd.capture.latest_slot import LatestSlot
@@ -73,9 +75,16 @@ class PipelineStats:
 
 
 class Pipeline:
-    def __init__(self, settings: Settings, store: ZoneStore, model_path: str) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        store: ZoneStore,
+        model_path: str,
+        alerts: AlertBus | None = None,
+    ) -> None:
         self.settings = settings
         self.store = store
+        self.alerts = alerts
         self.stats = PipelineStats()
 
         self.detector = PersonDetector(
@@ -247,6 +256,36 @@ class Pipeline:
             self._masked = masked
             self._frame_size = (width, height)
             self._events.extend(events)
+
+        for event in events:
+            self._publish(event)
+
+    def _publish(self, event: BoundaryEvent) -> None:
+        """Hand an event to the alert thread for persistence and notification.
+
+        Rendering the sentence here rather than at read time means the stored history
+        always shows what was actually sent, even after the wording changes.
+        """
+        if self.alerts is None:
+            return
+        self.alerts.publish(
+            {
+                "ts": event.ts,
+                "camera_id": event.camera_id,
+                "kind": "boundary",
+                "subtype": event.kind.value,
+                "zone_id": event.zone_id,
+                "zone_name": event.zone_name,
+                "track_id": event.track_id,
+                "message": boundary_message(event.kind, event.zone_name),
+                "severity": event.severity.value,
+                "bbox": list(event.bbox),
+                "foot_point": list(event.foot_point),
+                # Reserved for the face layer; nothing populates these yet.
+                "identity_status": None,
+                "identity_name": None,
+            }
+        )
 
     # -- rendering ---------------------------------------------------------
 

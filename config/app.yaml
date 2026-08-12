@@ -45,11 +45,16 @@ identity:
   cosine_threshold: 0.363
 
 storage:
-  db_path: events.db
+  # PostgreSQL. The connection URL contains a password and is a per-deployment fact,
+  # so it lives in .env as FSBD_DATABASE_URL. Only the policy lives here.
+  #
+  # Retention is a stated, enforced obligation rather than a preference
+  # (PLAN.md section 10.3) - especially once the identity layer ships, since alert
+  # snapshots of identified people are personal data.
+  retention_days: 30
   ring_buffer_seconds: 15
   snapshot_dir: snapshots
   clip_dir: clips
-  retention_days: 30
 
 health:
   feed_lost_after_s: 10
