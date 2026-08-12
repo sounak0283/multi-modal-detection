@@ -261,6 +261,43 @@ legend { color: var(--muted); font-size: 12px; padding: 0 5px; }
 .days button.on { background: var(--accent); border-color: var(--accent); color: #06203d; font-weight: 600; }
 
 .panel-actions { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.camera-actions { display: flex; gap: 8px; }
+.camera-actions button { flex: 1; }
+
+/* ---------- segmented control ---------- */
+
+.segmented {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.segmented button {
+  flex: 1;
+  border: 0;
+  border-radius: 0;
+  background: var(--panel-2);
+  font-size: 12.5px;
+  padding: 7px 6px;
+}
+.segmented button + button { border-left: 1px solid var(--line); }
+.segmented button.on { background: var(--accent); color: #06203d; font-weight: 600; }
+
+/* ---------- test result ---------- */
+
+.test-result {
+  margin-top: 10px;
+  padding: 9px 11px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  background: var(--panel-2);
+  border-left: 3px solid var(--muted);
+  line-height: 1.5;
+}
+.test-result.ok { border-left-color: var(--ok); }
+.test-result.error { border-left-color: var(--danger); }
+.test-result .warn { color: var(--warn); display: block; margin-top: 5px; }
+.test-result code { font-family: ui-monospace, monospace; color: var(--text); }
 
 /* ---------- toast ---------- */
 

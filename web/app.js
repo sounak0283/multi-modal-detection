@@ -382,7 +382,7 @@ function select(index) {
   state.selected = index;
   renderList();
   const panel = $('rules-panel');
-  panel.hidden = index < 0;
+  panel.hidden = index < 0 || state.mode === 'camera';
   if (index >= 0) loadRules(state.zones[index]);
   draw();
 }
@@ -557,13 +557,152 @@ window.addEventListener('beforeunload', (event) => {
   if (state.dirty) { event.preventDefault(); event.returnValue = ''; }
 });
 
+/* ----------------------------------------------------------------- camera */
+
+let cameraLoaded = false;
+
+function setCctv(useCctv) {
+  document.querySelectorAll('#f-use-cctv button').forEach((b) =>
+    b.classList.toggle('on', (b.dataset.cctv === 'true') === useCctv));
+  $('row-webcam').hidden = useCctv;
+  $('row-rtsp').hidden = !useCctv;
+}
+
+document.querySelectorAll('#f-use-cctv button').forEach((button) => {
+  button.addEventListener('click', () => setCctv(button.dataset.cctv === 'true'));
+});
+
+function updateCadenceNote() {
+  const decode = Number($('f-decode').value) || 0;
+  // person_every_n is server-side tuning; 2 is the shipped default and what the note
+  // is meant to convey - the boundary hysteresis is counted in THESE frames, not
+  // camera frames.
+  const detection = decode / 2;
+  $('cadence-note').textContent = decode
+    ? `Detection runs at ~${detection.toFixed(1)} Hz. Zone hysteresis is counted in these frames.`
+    : '';
+}
+$('f-decode').addEventListener('input', updateCadenceNote);
+
+async function loadCamera() {
+  try {
+    const cam = await (await fetch('/api/camera')).json();
+    setCctv(cam.use_cctv);
+    $('f-source').value = cam.source ?? '0';
+    $('f-camid').value = cam.id ?? 'cam_01';
+    $('f-width').value = cam.width;
+    $('f-height').value = cam.height;
+    $('f-fps').value = cam.fps;
+    $('f-decode').value = cam.decode_fps;
+    $('f-autostart').checked = Boolean(cam.autostart);
+
+    // The URL is never sent to the browser. Say whether one is stored, and leave the
+    // field blank so a save without typing keeps what is already there.
+    $('f-rtsp').value = '';
+    $('rtsp-note').textContent = cam.rtsp_url_set
+      ? `Stored: ${cam.rtsp_url_redacted}. Leave blank to keep it, or type a new URL to replace it.`
+      : 'No URL stored yet.';
+
+    if (cam.actual_size && cam.actual_size[0]) {
+      const [w, h] = cam.actual_size;
+      if (w !== cam.width || h !== cam.height) {
+        $('rtsp-note').textContent +=
+          ` Camera is actually streaming ${w}x${h}.`;
+      }
+    }
+    updateCadenceNote();
+    cameraLoaded = true;
+  } catch { toast('Could not load camera settings.', 'error'); }
+}
+
+function cameraPayload() {
+  const useCctv = document.querySelector('#f-use-cctv button.on')?.dataset.cctv === 'true';
+  const payload = {
+    use_cctv: useCctv,
+    source: $('f-source').value.trim() || '0',
+    id: $('f-camid').value.trim() || 'cam_01',
+    width: $('f-width').value,
+    height: $('f-height').value,
+    fps: $('f-fps').value,
+    decode_fps: $('f-decode').value,
+    autostart: $('f-autostart').checked,
+  };
+  const rtsp = $('f-rtsp').value.trim();
+  if (rtsp) payload.rtsp_url = rtsp;   // omitted = keep the stored one
+  return payload;
+}
+
+function showTestResult(result) {
+  const box = $('test-result');
+  box.hidden = false;
+  if (!result.ok) {
+    box.className = 'test-result error';
+    box.textContent = result.error || 'Connection failed.';
+    return;
+  }
+  box.className = 'test-result ok';
+  const fps = result.reported_fps ? ` · reports ${result.reported_fps} fps` : '';
+  box.innerHTML =
+    `Connected in ${result.elapsed_ms} ms — <code>${escapeHtml(result.source)}</code><br>` +
+    `Actual frame: <code>${result.actual_width}x${result.actual_height}</code>${fps}` +
+    (result.warnings || []).map((w) => `<span class="warn">⚠ ${escapeHtml(w)}</span>`).join('');
+}
+
+$('btn-test').addEventListener('click', async () => {
+  const button = $('btn-test');
+  button.disabled = true;
+  button.textContent = 'Testing…';
+  try {
+    const response = await fetch('/api/camera/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cameraPayload()),
+    });
+    showTestResult(await response.json());
+  } catch (error) {
+    showTestResult({ ok: false, error: error.message });
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Test connection';
+  }
+});
+
+$('btn-camera-save').addEventListener('click', async () => {
+  const button = $('btn-camera-save');
+  button.disabled = true;
+  try {
+    const response = await fetch('/api/camera', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cameraPayload()),
+    });
+    if (!response.ok) {
+      const problem = await response.json().catch(() => ({}));
+      throw new Error(problem.detail || `save failed (${response.status})`);
+    }
+    const result = await response.json();
+    toast(`Camera saved — reconnecting to ${result.resolved}`, 'ok');
+    $('f-rtsp').value = '';
+    await loadCamera();
+    if (state.mode === 'live') backdrop.src = `/api/stream?t=${Date.now()}`;
+  } catch (error) {
+    toast(error.message, 'error');
+  } finally {
+    button.disabled = false;
+  }
+});
+
 /* ------------------------------------------------------------------ modes */
 
 function setMode(mode) {
   state.mode = mode;
   $('btn-live').classList.toggle('active', mode === 'live');
   $('btn-edit').classList.toggle('active', mode === 'edit');
+  $('btn-camera').classList.toggle('active', mode === 'camera');
   $('toolbar').hidden = mode !== 'edit';
+  $('camera-panel').hidden = mode !== 'camera';
+  $('zones-panel').hidden = mode === 'camera';
+  if (mode === 'camera') $('rules-panel').hidden = true;
 
   if (mode === 'edit') {
     // Freeze a still as the drawing backdrop: a moving image makes precise clicking
@@ -581,6 +720,10 @@ function setMode(mode) {
 
 $('btn-live').addEventListener('click', () => setMode('live'));
 $('btn-edit').addEventListener('click', () => setMode('edit'));
+$('btn-camera').addEventListener('click', () => {
+  if (!cameraLoaded) loadCamera();
+  setMode('camera');
+});
 
 /* ----------------------------------------------------------------- polling */
 

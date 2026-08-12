@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import uvicorn
@@ -20,7 +21,7 @@ import uvicorn
 from fsbd.api.app import create_app
 from fsbd.boundary.zones import ZoneStore
 from fsbd.pipeline import Pipeline
-from fsbd.settings import load_settings, parse_source, redact
+from fsbd.settings import describe_source, load_settings
 
 log = logging.getLogger("fsbd")
 
@@ -51,15 +52,25 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     settings = load_settings()
+
+    # --source is a development override: it forces the webcam/file branch regardless of
+    # FSBD_USE_CCTV, so `--source clip.mp4` works without editing .env.
     if args.source is not None:
-        object.__setattr__(settings.camera, "source", parse_source(args.source))
+        settings = replace(
+            settings,
+            camera=replace(settings.camera, use_cctv=False, source=args.source),
+        )
     if args.zones is not None:
-        object.__setattr__(settings, "zones_path", args.zones)
+        settings = replace(settings, zones_path=args.zones)
 
     store = ZoneStore(settings.zones_path, camera_id=settings.camera.id)
 
+    autostart = settings.camera.autostart and not args.no_pipeline
+    if not autostart and not args.no_pipeline:
+        log.info("FSBD_AUTOSTART_CAMERA is false - serving the dashboard without a camera")
+
     pipeline: Pipeline | None = None
-    if not args.no_pipeline:
+    if autostart:
         if not args.model.is_file():
             log.error(
                 "model not found: %s\nSee README for the download step.", args.model
@@ -72,7 +83,9 @@ def main(argv: list[str] | None = None) -> int:
     host = args.host or settings.api.host
     port = args.port or settings.api.port
 
-    log.info("dashboard on http://%s:%d  (camera %s)", host, port, redact(settings.camera.source))
+    log.info(
+        "dashboard on http://%s:%d  (camera %s)", host, port, describe_source(settings.camera)
+    )
     try:
         uvicorn.run(app, host=host, port=port, log_level="warning")
     finally:

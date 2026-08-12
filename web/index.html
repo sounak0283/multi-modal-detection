@@ -19,6 +19,7 @@
   <div class="header-actions">
     <button id="btn-live" class="toggle active" title="Live view with detections">Live</button>
     <button id="btn-edit" class="toggle" title="Freeze a frame and draw zones">Edit</button>
+    <button id="btn-camera" class="toggle" title="Camera source and resolution">Camera</button>
     <button id="btn-save" class="primary" disabled>Save</button>
   </div>
 </header>
@@ -52,7 +53,58 @@
   </section>
 
   <aside class="sidebar">
-    <div class="panel">
+    <div class="panel" id="camera-panel" hidden>
+      <h2>Camera</h2>
+
+      <div class="row">
+        <span class="field-label">Source</span>
+        <div class="segmented" id="f-use-cctv">
+          <button type="button" data-cctv="false" class="on">Laptop / webcam</button>
+          <button type="button" data-cctv="true">CCTV (RTSP)</button>
+        </div>
+      </div>
+
+      <label id="row-webcam">Webcam index or video file
+        <input type="text" id="f-source" placeholder="0">
+        <small>A number is a device index. Anything else is treated as a file path.</small>
+      </label>
+
+      <label id="row-rtsp" hidden>RTSP URL
+        <input type="password" id="f-rtsp" placeholder="rtsp://user:pass@192.168.1.64:554/stream1"
+               autocomplete="off">
+        <small id="rtsp-note"></small>
+      </label>
+
+      <label>Camera ID
+        <input type="text" id="f-camid" placeholder="cam_01">
+        <small>Names this camera in alerts and in zones.yaml.</small>
+      </label>
+
+      <fieldset>
+        <legend>Resolution &amp; rate</legend>
+        <div class="times">
+          <label>Width <input type="number" id="f-width" min="64" max="7680" step="16"></label>
+          <label>Height <input type="number" id="f-height" min="64" max="7680" step="16"></label>
+        </div>
+        <div class="times">
+          <label>Camera fps <input type="number" id="f-fps" min="1" max="240"></label>
+          <label>Decode fps <input type="number" id="f-decode" min="1" max="120" step="0.5"></label>
+        </div>
+        <small id="cadence-note"></small>
+      </fieldset>
+
+      <label class="inline">
+        <input type="checkbox" id="f-autostart"> Start the camera automatically
+      </label>
+
+      <div class="panel-actions camera-actions">
+        <button id="btn-test">Test connection</button>
+        <button id="btn-camera-save" class="primary">Save &amp; reconnect</button>
+      </div>
+      <div id="test-result" class="test-result" hidden></div>
+    </div>
+
+    <div class="panel" id="zones-panel">
       <h2>Zones <span class="count" id="zone-count">0</span></h2>
       <ul class="zone-list" id="zone-list"></ul>
     </div>

@@ -21,18 +21,96 @@ from fastapi.responses import FileResponse, JSONResponse, Response, StreamingRes
 
 from fsbd.boundary.geometry import polygon_warnings, validate_polygon, validate_tripwire
 from fsbd.boundary.zones import AREA_TYPES, ZoneStore, ZoneType, zone_from_dict
+from fsbd.capture.probe import probe_source
 from fsbd.pipeline import Pipeline
-from fsbd.settings import Settings, redact
+from fsbd.settings import (
+    CameraSettings,
+    Settings,
+    describe_source,
+    load_settings,
+    redact,
+    save_camera_settings,
+)
 
 log = logging.getLogger("fsbd.api")
 
 WEB_DIR = Path(__file__).resolve().parent.parent.parent.parent / "web"
 STREAM_BOUNDARY = "frame"
 
+MAX_DIMENSION = 7680  # 8K; beyond this is a typo, not a camera
+MIN_DIMENSION = 64
+
+
+def _camera_from_payload(payload: dict[str, Any], current: CameraSettings) -> CameraSettings:
+    """Build CameraSettings from a partial dashboard payload.
+
+    Fields absent from the payload keep their current value. The RTSP URL specifically:
+    an absent or empty key means "leave what is stored alone", because the browser is
+    never sent the real URL and therefore cannot echo it back. Only a non-empty string
+    replaces it, and the sentinel "" with `clear_rtsp_url` true erases it.
+    """
+
+    def as_int(key: str, fallback: int, low: int, high: int) -> int:
+        if key not in payload or payload[key] in (None, ""):
+            return fallback
+        try:
+            value = int(payload[key])
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{key} must be a whole number") from exc
+        if not low <= value <= high:
+            raise ValueError(f"{key} must be between {low} and {high}")
+        return value
+
+    def as_float(key: str, fallback: float, low: float, high: float) -> float:
+        if key not in payload or payload[key] in (None, ""):
+            return fallback
+        try:
+            value = float(payload[key])
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{key} must be a number") from exc
+        if not low <= value <= high:
+            raise ValueError(f"{key} must be between {low} and {high}")
+        return value
+
+    use_cctv = bool(payload.get("use_cctv", current.use_cctv))
+
+    rtsp_url = current.cctv_rtsp_url
+    if payload.get("clear_rtsp_url"):
+        rtsp_url = ""
+    elif payload.get("rtsp_url"):
+        rtsp_url = str(payload["rtsp_url"]).strip()
+
+    if use_cctv and not rtsp_url:
+        raise ValueError("CCTV is selected but no RTSP URL is set.")
+
+    source = str(payload.get("source", current.source)).strip() or "0"
+    substream = payload.get("substream")
+    if substream is None:
+        resolved_substream = current.substream
+    else:
+        resolved_substream = str(substream).strip() or None
+
+    return CameraSettings(
+        id=str(payload.get("id", current.id)).strip() or "cam_01",
+        use_cctv=use_cctv,
+        source=source,
+        cctv_rtsp_url=rtsp_url,
+        substream=resolved_substream,
+        width=as_int("width", current.width, MIN_DIMENSION, MAX_DIMENSION),
+        height=as_int("height", current.height, MIN_DIMENSION, MAX_DIMENSION),
+        fps=as_int("fps", current.fps, 1, 240),
+        decode_fps=as_float("decode_fps", current.decode_fps, 1.0, 120.0),
+        autostart=bool(payload.get("autostart", current.autostart)),
+    )
+
 
 def create_app(settings: Settings, store: ZoneStore, pipeline: Pipeline | None) -> FastAPI:
     app = FastAPI(title="Fire, Smoke & Boundary Detection", docs_url="/api/docs")
     router = APIRouter(prefix="/api")
+
+    # Settings are replaced wholesale when the Camera page saves, so they live in a
+    # mutable box rather than being captured by value in each closure.
+    state: dict[str, Settings] = {"settings": settings}
 
     def require_pipeline() -> Pipeline:
         if pipeline is None:
@@ -66,7 +144,7 @@ def create_app(settings: Settings, store: ZoneStore, pipeline: Pipeline | None) 
     def get_zones() -> dict[str, Any]:
         store.reload()
         return {
-            "camera_id": settings.camera.id,
+            "camera_id": state["settings"].camera.id,
             "zones": [z.to_dict() for z in store.zones()],
             "error": store.last_error,
             "version": store.version,
@@ -111,6 +189,77 @@ def create_app(settings: Settings, store: ZoneStore, pipeline: Pipeline | None) 
             "errors": [{"field": e.field, "message": e.message} for e in errors],
             "warnings": polygon_warnings(points) if zone_type in AREA_TYPES else [],
         }
+
+    # -- camera settings ---------------------------------------------------
+
+    @router.get("/camera")
+    def get_camera() -> dict[str, Any]:
+        """Current camera settings.
+
+        The RTSP URL is returned REDACTED and is write-only from the browser's point of
+        view: you can replace it, never read it back. The dashboard has no authentication,
+        so a readable password field would hand the camera to anyone who reached the page.
+        `rtsp_url_set` tells the UI whether to show "configured" or an empty field.
+        """
+        camera = state["settings"].camera
+        return {
+            "id": camera.id,
+            "use_cctv": camera.use_cctv,
+            "source": str(camera.source),
+            "rtsp_url_redacted": redact(camera.cctv_rtsp_url) if camera.cctv_rtsp_url else "",
+            "rtsp_url_set": bool(camera.cctv_rtsp_url),
+            "substream_set": bool(camera.substream),
+            "width": camera.width,
+            "height": camera.height,
+            "fps": camera.fps,
+            "decode_fps": camera.decode_fps,
+            "autostart": camera.autostart,
+            "resolved": describe_source(camera),
+            "actual_size": list(pipeline.frame_size) if pipeline else None,
+            "person_fps": round(
+                state["settings"].inference.person_fps(camera.decode_fps), 2
+            ),
+        }
+
+    @router.put("/camera")
+    def put_camera(payload: dict[str, Any]) -> dict[str, Any]:
+        """Persist camera settings to .env and hot-reconnect.
+
+        Written to .env rather than app.yaml because every field is a per-deployment
+        fact and one of them is a password: the git-ignored file is a stronger guarantee
+        than remembering to redact a tracked one.
+        """
+        current = state["settings"].camera
+        try:
+            camera = _camera_from_payload(payload, current)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+
+        env_file = state["settings"].env_file
+        save_camera_settings(camera, env_file=env_file)
+        state["settings"] = load_settings(env_file=env_file)
+
+        if pipeline is not None:
+            pipeline.reconfigure(state["settings"])
+
+        return {"saved": True, "resolved": describe_source(state["settings"].camera)}
+
+    @router.post("/camera/test")
+    def test_camera(payload: dict[str, Any]) -> dict[str, Any]:
+        """Open the source, grab one frame, report what actually came back.
+
+        Reports the ACTUAL resolution, not the requested one. A camera silently ignoring
+        a 1280x720 request changes what every pixel-based threshold means, and finding
+        that out during commissioning is far cheaper than inferring it from poor recall.
+        """
+        current = state["settings"].camera
+        try:
+            candidate = _camera_from_payload(payload, current)
+            source = candidate.resolved_source
+        except ValueError as exc:
+            return {"ok": False, "error": str(exc)}
+
+        return probe_source(source, candidate.width, candidate.height, candidate.fps)
 
     # -- video -------------------------------------------------------------
 
@@ -167,11 +316,13 @@ def create_app(settings: Settings, store: ZoneStore, pipeline: Pipeline | None) 
 
     @router.get("/health")
     def health() -> dict[str, Any]:
+        active_settings = state["settings"]
         payload: dict[str, Any] = {
-            "camera_id": settings.camera.id,
-            # redact(): the camera URL embeds a password and this endpoint ends up in
-            # screenshots and support bundles.
-            "source": redact(settings.camera.inference_source),
+            "camera_id": active_settings.camera.id,
+            # describe_source(): the camera URL embeds a password and this endpoint ends
+            # up in screenshots and support bundles. It also never raises on a
+            # half-configured camera, which is a legitimate state on a fresh install.
+            "source": describe_source(active_settings.camera),
             "zones": len(store.zones()),
             "zones_error": store.last_error,
             "pipeline": pipeline is not None,
@@ -186,6 +337,7 @@ def create_app(settings: Settings, store: ZoneStore, pipeline: Pipeline | None) 
                 "people_tracked": stats.people_tracked,
                 "events_fired": stats.events_fired,
                 "inference_ms": round(stats.inference_ms, 1),
+                "render_fps": round(stats.render_fps, 1),
                 "uptime_s": round(stats.uptime_s, 1),
                 "frame_size": list(pipeline.frame_size),
             }

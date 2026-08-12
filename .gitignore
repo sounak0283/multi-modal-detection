@@ -29,9 +29,13 @@ clips/
 logs/
 *.log
 
-# Local config overrides (may contain camera credentials)
-config/*.local.yaml
+# Per-deployment config. .env holds camera credentials; zones.yaml is one site's
+# polygons drawn on one camera's view. Committing either means the repo carries a
+# specific installation's wiring and every install conflicts on it.
+# Templates (.env.example, config/zones.example.yaml) are committed instead.
 .env
+config/*.local.yaml
+config/zones.yaml
 
 # OS
 Thumbs.db

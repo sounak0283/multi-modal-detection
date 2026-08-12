@@ -1,17 +1,15 @@
-# Application configuration.
+# Engineering constants: how the algorithm behaves.
 #
-# Camera credentials do NOT belong here - this file is committed. Put them in
-# config/app.local.yaml (git-ignored) or the FSBD_SOURCE environment variable.
+# This file is COMMITTED, because these are decisions worth reviewing and worth having
+# in git history - a changed threshold should be visible in a diff.
 #
-# Zone definitions live separately in config/zones.yaml (PLAN.md section 6.5).
-
-camera:
-  id: cam_01
-  # source: set in app.local.yaml or FSBD_SOURCE
-  decode_fps: 12
-  # Prefer a 640x360 substream for inference if the camera exposes one - it removes
-  # almost all decode cost (PLAN.md section 11, question 2).
-  substream: null
+# What does NOT belong here: anything specific to one deployment. Camera source,
+# credentials, resolution, decode rate and autostart are per-install facts and live in
+# .env (git-ignored). Putting them here would mean the repository carried one site's
+# wiring, and every install would conflict on this file.
+#
+# Zone definitions are also per-deployment and live in config/zones.yaml, git-ignored,
+# with config/zones.example.yaml committed as the reference.
 
 inference:
   # Cadences are frame counters, deliberately offset so the two models never run on

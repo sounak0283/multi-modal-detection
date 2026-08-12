@@ -40,23 +40,41 @@ A model without a manifest entry fails at load rather than under-detecting quiet
 
 ## Configuration
 
-Two files, deliberately split:
+Split by **what the value is**, not by whether it happens to be secret:
 
 | File | Contains | Committed? |
 |---|---|---|
-| `.env` | **secrets** — camera URL/password, alert tokens | ❌ git-ignored |
-| `config/app.yaml` | tuning constants — cadences, thresholds, retention | ✅ yes |
-| `config/zones.yaml` | zone definitions, written by the dashboard | ✅ yes |
+| `.env` | **per-deployment facts** — camera source and credentials, resolution, decode rate, autostart | ❌ git-ignored |
+| `config/app.yaml` | **engineering constants** — inference cadences, K-of-N gates, hysteresis defaults | ✅ yes |
+| `config/zones.yaml` | zone polygons, drawn on one specific camera view | ❌ git-ignored |
+
+Camera settings are per-deployment facts — camera index `0` on a dev laptop, an RTSP URL
+at the customer site. Committing them would mean the repository carried one installation's
+wiring as if it were product configuration, and every site would conflict on it. Templates
+(`.env.example`, `config/zones.example.yaml`) are committed instead.
+
+`decode_fps` lives in `.env` because it describes what *this machine* can keep up with.
+`person_every_n` lives in `app.yaml` because that is the tuning decision.
 
 ```bash
-cp .env.example .env      # then set FSBD_CAMERA_SOURCE
+cp .env.example .env
+cp config/zones.example.yaml config/zones.yaml   # or just draw zones in the dashboard
 ```
 
 Precedence is environment variable → `.env` → `app.yaml` → code default.
 
+### Camera source: one boolean
+
+```bash
+FSBD_USE_CCTV=false          # false → laptop webcam, true → site CCTV
+FSBD_CAMERA_SOURCE=0         # webcam index, or a video file path for development
+FSBD_CCTV_RTSP_URL=          # rtsp://user:pass@192.168.1.64:554/stream1
+```
+
 An RTSP URL embeds the camera password in plain text, so every path that logs or displays
 a source runs it through `redact()` first — otherwise it lands in log archives, the
-`/api/health` response, and support bundles.
+`/api/health` response, and support bundles. The dashboard treats the URL as
+**write-only**: you can replace it, never read it back.
 
 ## Dashboard
 
@@ -70,6 +88,8 @@ Then open <http://127.0.0.1:8000>.
 - **Live** — MJPEG stream with zones, tracked IDs and foot points drawn on it
 - **Edit** — freezes a frame; click to place vertices, double-click or Enter to close,
   drag handles to adjust, right-click a handle to delete
+- **Camera** — webcam/CCTV toggle, resolution, fps, **Test connection**, save and
+  hot-reconnect without restarting
 - Four zone types: **Zone** (entry/exit), **Tripwire** (directional), **Exclusion**
   (suppress detections), **Fire ROI** (bias fire/smoke confidence)
 - Per-zone rules: name, classes, events, direction, severity, hysteresis, schedule
@@ -86,6 +106,25 @@ than another twenty thousand training images.
 
 **Schedules matter almost as much.** A warehouse zone without one fires four hundred
 times during the working day and gets switched off in week one.
+
+### Reading the live overlay
+
+The preview labels *why* a track is in the state it is, not just that it exists — which
+is the question an installer is actually asking:
+
+| Label | Meaning |
+|---|---|
+| `#7 0.82 44x118px` | tracked normally; confidence and box size |
+| `#7 0.60 SMALL 18x34px (id needs 120)` | too small for the identity layer |
+| `#7 MASKED (exclusion zone)` | suppressed by an exclusion mask |
+
+The bar along the top carries fps, inference ms, tracked count, events and camera id.
+If the feed drops, the stream shows a **rendered "CAMERA DISCONNECTED" frame with a live
+timestamp** rather than freezing on the last good image — on a quiet scene those two look
+identical, and one of them means the site is unprotected.
+
+**Test connection** reports the *actual* resolution, not the requested one. A camera that
+silently ignores a 1280×720 request changes what every pixel threshold means.
 
 ## Benchmark and preview tools
 

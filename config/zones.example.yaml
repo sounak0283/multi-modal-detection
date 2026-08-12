@@ -1,0 +1,59 @@
+# Reference zone configuration. Copy to config/zones.yaml, or just draw zones in the
+# dashboard - it writes that file for you.
+#
+# config/zones.yaml is git-ignored: zones are polygons drawn on one specific camera's
+# view, so they are a per-deployment fact rather than product configuration.
+#
+# Coordinates are NORMALISED 0-1, not pixels. That is what lets a zone survive a
+# resolution change or a swap to the camera's low-resolution substream.
+#
+# Every zone tests the FOOT POINT of a detection - the bottom-centre of the box - not
+# its centroid. Under perspective a tall person standing outside a floor zone has a
+# centroid inside it (PLAN.md section 6.1).
+
+cameras:
+  cam_01:
+    zones:
+      # --- an area that fires ENTRY / EXIT ---------------------------------
+      - id: loading_bay
+        name: "Loading Bay"
+        type: polygon
+        points: [[0.12, 0.44], [0.61, 0.41], [0.66, 0.93], [0.08, 0.95]]
+        detect: [person]
+        events: [entry, exit]
+        # Hysteresis, counted in DETECTION frames (~6-8 Hz), not camera frames.
+        # 4 is therefore roughly 0.5-0.7 s.
+        min_frames: 4
+        # Without a schedule this fires all day and gets switched off in week one.
+        # Overnight windows wrap correctly: the morning half belongs to the previous day.
+        schedule: {days: [mon, tue, wed, thu, fri], from: "18:00", to: "06:00"}
+        severity: high
+
+      # --- a directional line ----------------------------------------------
+      - id: gate_line
+        name: "Main Gate"
+        type: tripwire
+        points: [[0.20, 0.70], [0.85, 0.66]]
+        direction: a_to_b        # a_to_b | b_to_a | both
+        detect: [person]
+        min_frames: 3
+        severity: high
+
+      # --- suppress false fire alarms at a fixed source ---------------------
+      # The highest value-per-hour entry in this file. The worst false-alarm sources are
+      # fixed in place - the welding bay, the beacon on the forklift charger, the
+      # skylight that throws sunlight at 16:00. Masking them does more for the
+      # false-alarm rate than another twenty thousand training images.
+      - id: welding_bay
+        name: "Welding Bay"
+        type: exclusion
+        points: [[0.70, 0.30], [0.98, 0.30], [0.98, 0.75], [0.70, 0.75]]
+        applies_to: [fire, smoke]   # people are still tracked through it
+
+      # --- be MORE sensitive somewhere that matters -------------------------
+      - id: server_room
+        name: "Server Room"
+        type: fire_roi
+        points: [[0.05, 0.10], [0.35, 0.10], [0.35, 0.40], [0.05, 0.40]]
+        applies_to: [fire, smoke]
+        conf_delta: -0.08        # negative = lower threshold = more sensitive

@@ -55,17 +55,29 @@ class CaptureThread:
         slot: LatestSlot[Frame],
         feed_lost_after_s: float = 10.0,
         on_state_change: Callable[[FeedState], None] | None = None,
+        width: int | None = None,
+        height: int | None = None,
+        fps: int | None = None,
     ) -> None:
         self.source = source
         self.slot = slot
         self.feed_lost_after_s = feed_lost_after_s
         self.on_state_change = on_state_change
+        self.width = width
+        self.height = height
+        self.fps = fps
 
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
         self._state = FeedState.STARTING
         self._seq = 0
         self._last_frame_ts = 0.0
+        self._actual_size: tuple[int, int] | None = None
+
+    @property
+    def actual_size(self) -> tuple[int, int] | None:
+        """What the camera is really streaming, which may not be what we asked for."""
+        return self._actual_size
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -106,10 +118,36 @@ class CaptureThread:
             if isinstance(self.source, int)
             else cv2.VideoCapture(self.source, cv2.CAP_FFMPEG)
         )
-        if cap.isOpened():
-            # One-deep driver buffer. We drop-to-latest downstream anyway, and a deep
-            # buffer only hands us stale frames after a hiccup.
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        if not cap.isOpened():
+            return cap
+
+        # One-deep driver buffer. We drop-to-latest downstream anyway, and a deep
+        # buffer only hands us stale frames after a hiccup.
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        if self.width and self.height:
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+        if self.fps:
+            cap.set(cv2.CAP_PROP_FPS, self.fps)
+
+        actual = (
+            int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
+            int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+        )
+        self._actual_size = actual
+
+        # A camera that quietly ignores the requested resolution is not cosmetic: box
+        # sizes in pixels drive min_person_box_px for the identity layer, and the fire
+        # model's small-object recall. Surfacing the mismatch beats debugging it later.
+        if self.width and self.height and actual != (self.width, self.height):
+            log.warning(
+                "camera is streaming %dx%d, not the requested %dx%d - "
+                "pixel-based thresholds are tuned for the configured resolution",
+                actual[0], actual[1], self.width, self.height,
+            )
+        else:
+            log.info("camera open at %dx%d", actual[0], actual[1])
         return cap
 
     def _run(self) -> None:
