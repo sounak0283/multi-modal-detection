@@ -240,7 +240,13 @@ def load_settings(
 ) -> Settings:
     """Load .env then app.yaml, with environment variables taking precedence."""
     env_path = Path(env_file or REPO_ROOT / ".env")
-    load_dotenv(env_path, override=False)
+    # utf-8-sig, not utf-8: Notepad and PowerShell's Set-Content both write UTF-8 *with
+    # a BOM* on Windows, and plain utf-8 decoding turns the first key into
+    # "﻿FSBD_DATABASE_URL" - so the first setting in the file silently does not
+    # exist. Measured: a .env written by Set-Content lost FSBD_DATABASE_URL entirely and
+    # the app reported "not set" while the file plainly showed it. Reading as utf-8-sig
+    # strips a BOM when present and is identical otherwise.
+    load_dotenv(env_path, override=False, encoding="utf-8-sig")
 
     path = Path(config_path or os.getenv("FSBD_CONFIG") or DEFAULT_CONFIG)
     data: dict[str, Any] = {}

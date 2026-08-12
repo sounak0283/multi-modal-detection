@@ -924,7 +924,10 @@ async function pollHealth() {
 
 async function pollEvents() {
   try {
-    const data = await (await fetch('/api/events?limit=20')).json();
+    // /events/live, not /events: the Live panel must show what is HAPPENING, which is
+    // not the same as what has been RECORDED. They diverge exactly when storage is
+    // broken, and an empty panel during a working detection run reads as a dead system.
+    const data = await (await fetch('/api/events/live?limit=20')).json();
     const list = $('events');
     list.innerHTML = data.events.length
       ? ''

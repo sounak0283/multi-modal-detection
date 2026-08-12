@@ -127,6 +127,30 @@ def test_describe_source_does_not_raise_on_a_half_configured_camera():
 # -- .env persistence -----------------------------------------------------
 
 
+def test_env_written_with_a_utf8_bom_is_still_read(tmp_path):
+    """Notepad and PowerShell's Set-Content write UTF-8 WITH a BOM on Windows.
+
+    Decoded as plain utf-8 the first key becomes "\\ufeffFSBD_..." and that setting
+    silently does not exist - the app reports "not set" while the file plainly shows it.
+    """
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "FSBD_DATABASE_URL=postgresql://u:p@localhost:5432/fsbd\nFSBD_CAMERA_ID=bom_cam\n",
+        encoding="utf-8-sig",
+    )
+
+    settings = load_settings(env_file=env_file)
+
+    assert settings.storage.database_url.endswith("/fsbd"), "first line lost to the BOM"
+    assert settings.camera.id == "bom_cam"
+
+
+def test_env_without_a_bom_still_works(tmp_path):
+    env_file = tmp_path / ".env"
+    env_file.write_text("FSBD_CAMERA_ID=plain_cam\n", encoding="utf-8")
+    assert load_settings(env_file=env_file).camera.id == "plain_cam"
+
+
 def test_save_creates_env_and_round_trips(tmp_path, monkeypatch):
     env_file = tmp_path / ".env"
     camera = CameraSettings(

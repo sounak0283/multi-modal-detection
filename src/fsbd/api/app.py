@@ -357,6 +357,32 @@ def create_app(
             ],
         }
 
+    @router.get("/events/live")
+    def events_live(limit: int = 20) -> dict[str, Any]:
+        """Alerts held in memory, never from the database.
+
+        Deliberately a separate endpoint from /events. The Live view answers "what is
+        happening", the History view answers "what has been recorded" - and those differ
+        precisely when something is wrong. During a spell where every insert was failing,
+        a shared endpoint showed an empty Live panel while the engine was firing alerts
+        every few seconds, which reads as a dead system rather than a storage fault.
+        """
+        active = require_pipeline()
+        return {
+            "events": [
+                {
+                    "ts": datetime.fromtimestamp(e.ts, tz=UTC).isoformat(),
+                    "kind": "boundary",
+                    "subtype": e.kind.value,
+                    "zone_name": e.zone_name,
+                    "track_id": e.track_id,
+                    "severity": e.severity.value,
+                    "message": boundary_message(e.kind, e.zone_name),
+                }
+                for e in active.recent_events(limit)
+            ]
+        }
+
     @router.get("/events/summary")
     def events_summary() -> dict[str, Any]:
         database = state["database"]

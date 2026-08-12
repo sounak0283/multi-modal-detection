@@ -342,7 +342,12 @@ class BoundaryEngine:
                 float(box[2]) / width,
                 float(box[3]) / height,
             ),
-            foot_point=(point[0] / width, point[1] / height),
+            # float(), not just division: `point` comes from a numpy float32 array, and
+            # np.float32 / int stays np.float32. json.dumps refuses numpy scalars, so
+            # leaving them here made every database insert fail with "Object of type
+            # float32 is not JSON serializable" - while detection carried on looking
+            # perfectly healthy.
+            foot_point=(float(point[0]) / width, float(point[1]) / height),
         )
 
     def _evict_stale(self) -> None:

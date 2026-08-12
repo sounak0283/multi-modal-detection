@@ -77,6 +77,40 @@ def test_dsn_percent_decodes_the_password():
     assert parse_dsn("postgresql://u:p%40ss%3Aword@h/db").password == "p@ss:word"
 
 
+def test_dsn_carries_an_optional_schema():
+    """Lets the product share a database without its tables mingling - a normal ask
+    where a DBA hands out one database per team rather than one per application."""
+    assert parse_dsn("postgresql://u:p@h/db?schema=fsbd").schema == "fsbd"
+    assert parse_dsn("postgresql://u:p@h/db").schema == "public"
+
+
+@pytest.mark.parametrize("bad", ["Fsbd", "fs-bd", "fsbd;DROP TABLE events", "1fsbd", "a b"])
+def test_invalid_schema_names_are_rejected(bad):
+    """The schema name is interpolated into SET search_path, which cannot take a bind
+    parameter - so an unvalidated value here would be injection via a config file."""
+    with pytest.raises(ValueError, match="schema"):
+        parse_dsn(f"postgresql://u:p@h/db?schema={bad}")
+
+
+def test_blank_schema_falls_back_to_public():
+    """`?schema=` with nothing after it reads as "use the default", not as an error."""
+    assert parse_dsn("postgresql://u:p@h/db?schema=").schema == "public"
+
+
+def test_coordinates_survive_json_even_as_numpy_scalars():
+    """REGRESSION: foot_point came from a numpy float32 array, and np.float32 / int
+    stays np.float32. json.dumps refuses numpy scalars, so EVERY insert failed with
+    "Object of type float32 is not JSON serializable" while detection carried on
+    looking perfectly healthy."""
+    import numpy as np
+
+    from fsbd.store.db import _json
+
+    assert _json((np.float32(0.5), np.float32(0.25))) == "[0.5, 0.25]"
+    assert _json([np.float64(1.0), 2.0]) == "[1.0, 2.0]"
+    assert _json(None) is None
+
+
 def test_dsn_safe_string_hides_the_password():
     safe = parse_dsn("postgresql://user:hunter2@h:5432/fsbd").safe
     assert "hunter2" not in safe

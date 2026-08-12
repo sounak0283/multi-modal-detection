@@ -22,13 +22,14 @@ from __future__ import annotations
 
 import logging
 import queue
+import re
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 import pg8000.dbapi
 
@@ -47,18 +48,27 @@ class Dsn:
     database: str
     user: str
     password: str
+    schema: str = "public"
 
     @property
     def safe(self) -> str:
         """Never log the password - this string ends up in support bundles."""
-        return f"postgresql://{self.user}@{self.host}:{self.port}/{self.database}"
+        suffix = f" (schema {self.schema})" if self.schema != "public" else ""
+        return f"postgresql://{self.user}@{self.host}:{self.port}/{self.database}{suffix}"
+
+
+IDENTIFIER = re.compile(r"^[a-z_][a-z0-9_]*$")
 
 
 def parse_dsn(url: str) -> Dsn:
-    """postgresql://user:password@host:port/database
+    """postgresql://user:password@host:port/database[?schema=name]
 
     percent-decoded, because database passwords routinely contain characters that must
     be escaped in a URL and a silently wrong password is a confusing failure.
+
+    The optional `schema` parameter lets this product share a database with something
+    else without its tables mingling - a normal ask in corporate estates where a DBA
+    hands out one database per team rather than one per application.
     """
     parts = urlsplit(url)
     if parts.scheme not in {"postgresql", "postgres"}:
@@ -70,12 +80,22 @@ def parse_dsn(url: str) -> Dsn:
     if not database:
         raise ValueError("database URL has no database name")
 
+    schema = (parse_qs(parts.query).get("schema") or ["public"])[0]
+    # Validated rather than quoted because it is interpolated into SET search_path,
+    # which cannot take a bind parameter. An unvalidated value here would be SQL
+    # injection through a config file.
+    if not IDENTIFIER.match(schema):
+        raise ValueError(
+            f"invalid schema name {schema!r}: lowercase letters, digits and underscores only"
+        )
+
     return Dsn(
         host=parts.hostname,
         port=parts.port or 5432,
         database=unquote(database),
         user=unquote(parts.username or ""),
         password=unquote(parts.password or ""),
+        schema=schema,
     )
 
 
@@ -103,6 +123,15 @@ class Database:
             timeout=CONNECT_TIMEOUT_S,
         )
         connection.autocommit = False
+
+        # Every connection, not just the first: pooled connections are handed to
+        # whichever thread asks next, and a missing search_path would silently write to
+        # public instead of the configured schema.
+        if self.dsn.schema != "public":
+            cursor = connection.cursor()
+            cursor.execute(f"SET search_path TO {self.dsn.schema}, public")
+            connection.commit()
+
         with self._lock:
             self._all.append(connection)
         return connection
@@ -154,6 +183,9 @@ class Database:
         sql = SCHEMA_PATH.read_text(encoding="utf-8")
         with self.connection() as conn:
             cursor = conn.cursor()
+            if self.dsn.schema != "public":
+                cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {self.dsn.schema}")
+                cursor.execute(f"SET search_path TO {self.dsn.schema}, public")
             cursor.execute(sql)
             cursor.execute(
                 "INSERT INTO schema_migrations (version) VALUES (%s) ON CONFLICT DO NOTHING",
@@ -315,9 +347,21 @@ class Database:
 
 
 def _json(value: Any) -> str | None:
+    """Serialise a coordinate list, tolerating numpy scalars.
+
+    Belt and braces with the float() casts upstream. Anything numeric that reaches here
+    is a coordinate, and silently refusing to store an alert because a value is
+    np.float32 rather than float is a terrible trade - the `default` hook converts
+    rather than raising.
+    """
     import json
 
-    return None if value is None else json.dumps(list(value) if isinstance(value, tuple) else value)
+    if value is None:
+        return None
+    return json.dumps(
+        list(value) if isinstance(value, tuple) else value,
+        default=lambda o: float(o) if hasattr(o, "__float__") else str(o),
+    )
 
 
 def _row_to_dict(columns: list[str], row: tuple) -> dict[str, Any]:
