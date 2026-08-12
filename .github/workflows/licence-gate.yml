@@ -2,6 +2,12 @@ name: licence-gate
 
 # This product is sold. A copyleft dependency reaching a customer deployment is a
 # commercial incident, not a bug. Blocking one at PR time is free.
+#
+# Three gates, because no single tool sees everything:
+#   1. pip-licenses  - Python packages
+#   2. check_notice  - models and datasets (invisible to pip-licenses)
+#   3. npm licences  - the frontend, which compiles into the shipped bundle
+#
 # Policy and rationale: NOTICE.md sections 6 and 6.1.
 
 on:
@@ -10,8 +16,11 @@ on:
     branches: [main]
 
 jobs:
-  licences:
+  backend:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
 
@@ -46,12 +55,16 @@ jobs:
       # Gate 2: models and datasets.
       #
       # pip-licenses reads package metadata only and is blind to .onnx files and
-      # dataset directories - which is where this project's real risk sits.
+      # dataset directories - which is where this project's real risk sits. NOTICE.md
+      # lives at the repository root, hence the ../ paths.
       - name: Gate 2 - model and dataset provenance
-        run: python tools/check_notice.py --assets models data --notice NOTICE.md
+        run: python tools/check_notice.py --root .. --assets backend/models backend/data --notice NOTICE.md
 
   frontend:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
 
@@ -63,7 +76,6 @@ jobs:
 
       - name: Install
         run: npm ci
-        working-directory: frontend
 
       # Gate 3: npm packages.
       #
@@ -71,14 +83,15 @@ jobs:
       # actually compiles into the bundle a customer receives.
       - name: Gate 3 - npm licences
         run: npm run licences
-        working-directory: frontend
 
       - name: Build
         run: npm run build
-        working-directory: frontend
 
   tests:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
 

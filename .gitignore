@@ -7,18 +7,36 @@ venv/
 .pytest_cache/
 .ruff_cache/
 
-# Model weights - tracked in NOTICE.md, not in git (size + provenance)
-models/**/*.onnx
-models/**/*.pth
-models/**/*.npz
+# Node
+node_modules/
+
+# Model weights - recorded in NOTICE.md and backend/models/*/manifest.json with
+# SHA-256, but too large and too provenance-sensitive to keep in git.
+backend/models/**/*.onnx
+backend/models/**/*.pth
+backend/models/**/*.npz
 
 # Datasets - never in git. Provenance recorded in NOTICE.md.
-data/**
-!data/**/.gitkeep
-!data/**/README.md
+backend/data/**
+!backend/data/**/.gitkeep
+!backend/data/**/README.md
 
 # Site recordings (Phase 0 negative collection) - large, customer premises footage
 recordings/
+backend/recordings/
+
+# Built dashboard. Produced from frontend/ by `npm run build`.
+backend/web/dist/
+frontend/dist/
+
+# Per-deployment config. .env holds camera and database credentials; zones.yaml is one
+# site's polygons drawn on one camera's view. Committing either means the repo carries a
+# specific installation's wiring and every install conflicts on it.
+# Templates (.env.example, config/zones.example.yaml) are committed instead.
+.env
+backend/.env
+backend/config/*.local.yaml
+backend/config/zones.yaml
 
 # Runtime artefacts
 *.db
@@ -29,19 +47,6 @@ clips/
 logs/
 *.log
 
-# Per-deployment config. .env holds camera credentials; zones.yaml is one site's
-# polygons drawn on one camera's view. Committing either means the repo carries a
-# specific installation's wiring and every install conflicts on it.
-# Templates (.env.example, config/zones.example.yaml) are committed instead.
-.env
-config/*.local.yaml
-config/zones.yaml
-
 # OS
 Thumbs.db
 .DS_Store
-
-# Built dashboard (from frontend/) and its toolchain
-web/dist/
-frontend/node_modules/
-frontend/dist/

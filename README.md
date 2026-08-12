@@ -216,16 +216,55 @@ python tools/track_preview.py --source clip.mp4 --out annotated.mp4
 boundary state machine's hysteresis is sufficient in a given space. Warehouse racking
 produces far more occlusion than open ground, so this must be rerun per site.
 
+## Layout
+
+```
+backend/          Python: detection pipeline, API, storage
+  src/fsbd/       the package
+  tests/          268 tests
+  tools/          benchmark, recorder, UI end-to-end
+  config/         app.yaml (committed), zones.yaml (per-site, ignored)
+  models/         ONNX weights + manifest.json provenance
+  sql/            schema.sql, setup.sql
+  web/dist/       built dashboard, served by FastAPI
+  .env            per-deployment secrets (ignored)
+
+frontend/         React 19 + Vite 8 + Tailwind 4
+  src/            components, pages, design tokens
+  scripts/        npm licence gate
+
+NOTICE.md         licence and provenance record for the whole product
+PLAN.md           architecture and phase plan
+```
+
+`backend/` is a **self-contained deployable unit** — everything it reads at runtime
+lives beneath it, including the built dashboard. That is why the frontend builds *into*
+the backend rather than beside it: a deployment stays one process on one port, with no
+separate web server to install and keep patched.
+
 ## Setup
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate          # Windows
+.venv\Scripts\activate            # Windows
+
+cd backend
 pip install -r requirements-dev.txt
 pip install -e .
+
+cd ../frontend
+npm install && npm run build      # → backend/web/dist
 ```
 
-Requires Python 3.11+. Verified on 3.14 with OpenCV 4.14 and onnxruntime 1.28.
+Requires Python 3.11+ and Node 20+. Verified on Python 3.14 with OpenCV 4.14 and
+onnxruntime 1.28, and Node 26 with React 19.
+
+Run it:
+
+```bash
+cd backend
+fsbd-dashboard                    # → http://127.0.0.1:8000
+```
 
 ## Site recorder (Phase 0)
 
@@ -271,13 +310,21 @@ This product is sold, so a copyleft dependency reaching a customer is a commerci
 incident. Two gates run in CI ([.github/workflows/licence-gate.yml](.github/workflows/licence-gate.yml)):
 
 ```bash
-# Gate 1 - Python packages
+# Gate 1 - Python packages                                    (from backend/)
 pip-licenses --fail-on="GPL;AGPL;LGPL;CC-BY-NC;CC-BY-SA;Proprietary;Unknown" \
     --ignore-packages opencv-python shapely fsbd
 
-# Gate 2 - models and datasets (pip-licenses is blind to these)
-python tools/check_notice.py --assets models data --notice NOTICE.md
+# Gate 2 - models and datasets, invisible to pip-licenses      (from backend/)
+python tools/check_notice.py --root .. \
+    --assets backend/models backend/data --notice NOTICE.md
+
+# Gate 3 - npm packages, invisible to both of the above       (from frontend/)
+npm run licences
 ```
+
+Three gates because no single tool sees everything: `pip-licenses` reads Python package
+metadata, which cannot see an `.onnx` file, a dataset directory, or `node_modules` —
+and the frontend is the half that compiles into the bundle a customer receives.
 
 Gate 2 exists because `pip-licenses` reads package metadata only and cannot see an
 `.onnx` file or a dataset directory — which is exactly where the real risk sits. It also
@@ -290,6 +337,9 @@ Nothing enters `models/` or `data/` without a NOTICE.md row **recorded at downlo
 ## Tests
 
 ```bash
-pytest -q
+cd backend
+pytest -q                      # 268 tests
 ruff check src tools tests
 ```
+
+All `python tools/...` commands in this file run from `backend/`.

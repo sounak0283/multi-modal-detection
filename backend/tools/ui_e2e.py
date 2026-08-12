@@ -52,6 +52,11 @@ def main(argv: list[str]) -> int:
         )
         page.on("pageerror", lambda e: problems.append(f"pageerror: {e}"))
 
+        # Start from a clean slate. Without this the run appends to whatever a previous
+        # run left behind, and the assertions below end up inspecting someone else's
+        # boundary - which is how a stale leftover zone can make a broken run look fine.
+        requests.put(f"{base}/api/zones", json={"zones": []}, timeout=10)
+
         page.goto(base, wait_until="networkidle")
         page.wait_for_timeout(2500)
 
@@ -76,10 +81,12 @@ def main(argv: list[str]) -> int:
 
         # -- verify what was stored ----------------------------------------
         zones = requests.get(f"{base}/api/zones", timeout=10).json()["zones"]
+        if len(zones) != 1:
+            problems.append(f"expected exactly the boundary just drawn, found {len(zones)}")
         if not zones:
             problems.append("save persisted no boundary")
         else:
-            points = zones[0]["points"]
+            points = zones[-1]["points"]
             print(f"stored: {[[round(x, 3), round(y, 3)] for x, y in points]}")
             if len(points) != len(POLYGON):
                 problems.append(

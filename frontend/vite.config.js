@@ -2,13 +2,14 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-// Built output lands in ../web/dist, which FastAPI serves in production. Keeping the
-// build inside the Python package's reach means a deployment is still "one process,
-// one port" - no separate web server to install and secure on a customer's box.
+// Built output lands in ../backend/web/dist, which FastAPI serves in production.
+// Building INTO the backend keeps a deployment to "one process, one port" - the backend
+// directory is a self-contained deployable unit, with no separate web server to install
+// and secure on a customer's box.
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
-    outDir: '../web/dist',
+    outDir: '../backend/web/dist',
     emptyOutDir: true,
   },
   server: {

@@ -39,9 +39,12 @@ from dotenv import load_dotenv, set_key
 
 log = logging.getLogger("fsbd.settings")
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-DEFAULT_CONFIG = REPO_ROOT / "config" / "app.yaml"
-DEFAULT_ZONES = REPO_ROOT / "config" / "zones.yaml"
+# backend/, not the repository root: the backend is a self-contained deployable unit and
+# everything it reads at runtime (config, .env, sql, models, the built web bundle) lives
+# beneath it. The repository root holds only shared documentation and the frontend.
+BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
+DEFAULT_CONFIG = BACKEND_ROOT / "config" / "app.yaml"
+DEFAULT_ZONES = BACKEND_ROOT / "config" / "zones.yaml"
 
 _CREDENTIAL_PATTERN = re.compile(r"^(?P<user>[^:/@]+)(?::(?P<password>[^@]*))?$")
 
@@ -182,7 +185,7 @@ class Settings:
     zones_path: Path = DEFAULT_ZONES
     # Which .env this was loaded from, so a save writes back to the same file rather
     # than always to the repository root.
-    env_file: Path = REPO_ROOT / ".env"
+    env_file: Path = BACKEND_ROOT / ".env"
     raw: dict[str, Any] = field(default_factory=dict)
 
 
@@ -239,7 +242,7 @@ def load_settings(
     config_path: Path | str | None = None, env_file: Path | str | None = None
 ) -> Settings:
     """Load .env then app.yaml, with environment variables taking precedence."""
-    env_path = Path(env_file or REPO_ROOT / ".env")
+    env_path = Path(env_file or BACKEND_ROOT / ".env")
     # utf-8-sig, not utf-8: Notepad and PowerShell's Set-Content both write UTF-8 *with
     # a BOM* on Windows, and plain utf-8 decoding turns the first key into
     # "﻿FSBD_DATABASE_URL" - so the first setting in the file silently does not
@@ -363,7 +366,7 @@ def save_camera_settings(camera: CameraSettings, env_file: Path | str | None = N
     os.environ is updated too, so a subsequent load_settings() in the same process sees
     the new values - dotenv does not override already-set variables by design.
     """
-    path = Path(env_file or REPO_ROOT / ".env")
+    path = Path(env_file or BACKEND_ROOT / ".env")
     if not path.exists():
         path.write_text(
             "# Written by the dashboard. Per-deployment settings; never commit this file.\n",

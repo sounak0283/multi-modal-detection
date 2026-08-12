@@ -12,8 +12,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-GATE = REPO_ROOT / "tools" / "check_notice.py"
+BACKEND_ROOT = Path(__file__).resolve().parent.parent
+GATE = BACKEND_ROOT / "tools" / "check_notice.py"
 
 
 def run_gate(root: Path) -> subprocess.CompletedProcess[str]:
