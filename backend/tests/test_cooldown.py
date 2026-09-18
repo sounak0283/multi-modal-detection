@@ -83,6 +83,28 @@ def test_blank_recipients_are_dropped():
     assert parsed.to == ("ops@example.com",)
 
 
+def test_rejects_an_unknown_alert_kind():
+    """A typo'd kind (e.g. 'boundry') would otherwise save fine and then silently never
+    match a real event - the same trap an unvalidated 'to' address is guarded against
+    just above."""
+    with pytest.raises(ValueError, match="unknown alert kind"):
+        sink_rule_from_dict({"type": "smtp", "to": ["x@y.com"], "kinds": ["boundry"]})
+
+
+def test_accepts_every_real_alert_kind():
+    parsed = sink_rule_from_dict(
+        {"type": "smtp", "to": ["x@y.com"], "kinds": ["fire", "smoke", "boundary"]}
+    )
+    assert parsed.kinds == ("fire", "smoke", "boundary")
+
+
+def test_empty_kinds_is_the_default_and_matches_everything():
+    parsed = sink_rule_from_dict({"type": "smtp", "to": ["x@y.com"]})
+    assert parsed.kinds == ()
+    assert parsed.matches_kind("boundary")
+    assert parsed.matches_kind("anything")
+
+
 # -- alert_config_from_dict -------------------------------------------------------
 
 

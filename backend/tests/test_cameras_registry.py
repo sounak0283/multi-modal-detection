@@ -26,7 +26,9 @@ def test_minimal_webcam_camera_gets_sensible_defaults():
     camera = camera_from_dict({"id": "cam_01"})
 
     assert camera.source_type is SourceType.WEBCAM
-    assert camera.enabled is True
+    # False, not True: a camera created without an explicit 'enabled' must not start
+    # capturing before it's been reviewed - see the comment on Camera.enabled.
+    assert camera.enabled is False
     assert camera.enabled_modules == frozenset()
 
 
@@ -194,7 +196,7 @@ def manager_registry_store():
 
 def test_start_launches_a_pipeline_for_each_enabled_camera(manager_registry_store):
     manager, registry = manager_registry_store
-    registry.create(camera_from_dict({"id": "cam_01"}))
+    registry.create(camera_from_dict({"id": "cam_01", "enabled": True}))
     registry.create(camera_from_dict({"id": "cam_02", "enabled": False}))
 
     manager.start()
@@ -207,7 +209,7 @@ def test_notify_camera_changed_starts_a_newly_created_camera(manager_registry_st
     manager, registry = manager_registry_store
     manager.start()
 
-    registry.create(camera_from_dict({"id": "cam_02"}))
+    registry.create(camera_from_dict({"id": "cam_02", "enabled": True}))
     manager.notify_camera_changed("cam_02")
 
     assert manager.get("cam_02") is not None
@@ -227,7 +229,7 @@ def test_notify_camera_changed_is_a_noop_before_start(manager_registry_store):
 
 def test_deleting_a_camera_stops_its_pipeline(manager_registry_store):
     manager, registry = manager_registry_store
-    registry.create(camera_from_dict({"id": "cam_01"}))
+    registry.create(camera_from_dict({"id": "cam_01", "enabled": True}))
     manager.start()
     pipeline = manager.get("cam_01")
 
@@ -240,7 +242,7 @@ def test_deleting_a_camera_stops_its_pipeline(manager_registry_store):
 
 def test_disabling_a_camera_stops_its_pipeline(manager_registry_store):
     manager, registry = manager_registry_store
-    registry.create(camera_from_dict({"id": "cam_01"}))
+    registry.create(camera_from_dict({"id": "cam_01", "enabled": True}))
     manager.start()
     pipeline = manager.get("cam_01")
 
@@ -253,11 +255,11 @@ def test_disabling_a_camera_stops_its_pipeline(manager_registry_store):
 
 def test_changing_a_reconnect_field_reconfigures_in_place(manager_registry_store):
     manager, registry = manager_registry_store
-    registry.create(camera_from_dict({"id": "cam_01", "width": 1280}))
+    registry.create(camera_from_dict({"id": "cam_01", "width": 1280, "enabled": True}))
     manager.start()
     pipeline = manager.get("cam_01")
 
-    updated = camera_from_dict({"id": "cam_01", "width": 640})
+    updated = camera_from_dict({"id": "cam_01", "width": 640, "enabled": True})
     registry.update("cam_01", updated)
     manager.notify_camera_changed("cam_01")
 
@@ -269,11 +271,13 @@ def test_changing_enabled_modules_reconfigures_in_place(manager_registry_store):
     """Expansion Plan Phase E: toggling fire_smoke on the Cameras page for an
     already-running camera must not be a silent no-op until a full restart."""
     manager, registry = manager_registry_store
-    registry.create(camera_from_dict({"id": "cam_01", "enabled_modules": []}))
+    registry.create(camera_from_dict({"id": "cam_01", "enabled_modules": [], "enabled": True}))
     manager.start()
     pipeline = manager.get("cam_01")
 
-    updated = camera_from_dict({"id": "cam_01", "enabled_modules": ["fire_smoke"]})
+    updated = camera_from_dict(
+        {"id": "cam_01", "enabled_modules": ["fire_smoke"], "enabled": True}
+    )
     registry.update("cam_01", updated)
     manager.notify_camera_changed("cam_01")
 
@@ -284,11 +288,13 @@ def test_changing_a_non_reconnect_field_does_not_reconfigure(manager_registry_st
     """Only source/resolution/fps changes need a capture-thread restart; something like
     a name change should not disturb a running pipeline."""
     manager, registry = manager_registry_store
-    registry.create(camera_from_dict({"id": "cam_01", "name": "Old name"}))
+    registry.create(camera_from_dict({"id": "cam_01", "name": "Old name", "enabled": True}))
     manager.start()
     pipeline = manager.get("cam_01")
 
-    registry.update("cam_01", camera_from_dict({"id": "cam_01", "name": "New name"}))
+    registry.update(
+        "cam_01", camera_from_dict({"id": "cam_01", "name": "New name", "enabled": True})
+    )
     manager.notify_camera_changed("cam_01")
 
     assert pipeline.reconfigured_with is None
@@ -296,7 +302,7 @@ def test_changing_a_non_reconnect_field_does_not_reconfigure(manager_registry_st
 
 def test_stop_stops_every_running_pipeline(manager_registry_store):
     manager, registry = manager_registry_store
-    registry.create(camera_from_dict({"id": "cam_01"}))
+    registry.create(camera_from_dict({"id": "cam_01", "enabled": True}))
     manager.start()
     pipeline = manager.get("cam_01")
 

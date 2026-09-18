@@ -27,9 +27,16 @@ inference:
   intra_op_threads: null # null = physical_cores - 1
 
 firesmoke:
-  conf_fire: 0.45
+  # Raised from 0.45 (2026-09-18): the shipped checkpoint is trained on D-Fire alone with
+  # no indoor site negatives yet (see models/firesmoke/manifest.json's own
+  # validation_status) - it was misreading this office's overhead lighting/hazy ceiling
+  # as smoke. This is a stopgap that trades recall for fewer false alarms until real site
+  # negatives are collected and the model is retrained/re-evaluated per PLAN.md section 5.2.
+  conf_fire: 0.70
   # Lower than fire: indoors, smoke reaches the camera first (PLAN.md section 5.4).
-  conf_smoke: 0.35
+  # Raised from 0.35 for the same reason as conf_fire above - this was the class actually
+  # false-triggering on bright ceiling panels.
+  conf_smoke: 0.65
   # K-of-N temporal gate. At firesmoke_every_n=8 this is a ~5 s window, ~3 s minimum
   # latency to alert. Shrinking it is how false alarms are made.
   gate_k: 6

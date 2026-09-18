@@ -68,7 +68,13 @@ class Camera:
     fps: int = 30
     decode_fps: float = 12.0
     autostart: bool = True
-    enabled: bool = True
+    # False, not True: a camera created without an explicit 'enabled' should not start
+    # capturing before an admin has actually configured its source and reviewed it (the
+    # dashboard's own Cameras.jsx BLANK_FORM already defaults new cameras this way - this
+    # is the server-side half of that safety property, so any caller that skips the
+    # dashboard, e.g. a direct API request, gets the same safe default rather than a
+    # camera that silently starts opening hardware).
+    enabled: bool = False
     enabled_modules: frozenset[str] = field(default_factory=frozenset)
 
     @property
@@ -191,6 +197,6 @@ def camera_from_dict(data: dict[str, Any]) -> Camera:
         fps=as_int("fps", 30, 1, 240),
         decode_fps=as_float("decode_fps", 12.0, 1.0, 120.0),
         autostart=bool(data.get("autostart", True)),
-        enabled=bool(data.get("enabled", True)),
+        enabled=bool(data.get("enabled", False)),
         enabled_modules=frozenset(modules),
     )

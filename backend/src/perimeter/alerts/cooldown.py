@@ -28,6 +28,12 @@ _SEVERITY_RANK = {severity: rank for rank, severity in enumerate(_SEVERITY_ORDER
 
 SUPPORTED_SINK_TYPES = frozenset({"smtp"})
 
+# Every `kind` pipeline.py actually publishes (see pipeline.py:_publish/_publish_crowd/
+# _publish_ppe/_check_access_control/_process_firesmoke), plus "phone" - not published by
+# any module yet (Phase I is unimplemented), but a rule can be pre-configured for it
+# before that module ships, same as the frontend's KIND_OPTIONS already allows.
+ALERT_KINDS = frozenset({"boundary", "crowd", "ppe", "access", "fire", "smoke", "phone"})
+
 
 def _new_rule_id() -> str:
     return secrets.token_hex(6)
@@ -118,6 +124,13 @@ def sink_rule_from_dict(data: dict[str, Any]) -> AlertRule:
     if not isinstance(raw_kinds, list):
         raise ValueError("alert sink: 'kinds' must be a list of alert kind names")
     kinds = tuple(str(k).strip().lower() for k in raw_kinds if str(k).strip())
+    # A typo here is the same silent-dead-rule trap as an unvalidated 'to' address (see
+    # above) - the rule saves fine and then never matches a real event, with nothing
+    # anywhere telling the operator their alert routing is broken.
+    unknown = [k for k in kinds if k not in ALERT_KINDS]
+    if unknown:
+        valid = ", ".join(sorted(ALERT_KINDS))
+        raise ValueError(f"alert sink: unknown alert kind(s) {unknown} (expected: {valid})")
 
     return AlertRule(
         id=rule_id,

@@ -137,6 +137,32 @@ def test_purge_older_than_removes_only_old_events(database):
     assert len(database.recent_events()) == 1
 
 
+def test_evidence_keys_older_than_returns_only_old_events_files(database):
+    """Retention (PLAN.md section 10.3) must not just forget the database row and leave
+    the actual snapshot/clip file behind forever - this is what lets the retention
+    sweeper (main.py) know which files to delete before it purges the rows."""
+    now = datetime.now(UTC)
+    database.insert_event(
+        make_event(
+            ts=now - timedelta(days=40),
+            snapshot_path="snapshots/cam_01/old.jpg",
+            clip_path="clips/cam_01/old.mp4",
+        )
+    )
+    database.insert_event(make_event(ts=now, snapshot_path="snapshots/cam_01/new.jpg"))
+
+    keys = database.evidence_keys_older_than(now - timedelta(days=30))
+
+    assert sorted(keys) == ["clips/cam_01/old.mp4", "snapshots/cam_01/old.jpg"]
+
+
+def test_evidence_keys_older_than_skips_events_with_no_evidence(database):
+    now = datetime.now(UTC)
+    database.insert_event(make_event(ts=now - timedelta(days=40)))  # no snapshot/clip
+
+    assert database.evidence_keys_older_than(now - timedelta(days=30)) == []
+
+
 def test_healthy_reports_true_for_a_reachable_database(database):
     assert database.healthy() is True
 

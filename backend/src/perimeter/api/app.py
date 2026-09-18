@@ -439,6 +439,15 @@ def create_app(
             registry.delete(camera_id)
         except KeyError as exc:
             raise HTTPException(404, str(exc)) from exc
+        # Otherwise a zone with live alerting rules silently resurfaces, unreviewed,
+        # the moment a new camera reuses this id - camera ids get reused in practice
+        # (hardware swapped in the same physical slot), and a zone's normalised 0-1
+        # points would still "work" geometrically on the new feed while pointing at
+        # the wrong real-world area.
+        try:
+            store.save([], camera_id)
+        except PyMongoError as exc:
+            log.warning("could not purge zones for deleted camera %s: %s", camera_id, exc)
         manager.notify_camera_changed(camera_id)
         return {"deleted": camera_id}
 

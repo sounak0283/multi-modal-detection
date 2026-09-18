@@ -227,18 +227,27 @@ def _build_identity_resolver(
     )
 
 
-def _start_retention_sweeper(database: Database, retention_days: int) -> threading.Thread:
+def _start_retention_sweeper(
+    database: Database, evidence_store: LocalEvidenceStore, retention_days: int
+) -> threading.Thread:
     """Enforce `storage.retention_days` (Expansion Plan §8 / PLAN.md §10.3).
 
     `Database.purge_older_than` has existed since the Postgres implementation but nothing
-    ever called it - this is the first thing that does.
+    ever called it - this is the first thing that does. Evidence keys are read *before*
+    purging the DB rows, since `purge_older_than` deletes exactly the documents those
+    keys came from - reading them after would find nothing. Deleting the DB rows before
+    the files (rather than after) means a crash mid-sweep leaves at worst an orphaned
+    file rather than a dangling database reference to a file that no longer exists.
     """
 
     def _run() -> None:
         while True:
             try:
                 cutoff = datetime.now(UTC) - timedelta(days=retention_days)
+                keys = database.evidence_keys_older_than(cutoff)
                 database.purge_older_than(cutoff)
+                for key in keys:
+                    evidence_store.delete(key)
             except Exception:  # noqa: BLE001 - a failed sweep must not kill the process
                 log.exception("retention sweep failed")
             threading.Event().wait(RETENTION_SWEEP_INTERVAL_S)
@@ -302,7 +311,6 @@ def main(argv: list[str] | None = None) -> int:
 
     alerts = AlertBus(database=database)
     alerts.start()
-    _start_retention_sweeper(database, settings.storage.retention_days)
 
     if not args.model.is_file():
         log.error("model not found: %s\nSee README for the download step.", args.model)
@@ -354,6 +362,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     evidence_writer.start()
     alerts.sinks.append(evidence_writer.on_alert)
+    _start_retention_sweeper(database, evidence_store, settings.storage.retention_days)
 
     alert_config_store = AlertConfigStore(database.db["alert_config"])
     email_sink = _build_email_sink(settings)

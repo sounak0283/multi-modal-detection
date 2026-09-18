@@ -221,6 +221,25 @@ class Database:
         ]
         return {doc["_id"]: doc["count"] for doc in self.db[EVENTS].aggregate(pipeline)}
 
+    def evidence_keys_older_than(self, cutoff: datetime) -> list[str]:
+        """The snapshot/clip evidence keys of every event `purge_older_than(cutoff)` is
+        about to remove. Deliberately separate from that call (not folded into a single
+        find-and-delete): this module has no evidence-store dependency, so the retention
+        sweeper (main.py) reads this list *before* purging, then deletes the DB rows,
+        then deletes the files - purging the record without ever deleting the file would
+        otherwise leave `storage.retention_days` unenforced for the data it actually
+        exists to bound (PLAN.md section 10.3)."""
+        keys: list[str] = []
+        cursor = self.db[EVENTS].find(
+            {"ts": {"$lt": cutoff}}, {"snapshot_path": 1, "clip_path": 1}
+        )
+        for doc in cursor:
+            for field in ("snapshot_path", "clip_path"):
+                key = doc.get(field)
+                if key:
+                    keys.append(key)
+        return keys
+
     def purge_older_than(self, cutoff: datetime) -> int:
         """Retention. Expansion Plan §8 / PLAN.md §10.3 require a stated, enforced period."""
         result = self.db[EVENTS].delete_many({"ts": {"$lt": cutoff}})

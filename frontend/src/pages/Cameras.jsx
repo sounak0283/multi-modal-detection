@@ -182,7 +182,13 @@ export default function Cameras({ devTools, onChanged, readOnly = false }) {
 
   const remove = async () => {
     if (selectedId === '_new' || !selectedId) return
-    if (!window.confirm(`Remove camera "${form.name || form.id}"? This cannot be undone.`)) return
+    if (
+      !window.confirm(
+        `Remove camera "${form.name || form.id}"? This also deletes its configured ` +
+          'boundaries/zones, and cannot be undone.',
+      )
+    )
+      return
     setDeleting(true)
     try {
       await api.deleteCamera(selectedId)

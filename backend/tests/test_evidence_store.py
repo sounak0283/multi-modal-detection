@@ -60,6 +60,20 @@ def test_resolve_refuses_to_escape_the_store_root(tmp_path):
     assert store.resolve("../secret.txt") is None
 
 
+def test_delete_removes_a_saved_file(tmp_path):
+    store = make_store(tmp_path)
+    key = store.save_snapshot("cam_01", "evt", b"jpeg-bytes")
+
+    store.delete(key)
+
+    assert store.resolve(key) is None
+
+
+def test_delete_is_a_noop_for_a_missing_key(tmp_path):
+    store = make_store(tmp_path)
+    store.delete("snapshots/cam_01/2020-01-01/does-not-exist.jpg")  # must not raise
+
+
 def test_different_cameras_and_events_do_not_collide(tmp_path):
     store = make_store(tmp_path)
     key_a = store.save_snapshot("cam_01", "evt", b"aaa")

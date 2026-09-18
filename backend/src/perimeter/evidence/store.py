@@ -42,6 +42,14 @@ class LocalEvidenceStore:
         shutil.move(str(tmp_path), path)
         return key
 
+    def delete(self, key: str) -> None:
+        """Remove the file for `key`, if it exists. Idempotent - a key already deleted
+        (or missing for any other reason) is not an error, since the caller's whole
+        point is "make sure this is gone", not "assert it was here"."""
+        path = self.resolve(key)
+        if path is not None:
+            path.unlink(missing_ok=True)
+
     def resolve(self, key: str) -> Path | None:
         """A real filesystem path for `key`, or `None` if it doesn't exist or would
         escape `root` - keys are always server-generated, never user input, but this is
