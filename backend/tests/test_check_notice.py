@@ -66,12 +66,22 @@ def test_passes_when_dataset_is_listed(tmp_path):
 
 def test_fails_when_model_has_no_manifest(tmp_path):
     root = make_repo(tmp_path, "# NOTICE\n\nyunet\n")
-    write_model(root, "yunet", manifest=None)
+    model_dir = write_model(root, "yunet", manifest=None)
+    (model_dir / "yunet.onnx").write_bytes(b"weights")
 
     result = run_gate(root)
 
     assert result.returncode == 1
     assert "manifest.json" in result.stderr
+
+
+def test_model_dir_with_only_a_readme_needs_no_manifest(tmp_path):
+    """A placeholder for weights not trained yet ships nothing, so has no provenance."""
+    root = make_repo(tmp_path, "# NOTICE\n\nppe\n")
+    (root / "models" / "ppe").mkdir()
+    (root / "models" / "ppe" / "README.md").write_text("# not trained yet\n", encoding="utf-8")
+
+    assert run_gate(root).returncode == 0
 
 
 def test_fails_on_manifest_missing_required_key(tmp_path):

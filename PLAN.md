@@ -583,12 +583,12 @@ place. Outdoors, treat any match as a bonus.
 
 ## 8. Repository layout
 
-Implemented as an installable package under a `src/` layout — `src/fsbd/…` rather than a
+Implemented as an installable package under a `src/` layout — `src/perimeter/…` rather than a
 bare `src/…` — so imports resolve unambiguously and `pip install -e .` works. Module
 responsibilities are otherwise exactly as listed.
 
 ```
-src/fsbd/
+src/perimeter/
   record.py                       # Phase 0 site recorder (negative collection)
   capture/     rtsp.py            # VideoCapture wrapper, reconnect/backoff
                latest_slot.py     # single-slot drop-to-latest

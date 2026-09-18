@@ -1,22 +1,24 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Badge, Button, Card, CardFoot, CardHead, EmptyState, Select, Stat } from '../components/ui'
-import { api } from '../api'
+import { api, eventClipUrl, eventSnapshotUrl } from '../api'
 import { emitsEvents } from '../lib/zones'
 
 const KIND_LABEL = { boundary: 'Boundary', fire: 'Fire', smoke: 'Smoke', health: 'Camera' }
 
-export default function AlertHistory({ zones }) {
-  const [filters, setFilters] = useState({ kind: '', zoneId: '', limit: 200 })
+export default function AlertHistory({ cameras, zones }) {
+  const [filters, setFilters] = useState({ kind: '', zoneId: '', cameraId: '', limit: 200 })
   const [events, setEvents] = useState([])
   const [summary, setSummary] = useState({ available: false, counts: {}, today: {} })
-  const [source, setSource] = useState(null)
   const [error, setError] = useState(null)
+  const [viewing, setViewing] = useState(null) // null | an event with evidence to show
 
   const load = useCallback(async () => {
     try {
-      const [page, totals] = await Promise.all([api.events(filters), api.eventsSummary()])
+      const [page, totals] = await Promise.all([
+        api.events(filters),
+        api.eventsSummary(filters.cameraId),
+      ])
       setEvents(page.events)
-      setSource(page.source)
       setSummary(totals)
       setError(null)
     } catch (err) {
@@ -30,7 +32,7 @@ export default function AlertHistory({ zones }) {
     return () => clearInterval(id)
   }, [load])
 
-  const stats = deriveStats(summary, events)
+  const stats = deriveStats(summary)
   const set = (key) => (event) => setFilters((f) => ({ ...f, [key]: event.target.value }))
 
   return (
@@ -59,6 +61,14 @@ export default function AlertHistory({ zones }) {
                 </option>
               ))}
             </Select>
+            <Select value={filters.cameraId} onChange={set('cameraId')} className="w-auto py-1.5">
+              <option value="">All cameras</option>
+              {(cameras ?? []).map((camera) => (
+                <option key={camera.id} value={camera.id}>
+                  {camera.name || camera.id}
+                </option>
+              ))}
+            </Select>
             <Select value={filters.limit} onChange={set('limit')} className="w-auto py-1.5">
               <option value="50">Last 50</option>
               <option value="200">Last 200</option>
@@ -73,7 +83,7 @@ export default function AlertHistory({ zones }) {
           <table className="w-full border-collapse text-[13px]">
             <thead>
               <tr className="bg-ink-800">
-                {['Time', 'Alert', 'Boundary', 'Event', 'Track', 'Severity'].map((head) => (
+                {['Time', 'Alert', 'Boundary', 'Event', 'Track', 'Severity', 'Evidence'].map((head) => (
                   <th
                     key={head}
                     className="whitespace-nowrap px-4 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-400"
@@ -110,6 +120,23 @@ export default function AlertHistory({ zones }) {
                   >
                     {event.severity || '—'}
                   </td>
+                  <td className="whitespace-nowrap px-4 py-2.5">
+                    {event.snapshot_path ? (
+                      <button
+                        type="button"
+                        onClick={() => setViewing(event)}
+                        className="block h-10 w-14 overflow-hidden rounded-md border border-ink-700 transition-colors hover:border-brand-500"
+                      >
+                        <img
+                          src={eventSnapshotUrl(event.id)}
+                          alt="Alert snapshot"
+                          className="h-full w-full object-cover"
+                        />
+                      </button>
+                    ) : (
+                      <span className="text-ink-500">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -120,15 +147,62 @@ export default function AlertHistory({ zones }) {
 
         <CardFoot>
           <p className="text-[11.5px] text-ink-400">
-            {error
-              ? `Could not load history: ${error}`
-              : source === 'postgres'
-                ? 'Stored in PostgreSQL.'
-                : 'PostgreSQL unavailable — showing recent alerts held in memory only. '
-                  + 'These are NOT being recorded.'}
+            {error ? `Could not load history: ${error}` : 'Stored in MongoDB.'}
           </p>
         </CardFoot>
       </Card>
+
+      {viewing && <EvidenceLightbox event={viewing} onClose={() => setViewing(null)} />}
+    </div>
+  )
+}
+
+/* Full snapshot + clip playback for one alert (Expansion Plan Phase C). A plain
+ * `Card`-based overlay, same look `FireAlertOverlay.jsx` already established for a
+ * modal over the whole dashboard. */
+function EvidenceLightbox({ event, onClose }) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+    >
+      {/* Card itself does not spread onClick, so the stop-propagation guard lives on a
+          plain wrapper - clicking anywhere inside the card must not bubble up to the
+          overlay's own onClick and close the lightbox. */}
+      <div className="w-full max-w-xl" onClick={(event_) => event_.stopPropagation()}>
+        <Card>
+          <CardHead
+            title={event.message || 'Alert evidence'}
+            aside={<span className="text-[11.5px] text-ink-400">{formatWhen(event.ts)}</span>}
+          >
+            <Button variant="ghost" onClick={onClose}>
+              Close
+            </Button>
+          </CardHead>
+          <div className="space-y-3 p-4">
+            {event.snapshot_path && (
+              <img
+                src={eventSnapshotUrl(event.id)}
+                alt="Alert snapshot"
+                className="w-full rounded-lg border border-ink-800"
+              />
+            )}
+            {event.clip_path && (
+              // eslint-disable-next-line jsx-a11y/media-has-caption
+              <video
+                src={eventClipUrl(event.id)}
+                controls
+                className="w-full rounded-lg border border-ink-800"
+              />
+            )}
+            {!event.snapshot_path && !event.clip_path && (
+              <EmptyState>No evidence was captured for this alert.</EmptyState>
+            )}
+          </div>
+        </Card>
+      </div>
     </div>
   )
 }
@@ -154,37 +228,15 @@ function toneFor(event) {
   return event.subtype === 'entry' ? 'ok' : 'warn'
 }
 
-/* Without PostgreSQL there is nothing to aggregate, but showing "0 today" above a table
- * listing today's alerts is a flat contradiction an operator would rightly distrust.
- * Fall back to counting what is actually on screen, and say so. */
-function deriveStats(summary, events) {
+function deriveStats(summary) {
   const sum = (counts) => Object.values(counts).reduce((a, b) => a + b, 0)
-
-  if (summary.available) {
-    const today = summary.today || {}
-    return [
-      { label: 'Today', value: sum(today) },
-      { label: 'Boundary today', value: today.boundary || 0 },
-      {
-        label: 'Fire / smoke today',
-        value: (today.fire || 0) + (today.smoke || 0),
-        tone: (today.fire || 0) + (today.smoke || 0) > 0 ? 'alarm' : undefined,
-      },
-      { label: 'All time', value: sum(summary.counts || {}) },
-    ]
-  }
-
-  const midnight = new Date()
-  midnight.setHours(0, 0, 0, 0)
-  const today = {}
-  events.forEach((event) => {
-    if (new Date(event.ts) >= midnight) today[event.kind] = (today[event.kind] || 0) + 1
-  })
+  const today = summary.today || {}
+  const fireSmokeToday = (today.fire || 0) + (today.smoke || 0)
 
   return [
-    { label: 'Today (in memory)', value: sum(today) },
+    { label: 'Today', value: sum(today) },
     { label: 'Boundary today', value: today.boundary || 0 },
-    { label: 'Fire / smoke today', value: (today.fire || 0) + (today.smoke || 0) },
-    { label: 'Held in memory', value: events.length },
+    { label: 'Fire / smoke today', value: fireSmokeToday, tone: fireSmokeToday > 0 ? 'alarm' : undefined },
+    { label: 'All time', value: sum(summary.counts || {}) },
   ]
 }

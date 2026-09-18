@@ -12,8 +12,8 @@ import numpy as np
 import pytest
 import supervision as sv
 
-from fsbd.detect.yolox_onnx import Detections
-from fsbd.track.tracker import (
+from perimeter.detect.yolox_onnx import Detections
+from perimeter.track.tracker import (
     PersonTracker,
     TrackedDetections,
     from_supervision,

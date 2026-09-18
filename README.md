@@ -5,6 +5,8 @@ CPU-only, permissive licences throughout, intended for commercial deployment.
 
 - **[PLAN.md](PLAN.md)** — architecture, phases, and the reasoning behind each decision
 - **[NOTICE.md](NOTICE.md)** — licence and provenance record for every model, dataset and dependency
+- **[docs/MODEL_TRAINING.md](docs/MODEL_TRAINING.md)** — which remaining phases need an
+  actual GPU training run vs. ship against pretrained weights, and current status of each
 
 > **Not a certified fire alarm.** This system provides supplementary situational
 > awareness. It is not a substitute for certified fire detection under UL 268 or EN 54.
@@ -42,67 +44,65 @@ A model without a manifest entry fails at load rather than under-detecting quiet
 
 Split by **what the value is**, not by whether it happens to be secret:
 
-| File | Contains | Committed? |
+| File / store | Contains | Committed? |
 |---|---|---|
-| `.env` | **per-deployment facts** — camera source and credentials, resolution, decode rate, autostart | ❌ git-ignored |
+| `.env` | **per-deployment secrets** — MongoDB/AWS connection strings, the dev-bootstrap camera's source and credentials | ❌ git-ignored |
 | `config/app.yaml` | **engineering constants** — inference cadences, K-of-N gates, hysteresis defaults | ✅ yes |
-| `config/zones.yaml` | zone polygons, drawn on one specific camera view | ❌ git-ignored |
-
-Camera settings are per-deployment facts — camera index `0` on a dev laptop, an RTSP URL
-at the customer site. Committing them would mean the repository carried one installation's
-wiring as if it were product configuration, and every site would conflict on it. Templates
-(`.env.example`, `config/zones.example.yaml`) are committed instead.
+| MongoDB `cameras`/`zones` collections | camera registry and zone polygons for every camera | n/a — a database, not a file, since Expansion Plan Phase A |
+| `config/zones.example.yaml` | reference documentation of the zone shape only | ✅ yes, but no longer read by the running app |
 
 `decode_fps` lives in `.env` because it describes what *this machine* can keep up with.
-`person_every_n` lives in `app.yaml` because that is the tuning decision.
+`person_every_n` lives in `app.yaml` because that is the tuning decision. Zones are drawn
+in the dashboard's **Boundaries** page, not edited as a file.
 
 ```bash
 cp .env.example .env
-cp config/zones.example.yaml config/zones.yaml   # or just draw zones in the dashboard
+# then set PERIMETER_MONGO_URL before first run - see "Storage (MongoDB)" below
 ```
 
 Precedence is environment variable → `.env` → `app.yaml` → code default.
 
-### Camera source: one boolean
+### Camera source: legacy single-camera bootstrap only
+
+Since the [Expansion Plan](PLATFORM_EXPANSION_PLAN.md)'s Phase A, cameras are configured
+through the **Cameras** page (or the `/api/cameras` API), backed by MongoDB — any number
+of them, each with its own module selection. The `.env` variables below only matter on a
+brand-new install with an empty camera registry: `main.py` seeds exactly one camera from
+them so `perimeter-dashboard` still "just works" without a dashboard visit first.
 
 ```bash
-FSBD_USE_CCTV=false          # false → laptop webcam, true → site CCTV
-FSBD_CAMERA_SOURCE=0         # webcam index, or a video file path for development
-FSBD_CCTV_RTSP_URL=          # rtsp://user:pass@192.168.1.64:554/stream1
+PERIMETER_USE_CCTV=false          # false → laptop webcam, true → site CCTV
+PERIMETER_CAMERA_SOURCE=0         # webcam index, or a video file path for development
+PERIMETER_CCTV_RTSP_URL=          # rtsp://user:pass@192.168.1.64:554/stream1
 ```
 
 An RTSP URL embeds the camera password in plain text, so every path that logs or displays
 a source runs it through `redact()` first — otherwise it lands in log archives, the
-`/api/health` response, and support bundles. The dashboard treats the URL as
-**write-only**: you can replace it, never read it back.
+`/api/health` response, and support bundles. Once a camera exists in the registry, its
+RTSP URL is edited from the Cameras page and is **write-only**: you can replace it, never
+read it back.
 
-## Alert storage (PostgreSQL)
+## Storage (MongoDB)
 
-Every alert is written to PostgreSQL and read back by the dashboard's **History** view.
+Camera configuration, zone definitions and every alert live in MongoDB — self-hosted or
+Atlas. See `docs/phases/PHASE_A.md` for the full migration record and rationale.
 
 ```bash
-# 1. edit the password inside sql/setup.sql, then run it as a superuser
-psql -U postgres -f sql/setup.sql
-
-# 2. put the URL in .env
-FSBD_DATABASE_URL=postgresql://fsbd_app:YOURPASS@localhost:5432/fsbd
+PERIMETER_MONGO_URL=mongodb://localhost:27017     # or an Atlas mongodb+srv:// connection string
+PERIMETER_MONGO_DB=perimeter
 ```
 
-The schema is applied automatically at startup and is idempotent. `sql/schema.sql` is the
-readable reference.
+Indexes are created automatically at startup and the operation is idempotent. Unlike the
+project's original PostgreSQL-based design, **MongoDB is a hard requirement at startup**:
+`perimeter-dashboard` will not start without it, because camera and zone configuration live
+there too, not just alert history — there is no local file it can fall back to describing
+which cameras to run. A MongoDB outage *after* startup is still non-fatal for an
+already-running camera: the pipeline keeps detecting and the dashboard keeps showing
+alerts from its in-memory buffer while the alert bus retries inserts with backoff.
 
 Alert wording is `Someone entered <zone>` / `Someone left <zone>`, with a timestamp. The
 sentence is **stored on the row** rather than rebuilt at read time, so history always
 shows what was actually sent even after the wording changes.
-
-**Detection outranks persistence.** If PostgreSQL is unreachable the system keeps
-detecting, the dashboard keeps showing alerts from memory, and the alert bus retries with
-backoff. The header shows storage as a **separate indicator** from the camera — "alerts
-firing but not recorded" needs a different response from "site unwatched".
-
-> Driver note: this uses **pg8000** (BSD-3-Clause), not psycopg. `psycopg2` is
-> LGPL-with-exceptions and `psycopg` v3 is LGPL-3.0 — the obvious choice would have failed
-> the licence gate. See NOTICE.md §3.
 
 ### Ready for face recognition, not doing it yet
 
@@ -117,11 +117,116 @@ person"*; **no usable face reads the same as having no identity layer at all** �
 at a gate that is the common case, and rendering abstention as an accusation would be
 worse than saying nothing.
 
+### Video evidence (Expansion Plan Phase C)
+
+Every alert now carries a snapshot and an MP4 clip, shown in Alert History under a new
+Evidence column. A per-camera ring buffer (`storage.ring_buffer_seconds` in
+`config/app.yaml`, default 15s) holds recent JPEG frames; on an alert, `EvidenceWriter`
+waits `storage.post_roll_seconds` (default 5s) so the buffer picks up some "after"
+footage too, then muxes whatever's buffered into a clip and writes both under
+`storage.evidence_root` (default `backend/data/evidence`). See
+`docs/phases/PHASE_C.md` for the full record.
+
+Storage is **local filesystem, not S3** — no AWS account is stood up for this repo.
+`evidence/store.py`'s `LocalEvidenceStore` is written behind the same key-based interface
+the plan's S3 design describes, so swapping in a real `S3EvidenceStore` later only
+touches that one module and `main.py`'s wiring.
+
+### Email alerts (Expansion Plan Phase D)
+
+Alert routing rules (who gets emailed, minimum severity, cooldown) are managed from the
+dashboard's **Alerts** page (admin-only) — not a config file. `PUT`/`GET
+/api/alert-config` back it, stored in MongoDB's `alert_config` collection and picked up
+live, no restart needed. SMTP credentials are the one part that still lives in `.env`
+(a per-deployment secret, same axis as the Mongo URL):
+
+```bash
+PERIMETER_SMTP_HOST=
+PERIMETER_SMTP_PORT=587
+PERIMETER_SMTP_USER=
+PERIMETER_SMTP_PASSWORD=
+PERIMETER_SMTP_FROM=              # defaults to PERIMETER_SMTP_USER if unset
+```
+
+Both a configured SMTP host **and** at least one enabled rule on the Alerts page are
+required for email to actually go out — either alone is a logged no-op. The Alerts page
+also has a **system sound** toggle (with its own severity floor) that plays a short beep
+in any open, already-interacted-with dashboard tab when a new alert arrives — email is
+the reliable, always-on channel; the sound is a convenience on top of it, since browsers
+require a prior click on the page before they'll allow audio to play automatically. See
+`docs/phases/PHASE_D.md` for the full record.
+
+### Fire & smoke detection (Expansion Plan Phase E)
+
+The software path is fully built — a K-of-N temporal gate (`PLAN.md` §5.5), per-class
+confidence thresholds, `fire_roi`/`exclusion` zone awareness, alert publishing — and as
+of 2026-09-16 **`backend/models/firesmoke/model.onnx` ships real trained weights**: a
+40-epoch YOLOX-Nano fine-tune on D-Fire (see `backend/models/firesmoke/README.md` and
+`docs/MODEL_TRAINING.md` for the training run, hardware used, and — importantly — what
+validation is still outstanding before this should be treated as deployment-ready:
+false-alarm rate on real site video and site-negative testing per `PLAN.md` §5.4/§9.3
+have not been done yet). Any camera with the `fire_smoke` module enabled now runs live
+fire/smoke detection; if `model.onnx` is ever removed, it falls back to logging that it's
+inactive rather than a startup failure. See `docs/phases/PHASE_E.md` for the software
+integration record.
+
+### Identity & restricted-zone access control (Expansion Plan Phase F / F.1)
+
+Unlike fire/smoke, this ships against real pretrained weights — YuNet (face detection)
+and SFace (face recognition), both from the OpenCV Zoo, no GPU training needed. Off by
+default (`identity.enabled: false` in `config/app.yaml` — biometric processing needs a
+per-deployment consent story, `PLAN.md` §10.3). When enabled, a confirmed boundary ENTRY
+resolves the person's face (`known:<name>` / `unknown_face` / `no_face`) and, for any
+zone with `authorized_person_ids` set, anyone not on that list raises a second,
+`critical`-severity, unconditionally-delivered alert on top of the normal ENTRY log.
+Enrol people from the dashboard's **People** page (admin-only); pick who's authorised per
+zone from the boundary editor. See `docs/phases/PHASE_F.md` for the full record.
+
+### Crowd formation (Expansion Plan Phase G)
+
+No model — hand-rolled DBSCAN clustering (`scipy.spatial.cKDTree`) over already-tracked
+person foot points, distinguishing a genuine huddle from people merely spread across a
+wide zone. Turn on the `crowd` module for a camera on the Cameras page, then set a
+threshold (and optional hysteresis) on a boundary zone in the editor — a zone with no
+threshold set never evaluates crowding. Fires once per formation, not on every frame a
+crowd persists. See `docs/phases/PHASE_G.md` for the full record.
+
+### PPE detection (Expansion Plan Phase H)
+
+The software path is fully built — a whole-person-crop multi-label classifier wrapper,
+an explicit present/absent/indeterminate threshold, per-zone/per-item hysteresis, alert
+publishing — but **no model ships in this repo**. Unlike fire/smoke, this needs a
+genuinely new model architecture, not a fine-tune of the existing person detector; see
+`backend/models/ppe/README.md` and `PLATFORM_EXPANSION_PLAN.md` §5 for the recipe
+(SH17 + Construction-PPE). Until a real `model.onnx` is placed at
+`backend/models/ppe/`, any camera with the `ppe` module enabled just logs that it's
+inactive and runs everything else normally — this is not a startup failure. Pick
+required items (helmet/vest/gloves/shoes/glasses) per zone in the boundary editor. See
+`docs/phases/PHASE_H.md` for the full record.
+
+## Auth
+
+Every route requires a logged-in session (Expansion Plan Phase B). On first run, if the
+`users` collection is empty, the process seeds one admin account from `.env` and refuses
+to start without it:
+
+```bash
+PERIMETER_ADMIN_EMAIL=you@example.com
+PERIMETER_ADMIN_PASSWORD=choose-something-long
+```
+
+Manage further accounts from the dashboard's **Accounts** page (admin-only) once logged
+in — two roles: `admin` (full read/write) and `operator` (read-only, no configuration
+changes). The session is a signed, httpOnly cookie (`itsdangerous`, not a JWT); set
+`PERIMETER_SESSION_SECRET` in `.env` so sessions survive a restart, otherwise a random one is
+generated each boot and every session is logged out on the next restart. See
+`docs/phases/PHASE_B.md` for the full implementation record.
+
 ## Dashboard
 
 ```bash
-fsbd-dashboard                          # uses .env
-python -m fsbd.main --source clip.mp4   # or point it at a file
+perimeter-dashboard                          # uses .env
+python -m perimeter.main --source clip.mp4   # or point it at a file
 ```
 
 Then open <http://127.0.0.1:8000>.
@@ -138,15 +243,27 @@ npm run dev          # or: Vite on :5173, proxying /api to :8000
 npm run licences     # npm licence gate (pip-licenses cannot see node_modules)
 ```
 
-Four views in a sidebar shell:
+A sidebar shell behind a login page (see "Auth" above), each view aware of the camera
+switcher in the header where it applies (Live view, Boundaries):
 
-- **Live view** — MJPEG stream with boundaries, tracked IDs and foot points drawn on it
+- **Live view** — MJPEG stream with boundaries, tracked IDs and foot points drawn on it,
+  scoped to whichever camera is selected
 - **Boundaries** — freezes a frame; pick a type, click to place vertices, double-click or
   Enter to close, drag handles to adjust, right-click a handle to delete. Properties
-  panel for name, classes, events, direction, severity, hysteresis and active hours
-- **Camera** — webcam/CCTV toggle, resolution, fps, **Test connection**, save and
-  hot-reconnect without restarting
-- **Alert history** — every recorded alert with type and boundary filters, plus counts
+  panel for name, classes, events, direction, severity, hysteresis and active hours.
+  Saving requires the `admin` role
+- **Cameras** — add/remove any number of cameras, each with its own source, resolution,
+  fps, **Test connection**, and a per-camera detection-module selection. Every module
+  is opt-in, boundary included — a new camera runs no detection until you select one.
+  Crowd, PPE, phone and identity need boundary's person tracking and switch it on with
+  them; fire & smoke runs on its own. Adding, editing and removing a camera requires the
+  `admin` role — an `operator` can view this page but not change anything on it
+- **Alert history** — every recorded alert with type, boundary and camera filters, plus
+  counts, and an Evidence column with a snapshot/clip lightbox (Expansion Plan Phase C)
+- **Alerts** — `admin`-only. Email routing rules (recipients, minimum severity, cooldown)
+  and the browser system-sound setting (Expansion Plan Phase D)
+- **Accounts** — `admin`-only. Create/edit/deactivate accounts, assign the `admin` or
+  `operator` role, reset a password
 
 The status rail shows **camera and recording as separate indicators**, because they fail
 independently: a dead camera means the site is unwatched, a dead database means alerts
@@ -155,8 +272,9 @@ are firing but not being kept.
 ### UI end-to-end test
 
 ```bash
-python -m fsbd.main --source clip.mp4 --port 8081 &
-python tools/ui_e2e.py http://127.0.0.1:8081 ./shots
+python -m perimeter.main --source clip.mp4 --port 8081 &
+export PERIMETER_E2E_EMAIL=you@example.com PERIMETER_E2E_PASSWORD=...   # an admin account
+python tools/ui_e2e.py http://127.0.0.1:8081 ./shots cam_01
 ```
 
 Drives the real browser: draws a boundary by clicking the canvas, saves, verifies the
@@ -171,9 +289,10 @@ Needs `pip install playwright && playwright install chromium` (dev only).
 - Per-zone rules: name, classes, events, direction, severity, hysteresis, schedule
 - **Save** writes `config/zones.yaml`; the engine hot-reloads without a restart
 
-> ⚠️ The API binds to `127.0.0.1` and has **no authentication**. It is a commissioning
-> tool — anyone who can reach it can redraw the zones that arm the site. Exposing it on
-> `0.0.0.0` needs a reverse proxy with auth in front.
+> ⚠️ The API binds to `127.0.0.1` by default. Every route requires a logged-in session
+> (Expansion Plan Phase B — see "Auth" below), but exposing it on `0.0.0.0` still needs a
+> reverse proxy terminating TLS in front (`PERIMETER_COOKIE_SECURE=true` once one is) — auth
+> over plain http on an open network still exposes credentials and session cookies.
 
 **Exclusion masks are the highest value-per-hour feature here.** The worst false-alarm
 sources are fixed in place — the welding bay, the beacon on the forklift charger, the
@@ -220,21 +339,37 @@ produces far more occlusion than open ground, so this must be rerun per site.
 
 ```
 backend/          Python: detection pipeline, API, storage
-  src/fsbd/       the package
-  tests/          268 tests
+  src/perimeter/       the package
+    cameras/      camera domain model, MongoDB registry, PipelineManager
+    auth/         user model, MongoDB registry, session cookies (Expansion Plan Phase B)
+    alerts/       AlertBus, EmailSink, cooldown gate, AlertConfigStore (Phase D)
+    boundary/     zone model, MongoDB-backed ZoneStore, boundary state machine,
+                  crowd.py (hand-rolled DBSCAN + per-zone hysteresis, Phase G)
+    capture/      capture thread, drop-to-latest slot, evidence ring buffer
+    evidence/     LocalEvidenceStore + EvidenceWriter (Expansion Plan Phase C)
+    detect/       person + fire/smoke detectors, K-of-N temporal gate (Phase E);
+                  ppe.py (whole-crop multi-label classifier wrapper, Phase H)
+    identity/     YuNet + SFace wrappers, in-memory gallery, IdentityResolver (Phase F)
+    store/        MongoDB event store + persons collection
+  tests/          545 tests
   tools/          benchmark, recorder, UI end-to-end
-  config/         app.yaml (committed), zones.yaml (per-site, ignored)
-  models/         ONNX weights + manifest.json provenance
-  sql/            schema.sql, setup.sql
+  config/         app.yaml (committed); zones.example.yaml is reference only -
+                  live zones are in MongoDB, not a file, since Expansion Plan Phase A
+  models/         ONNX weights + manifest.json provenance; firesmoke/ is software-ready,
+                  no weights ship (Expansion Plan Phase E); yunet/ + sface/ ship real
+                  pretrained weights (Expansion Plan Phase F)
   web/dist/       built dashboard, served by FastAPI
-  .env            per-deployment secrets (ignored)
+  data/evidence/  clips + snapshots (Expansion Plan Phase C, local disk for now)
+  .env            per-deployment secrets (ignored) - Mongo/AWS creds, dev bootstrap camera
 
 frontend/         React 19 + Vite 8 + Tailwind 4
-  src/            components, pages, design tokens
+  src/            components, pages (incl. Cameras.jsx), design tokens
   scripts/        npm licence gate
 
-NOTICE.md         licence and provenance record for the whole product
-PLAN.md           architecture and phase plan
+NOTICE.md                    licence and provenance record for the whole product
+PLAN.md                      original v1 architecture and phase plan
+PLATFORM_EXPANSION_PLAN.md   multi-camera/multi-module expansion - architecture, models, phases
+docs/phases/                 a completion report per expansion phase, written as it ships
 ```
 
 `backend/` is a **self-contained deployable unit** — everything it reads at runtime
@@ -263,7 +398,7 @@ Run it:
 
 ```bash
 cd backend
-fsbd-dashboard                    # → http://127.0.0.1:8000
+perimeter-dashboard                    # → http://127.0.0.1:8000
 ```
 
 ## Site recorder (Phase 0)
@@ -312,7 +447,7 @@ incident. Two gates run in CI ([.github/workflows/licence-gate.yml](.github/work
 ```bash
 # Gate 1 - Python packages                                    (from backend/)
 pip-licenses --fail-on="GPL;AGPL;LGPL;CC-BY-NC;CC-BY-SA;Proprietary;Unknown" \
-    --ignore-packages opencv-python shapely fsbd
+    --ignore-packages opencv-python shapely perimeter
 
 # Gate 2 - models and datasets, invisible to pip-licenses      (from backend/)
 python tools/check_notice.py --root .. \
@@ -338,7 +473,7 @@ Nothing enters `models/` or `data/` without a NOTICE.md row **recorded at downlo
 
 ```bash
 cd backend
-pytest -q                      # 268 tests
+pytest -q                      # 545 tests
 ruff check src tools tests
 ```
 

@@ -1,4 +1,4 @@
-"""Tests for alert wording, the alert bus, and DSN handling.
+"""Tests for alert wording and the alert bus.
 
 The bus carries a policy that matters more than its code: detection outranks
 persistence. A database outage must never stop the pipeline, and must never silently
@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import time
 
-import pytest
-
-from fsbd.alerts.bus import AlertBus
-from fsbd.alerts.messages import boundary_message, firesmoke_message, health_message, subject_for
-from fsbd.boundary.zones import EventKind
-from fsbd.store.db import parse_dsn
+from perimeter.alerts.bus import AlertBus
+from perimeter.alerts.messages import (
+    boundary_message,
+    firesmoke_message,
+    health_message,
+    subject_for,
+)
+from perimeter.boundary.zones import EventKind
 
 
 def event(message: str = "Someone entered Bay") -> dict:
@@ -59,71 +61,22 @@ def test_health_and_firesmoke_wording():
     assert firesmoke_message("smoke") == "Smoke detected"
 
 
-# -- DSN ------------------------------------------------------------------
+# -- coordinate coercion ---------------------------------------------------
 
 
-def test_dsn_parses_all_parts():
-    dsn = parse_dsn("postgresql://user:pw@db.local:5433/fsbd")
-    assert (dsn.user, dsn.host, dsn.port, dsn.database) == ("user", "db.local", 5433, "fsbd")
-
-
-def test_dsn_defaults_the_port():
-    assert parse_dsn("postgresql://u:p@localhost/fsbd").port == 5432
-
-
-def test_dsn_percent_decodes_the_password():
-    """Database passwords routinely contain characters that must be escaped in a URL,
-    and a silently wrong password is a confusing failure to debug."""
-    assert parse_dsn("postgresql://u:p%40ss%3Aword@h/db").password == "p@ss:word"
-
-
-def test_dsn_carries_an_optional_schema():
-    """Lets the product share a database without its tables mingling - a normal ask
-    where a DBA hands out one database per team rather than one per application."""
-    assert parse_dsn("postgresql://u:p@h/db?schema=fsbd").schema == "fsbd"
-    assert parse_dsn("postgresql://u:p@h/db").schema == "public"
-
-
-@pytest.mark.parametrize("bad", ["Fsbd", "fs-bd", "fsbd;DROP TABLE events", "1fsbd", "a b"])
-def test_invalid_schema_names_are_rejected(bad):
-    """The schema name is interpolated into SET search_path, which cannot take a bind
-    parameter - so an unvalidated value here would be injection via a config file."""
-    with pytest.raises(ValueError, match="schema"):
-        parse_dsn(f"postgresql://u:p@h/db?schema={bad}")
-
-
-def test_blank_schema_falls_back_to_public():
-    """`?schema=` with nothing after it reads as "use the default", not as an error."""
-    assert parse_dsn("postgresql://u:p@h/db?schema=").schema == "public"
-
-
-def test_coordinates_survive_json_even_as_numpy_scalars():
-    """REGRESSION: foot_point came from a numpy float32 array, and np.float32 / int
-    stays np.float32. json.dumps refuses numpy scalars, so EVERY insert failed with
-    "Object of type float32 is not JSON serializable" while detection carried on
-    looking perfectly healthy."""
+def test_coordinates_survive_storage_even_as_numpy_scalars():
+    """REGRESSION (originally against the Postgres/json.dumps path): foot_point came
+    from a numpy float32 array, and np.float32 / int stays np.float32. A naive Mongo
+    insert of a numpy scalar raises `bson.errors.InvalidDocument`, so EVERY insert would
+    fail the same way the old `json.dumps` did, while detection carried on looking
+    perfectly healthy."""
     import numpy as np
 
-    from fsbd.store.db import _json
+    from perimeter.store.db import _coerce_coords
 
-    assert _json((np.float32(0.5), np.float32(0.25))) == "[0.5, 0.25]"
-    assert _json([np.float64(1.0), 2.0]) == "[1.0, 2.0]"
-    assert _json(None) is None
-
-
-def test_dsn_safe_string_hides_the_password():
-    safe = parse_dsn("postgresql://user:hunter2@h:5432/fsbd").safe
-    assert "hunter2" not in safe
-    assert "user@h:5432/fsbd" in safe
-
-
-@pytest.mark.parametrize(
-    "url",
-    ["mysql://u:p@h/db", "postgresql://u:p@h/", "not a url at all"],
-)
-def test_bad_dsn_is_rejected(url):
-    with pytest.raises(ValueError):
-        parse_dsn(url)
+    assert _coerce_coords((np.float32(0.5), np.float32(0.25))) == [0.5, 0.25]
+    assert _coerce_coords([np.float64(1.0), 2.0]) == [1.0, 2.0]
+    assert _coerce_coords(None) is None
 
 
 # -- bus ------------------------------------------------------------------
@@ -242,7 +195,7 @@ def test_bus_works_with_no_database_configured():
 
 def test_queue_overflow_drops_the_oldest_not_the_newest():
     """If the backlog is being shed, the most recent state of the site is what matters."""
-    from fsbd.alerts import bus as bus_module
+    from perimeter.alerts import bus as bus_module
 
     bus = AlertBus(database=None)
     for i in range(bus_module.QUEUE_MAXSIZE + 25):

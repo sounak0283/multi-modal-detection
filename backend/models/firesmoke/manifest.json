@@ -1,0 +1,49 @@
+{
+  "name": "firesmoke",
+  "role": "fire & smoke detection (2-class fine-tune)",
+  "licence": "Apache-2.0 (architecture, Megvii YOLOX) / project's own weights (trained in-house)",
+  "licence_verified": "2026-09-16. Architecture is YOLOX-Nano (Apache-2.0, Megvii). Weights are a from-scratch fine-tune of the Apache-2.0 COCO-pretrained yolox_nano.pth checkpoint on D-Fire, trained by this project - not a downloaded third-party checkpoint.",
+  "source": "Fine-tuned in-house. Base checkpoint: https://github.com/Megvii-BaseDetection/YOLOX/releases/tag/0.1.1rc0 (yolox_nano.pth, Apache-2.0). Training data: D-Fire, obtained via a Kaggle mirror https://www.kaggle.com/datasets/sayedgamal99/smoke-fire-detection-yolo (CC0-1.0 as declared by that listing) which repackages the original D-Fire dataset https://github.com/gaiasd/DFireDataset (see PLAN.md section 5.1 and NOTICE.md for the CC0 caveat on D-Fire's own images).",
+  "downloaded": "n/a - trained, not downloaded",
+  "trained": "2026-09-16",
+  "training": {
+    "recipe": "PLAN.md section 5.3, adapted for a single 4GB-VRAM laptop GPU (GTX 1650) rather than the rented-GPU recipe originally specified",
+    "base_checkpoint": "yolox_nano.pth (COCO-pretrained, 80-class head discarded and reinitialised to 2 classes)",
+    "dataset_split": "D-Fire via Kaggle mirror: 14122 train / 3099 val / 4306 test images (converted YOLO->COCO by training/scripts/dfire_to_coco.py)",
+    "epochs": 40,
+    "input_size_train": [416, 416],
+    "batch_size": 8,
+    "precision": "fp16 (AMP) during training, fp32 export",
+    "hardware": "NVIDIA GeForce GTX 1650 (4GB VRAM), CUDA 12.4, torch 2.6.0+cu124",
+    "no_aug_epochs": 6,
+    "warmup_epochs": 3,
+    "final_losses_epoch_40": "total_loss ~3.4-8.0 (mosaic off, L1 loss active), iou_loss ~1.1-3.1 - see training/YOLOX/YOLOX_outputs/fire_nano/train_log.txt for the full curve",
+    "in_training_eval": "DISABLED. yolox.evaluators.coco_evaluator unconditionally imports a JIT-compiled C++ extension (yolox.layers.COCOeval_opt) that needs an MSVC toolchain not present on the training machine; left enabled it crashed the training loop outright (silently, since trainer.py's train() wraps the loop in try/except/finally and logs a misleading 'Training of experiment is done' regardless of success - this happened once during training, see training/watchdog_train.sh and exps/custom/fire_nano.py for the full incident writeup and fix). Not a real loss of signal: PLAN.md section 5.4 explicitly says not to tune this model on COCO mAP - the real evaluation is false-alarms/hour on continuous site video through the full pipeline including the K-of-N temporal gate, which has NOT been done yet for this checkpoint.",
+    "validation_status": "UNVALIDATED beyond training loss convergence. Per PLAN.md section 5.4 and section 9.3, do not treat this checkpoint as deployment-ready until: (1) false-alarm rate is measured on hours of real site footage through the full pipeline (K-of-N gate included), (2) recall is checked on the D-Fire test split (4306 images, held out but not automatically scored since in-training eval was disabled), (3) site negatives per PLAN.md section 5.2 are collected and the model is re-evaluated against them - this checkpoint was trained on D-Fire alone, with no site-specific negatives yet."
+  },
+  "preprocessing": {
+    "resize": "letterbox to the model input size, pad value 114, ratio = min(H_in/h, W_in/w), top-left placement",
+    "normalisation": "none - raw 0-255 float32",
+    "layout": "NCHW",
+    "colour": "BGR (to_rgb: false)",
+    "colour_note": "Trained and exported through the same Megvii YOLOX pipeline as yolox_person (backend/models/yolox_person/manifest.json) - no colour conversion anywhere in the training or export path, so this model expects BGR input exactly like the official Megvii exports. See yolox_person's manifest for the measured ~25% recall cost of getting this wrong."
+  },
+  "files": [
+    {
+      "file": "model.onnx",
+      "architecture": "YOLOX-Nano",
+      "input": [416, 416],
+      "anchors": 3549,
+      "precision": "fp32",
+      "to_rgb": false,
+      "bytes": 3675404,
+      "sha256": "315858779d7a2a3fb684112c16c0c3f92f638db5c65cc012c3ca366b928032b1",
+      "note": "40-epoch fine-tune from COCO-pretrained yolox_nano.pth on D-Fire (14122/3099/4306 train/val/test), trained on a GTX 1650. In-training COCO eval was disabled (no MSVC toolchain on the training machine) - validate false-alarm rate on real site video per PLAN.md section 5.4 before deployment, not COCO mAP. See 'training' and 'training.validation_status' above."
+    }
+  ],
+  "io": {
+    "output_layout": "[1, 3549, 7] undecoded: 4 box + 1 objectness + 2 classes (0=fire, 1=smoke)",
+    "anchor_note": "anchors = sum over strides 8/16/32 of (H/s * W/s). 416 -> 52^2+26^2+13^2 = 3549, same as yolox_person's 416 input.",
+    "class_order_note": "Class order is 0=fire, 1=smoke, matching PLAN.md section 5.3 and src/perimeter/detect/firesmoke.py's FIRE_CLASS_ID=0/SMOKE_CLASS_ID=1. IMPORTANT: the D-Fire Kaggle mirror's own data.yaml declares the OPPOSITE YOLO label convention (names: ['smoke','fire'], i.e. its class 0=smoke, class 1=fire). training/scripts/dfire_to_coco.py remaps this correctly during YOLO->COCO conversion (verified against the label files' own class-frequency distribution, which matches D-Fire's published global box counts: fire 14692 > smoke 11865) - this model's output order does NOT need any further remapping at inference time."
+  }
+}

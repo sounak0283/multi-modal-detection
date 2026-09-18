@@ -12,8 +12,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from fsbd.detect.person import COCO_PERSON_CLASS_ID, PersonDetector, foot_points
-from fsbd.detect.yolox_onnx import Detections
+from perimeter.detect.person import COCO_PERSON_CLASS_ID, PersonDetector, foot_points
+from perimeter.detect.yolox_onnx import Detections
 
 MODEL = Path("models/yolox_person/yolox_nano.onnx")
 

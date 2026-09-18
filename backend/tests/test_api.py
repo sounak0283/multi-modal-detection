@@ -1,56 +1,75 @@
-"""Tests for the dashboard API (PLAN.md section 6.6).
+"""Tests for the dashboard API (Expansion Plan Phase A; PLAN.md section 6.6).
 
-Runs without a camera: the pipeline is optional, so the zone-editing half of the API is
-testable on its own. Endpoints that need frames are expected to return 503, not crash.
+Runs without a running pipeline: `PipelineManager.start()` is never called, so the
+zone-editing half of the API is testable on its own. Endpoints that need frames are
+expected to return 503, not crash.
 """
 
 from __future__ import annotations
 
+import mongomock
 import pytest
-import yaml
-from fastapi.testclient import TestClient
+from conftest import authed_client, seed_admin
 
-from fsbd.api.app import DIST_DIR, create_app
-from fsbd.boundary.zones import ZoneStore
-from fsbd.settings import Settings
+from perimeter.api.app import DIST_DIR, create_app
+from perimeter.boundary.zones import ZoneStore
+from perimeter.cameras.manager import PipelineManager
+from perimeter.cameras.models import camera_from_dict
+from perimeter.cameras.registry import CameraRegistry
+from perimeter.settings import Settings
 
 SQUARE = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]]
+CAMERA_ID = "cam_01"
+
+
+def build_app(settings: Settings | None = None, database=None):
+    db = mongomock.MongoClient()["perimeter_test"]
+    registry = CameraRegistry(db["cameras"])
+    registry.create(camera_from_dict({"id": CAMERA_ID, "source_type": "webcam", "source": 0}))
+    store = ZoneStore(db["zones"], refresh_interval=0)
+    users = seed_admin(db["users"])
+    settings = settings or Settings()
+    manager = PipelineManager(settings, registry, store, "unused-model-path.onnx")
+    app = create_app(settings, store, registry, manager, users, database=database)
+    return app, registry, store
 
 
 @pytest.fixture
-def client(tmp_path):
-    path = tmp_path / "zones.yaml"
-    path.write_text(yaml.safe_dump({"cameras": {"cam_01": {"zones": []}}}), encoding="utf-8")
-    store = ZoneStore(path, camera_id="cam_01")
-    return TestClient(create_app(Settings(), store, None))
+def client():
+    app, _registry, _store = build_app()
+    return authed_client(app)
 
 
 def polygon(**overrides):
     return {"id": "bay", "type": "polygon", "points": SQUARE, **overrides}
 
 
-# -- zones ----------------------------------------------------------------
+def zones_url(path: str = "") -> str:
+    return f"/api/cameras/{CAMERA_ID}/zones{path}"
+
+
+# -- zones ------------------------------------------------------------------
 
 
 def test_get_zones_starts_empty(client):
-    body = client.get("/api/zones").json()
+    body = client.get(zones_url()).json()
     assert body["zones"] == []
-    assert body["camera_id"] == "cam_01"
+    assert body["camera_id"] == CAMERA_ID
 
 
 def test_put_and_get_round_trip(client):
-    response = client.put("/api/zones", json={"zones": [polygon(name="Loading Bay")]})
+    response = client.put(zones_url(), json={"zones": [polygon(name="Loading Bay")]})
     assert response.status_code == 200
     assert response.json()["saved"] == 1
 
-    zones = client.get("/api/zones").json()["zones"]
+    zones = client.get(zones_url()).json()["zones"]
     assert zones[0]["name"] == "Loading Bay"
 
 
 def test_put_rejects_a_self_intersecting_polygon_with_a_usable_message(client):
     """The editor shows this verbatim, so it must name the zone and the problem."""
     bowtie = polygon(points=[[0.1, 0.1], [0.9, 0.9], [0.9, 0.1], [0.1, 0.9]])
-    response = client.put("/api/zones", json={"zones": [bowtie]})
+    response = client.put(zones_url(), json={"zones": [bowtie]})
 
     assert response.status_code == 400
     detail = response.json()["detail"]
@@ -58,30 +77,35 @@ def test_put_rejects_a_self_intersecting_polygon_with_a_usable_message(client):
 
 
 def test_put_rejects_duplicate_ids(client):
-    response = client.put("/api/zones", json={"zones": [polygon(), polygon()]})
+    response = client.put(zones_url(), json={"zones": [polygon(), polygon()]})
     assert response.status_code == 400
     assert "duplicate" in response.json()["detail"]
 
 
 def test_put_rejects_a_malformed_body(client):
-    assert client.put("/api/zones", json={"nope": []}).status_code == 400
+    assert client.put(zones_url(), json={"nope": []}).status_code == 400
 
 
 def test_put_rejects_exclusion_without_applies_to(client):
     response = client.put(
-        "/api/zones", json={"zones": [{"id": "x", "type": "exclusion", "points": SQUARE}]}
+        zones_url(), json={"zones": [{"id": "x", "type": "exclusion", "points": SQUARE}]}
     )
     assert response.status_code == 400
     assert "applies_to" in response.json()["detail"]
 
 
+def test_put_for_an_unknown_camera_is_404(client):
+    response = client.put("/api/cameras/does-not-exist/zones", json={"zones": []})
+    assert response.status_code == 404
+
+
 def test_saving_bumps_the_version(client):
-    before = client.get("/api/zones").json()["version"]
-    client.put("/api/zones", json={"zones": [polygon()]})
-    assert client.get("/api/zones").json()["version"] > before
+    before = client.get(zones_url()).json()["version"]
+    client.put(zones_url(), json={"zones": [polygon()]})
+    assert client.get(zones_url()).json()["version"] > before
 
 
-# -- validation endpoint --------------------------------------------------
+# -- validation endpoint (camera-agnostic) -----------------------------------
 
 
 def test_validate_accepts_a_good_polygon(client):
@@ -96,7 +120,7 @@ def test_validate_reports_errors_without_saving(client):
     ).json()
 
     assert body["valid"] is False
-    assert client.get("/api/zones").json()["zones"] == [], "validation must not persist"
+    assert client.get(zones_url()).json()["zones"] == [], "validation must not persist"
 
 
 def test_validate_warns_about_a_full_frame_zone(client):
@@ -122,40 +146,63 @@ def test_validate_tripwire_length(client):
     assert body["valid"] is False
 
 
-# -- video endpoints without a pipeline -----------------------------------
+@pytest.mark.parametrize("points", ["garbage", [["a", "b"], ["c", "d"], ["e", "f"]], [1, 2, 3]])
+def test_validate_malformed_points_is_invalid_not_a_500(client, points):
+    response = client.post("/api/zones/validate", json={"type": "polygon", "points": points})
+    assert response.status_code == 200
+    assert response.json()["valid"] is False
+
+
+# -- video/event endpoints without a running pipeline/database --------------
 
 
 def test_snapshot_without_a_pipeline_is_503(client):
-    assert client.get("/api/snapshot").status_code == 503
+    assert client.get(f"/api/cameras/{CAMERA_ID}/snapshot").status_code == 503
 
 
-def test_events_without_a_pipeline_is_503(client):
+def test_snapshot_for_an_unknown_camera_is_404(client):
+    assert client.get("/api/cameras/does-not-exist/snapshot").status_code == 404
+
+
+def test_events_without_a_database_is_503(client):
     assert client.get("/api/events").status_code == 503
 
 
-# -- health ---------------------------------------------------------------
+def test_events_live_without_an_alert_bus_is_empty(client):
+    assert client.get("/api/events/live").json() == {"events": []}
 
 
-def test_health_reports_zone_count(client):
-    client.put("/api/zones", json={"zones": [polygon()]})
+# -- health -------------------------------------------------------------
+
+
+def test_health_reports_cameras_and_their_running_state(client):
     body = client.get("/api/health").json()
 
-    assert body["zones"] == 1
-    assert body["pipeline"] is False
+    assert body["database"]["configured"] is False
+    assert len(body["cameras"]) == 1
+    assert body["cameras"][0]["id"] == CAMERA_ID
+    assert body["cameras"][0]["running"] is False
 
 
-def test_health_redacts_camera_credentials():
-    """This endpoint ends up in screenshots and support bundles."""
-    from fsbd.settings import CameraSettings
+def test_camera_detail_redacts_credentials():
+    """This endpoint's `resolved` field ends up in screenshots and support bundles."""
+    app, registry, _store = build_app()
+    registry.update(
+        CAMERA_ID,
+        camera_from_dict(
+            {
+                "id": CAMERA_ID,
+                "source_type": "rtsp",
+                "rtsp_url": "rtsp://admin:hunter2@10.0.0.5:554/s1",
+            }
+        ),
+    )
+    client = authed_client(app)
 
-    settings = Settings(camera=CameraSettings(source="rtsp://admin:hunter2@10.0.0.5:554/s1"))
-    store = ZoneStore("does-not-exist.yaml", camera_id="cam_01")
-    client = TestClient(create_app(settings, store, None))
+    body = client.get(f"/api/cameras/{CAMERA_ID}").json()
 
-    source = client.get("/api/health").json()["source"]
-
-    assert "hunter2" not in source
-    assert "10.0.0.5" in source
+    assert "hunter2" not in str(body)
+    assert "10.0.0.5" in body["resolved"]
 
 
 # -- static files ---------------------------------------------------------

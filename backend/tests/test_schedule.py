@@ -11,7 +11,7 @@ from datetime import datetime
 
 import pytest
 
-from fsbd.boundary.schedule import ALL_DAYS, Schedule, parse_time
+from perimeter.boundary.schedule import ALL_DAYS, Schedule, parse_time
 
 # 2026-08-10 is a Monday.
 MON = datetime(2026, 8, 10)

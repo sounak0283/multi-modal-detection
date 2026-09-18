@@ -1,0 +1,18 @@
+{
+  "name": "yunet",
+  "role": "face detection, cropped from the top ~35% of a confirmed-ENTRY person box (Expansion Plan Phase F; PLAN.md section 7)",
+  "licence": "MIT",
+  "licence_verified": "2026-09-15. Read models/face_detection_yunet/LICENSE in opencv_zoo, confirmed MIT, copyright Shiqi Yu.",
+  "source": "https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet",
+  "downloaded": "2026-09-15",
+  "runtime": "cv2.FaceDetectorYN (OpenCV's own wrapper) - not raw onnxruntime. The raw ONNX output is undecoded multi-scale SSD-style anchors (three detection heads x cls/obj/bbox/kps each); OpenCV's wrapper is the reference decoder for this exact export.",
+  "files": [
+    {
+      "file": "face_detection_yunet_2023mar.onnx",
+      "input": "dynamic (setInputSize per call - a face crop's size varies per detection)",
+      "bytes": 232589,
+      "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
+      "output": "raw: cls_8/16/32, obj_8/16/32, bbox_8/16/32, kps_8/16/32 (three strides) - decoded by cv2.FaceDetectorYN into (box, 5 landmarks, score) rows"
+    }
+  ]
+}

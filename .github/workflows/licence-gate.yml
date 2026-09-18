@@ -46,7 +46,7 @@ jobs:
         run: |
           pip-licenses --format=markdown --with-urls \
             --fail-on="GPL;AGPL;LGPL;CC-BY-NC;CC-BY-SA;Proprietary;Unknown" \
-            --ignore-packages opencv-python shapely fsbd
+            --ignore-packages opencv-python shapely perimeter
 
       - name: Licence inventory (informational)
         if: always()

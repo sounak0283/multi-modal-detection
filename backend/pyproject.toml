@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "fsbd"
+name = "perimeter"
 version = "0.1.0"
 description = "Fire, smoke and boundary detection for fixed-mount cameras"
 requires-python = ">=3.11"
@@ -25,9 +25,14 @@ dependencies = [
     "requests>=2.32,<3",      # Apache-2.0
     "PyYAML>=6.0,<7",         # MIT
     "python-dotenv>=1.0,<2",  # BSD-3-Clause  secrets out of the repo
-    # pg8000, NOT psycopg. psycopg2 is LGPL-with-exceptions and psycopg3 is LGPL-3.0;
-    # both would fail this project's own licence gate. See NOTICE.md section 3.
-    "pg8000>=1.31,<2",        # BSD-3-Clause  pure-Python PostgreSQL driver
+    # MongoDB Atlas driver (Expansion Plan Phase A.1), replacing pg8000/PostgreSQL.
+    "pymongo>=4.8,<5",        # Apache-2.0
+    # Auth (Expansion Plan Phase B).
+    "bcrypt>=4.0,<5",         # Apache-2.0  password hashing
+    "itsdangerous>=2.1,<3",   # BSD-3-Clause  signed session cookies
+    # Face-embedding vector index (Expansion Plan Phase F redesign): nearest-neighbour
+    # match across every enrolled pose, on-disk so the index survives a restart.
+    "chromadb>=1.0,<2",       # Apache-2.0
 ]
 
 [project.optional-dependencies]
@@ -36,11 +41,12 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.6",
     "pip-licenses>=5.0",
+    "mongomock>=4.1,<5",      # BSD-3-Clause  in-memory MongoDB for tests, no live server needed
 ]
 
 [project.scripts]
-fsbd-record = "fsbd.record:main"
-fsbd-dashboard = "fsbd.main:main"
+perimeter-record = "perimeter.record:main"
+perimeter-dashboard = "perimeter.main:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -51,6 +57,13 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's own idiom for a request-scoped dependency IS `Depends(...)` as an argument
+# default (api/app.py's auth routes, Expansion Plan Phase B) - B008 exists to catch
+# accidental mutable-default bugs, not this pattern, so it is allow-listed rather than
+# routing auth through a different style than the rest of FastAPI's ecosystem uses.
+extend-immutable-calls = ["fastapi.Depends"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

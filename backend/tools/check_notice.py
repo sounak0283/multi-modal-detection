@@ -59,6 +59,11 @@ def check_manifest(model_dir: Path) -> list[str]:
     if not model_dir.is_dir():
         return []
 
+    # A directory holding only housekeeping (e.g. a README describing weights that are not
+    # trained yet) ships nothing, so there is no provenance to record.
+    if not iter_assets(model_dir):
+        return []
+
     manifest_path = model_dir / "manifest.json"
     if not manifest_path.is_file():
         return [

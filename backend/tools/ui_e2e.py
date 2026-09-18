@@ -9,14 +9,20 @@ swallowing clicks in the bottom-left of the frame, so a boundary drawn near that
 lost a vertex. No API-level test could have seen that.
 
 Usage:
-    python -m fsbd.main --source clip.mp4 --port 8081 &
-    python tools/ui_e2e.py http://127.0.0.1:8081 ./shots
+    python -m perimeter.main --source clip.mp4 --port 8081 &
+    export PERIMETER_E2E_EMAIL=admin@... PERIMETER_E2E_PASSWORD=...
+    python tools/ui_e2e.py http://127.0.0.1:8081 ./shots [camera_id]
+
+Every route requires a session (Expansion Plan Phase B), so the tool signs in as an admin
+both in the browser and for its own API checks. Credentials default to
+PERIMETER_ADMIN_EMAIL / PERIMETER_ADMIN_PASSWORD, the same bootstrap account main.py seeds.
 
 Requires the dev extra:  pip install playwright && playwright install chromium
 """
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from pathlib import Path
@@ -32,18 +38,49 @@ except ImportError:  # pragma: no cover - dev-only tool
 # the hint overlay sits - that is the regression this tool exists to catch.
 POLYGON = [(0.30, 0.55), (0.95, 0.55), (0.95, 0.95), (0.30, 0.95)]
 ALERT_TIMEOUT_S = 90
+# main.py's dev-mode bootstrap (Expansion Plan Phase A.2) seeds exactly this camera id
+# from PERIMETER_CAMERA_ID/--source when the registry is empty.
+CAMERA_ID = "cam_01"
 
 
 def main(argv: list[str]) -> int:
     base = argv[1] if len(argv) > 1 else "http://127.0.0.1:8081"
     out = Path(argv[2] if len(argv) > 2 else ".")
+    camera_id = argv[3] if len(argv) > 3 else CAMERA_ID
     out.mkdir(parents=True, exist_ok=True)
+    email = os.getenv("PERIMETER_E2E_EMAIL") or os.getenv("PERIMETER_ADMIN_EMAIL", "")
+    password = os.getenv("PERIMETER_E2E_PASSWORD") or os.getenv("PERIMETER_ADMIN_PASSWORD", "")
+    if not email or not password:
+        print("set PERIMETER_E2E_EMAIL and PERIMETER_E2E_PASSWORD (an admin account)")
+        return 2
+
+    api = requests.Session()
+    login = api.post(
+        f"{base}/api/auth/login", json={"email": email, "password": password}, timeout=10
+    )
+    if login.status_code != 200:
+        print(f"API login failed ({login.status_code}): {login.text[:200]}")
+        return 2
 
     problems: list[str] = []
 
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page(viewport={"width": 1440, "height": 900})
+
+        # Start from a clean slate. Without this the run appends to whatever a previous
+        # run left behind, and the assertions below end up inspecting someone else's
+        # boundary - which is how a stale leftover zone can make a broken run look fine.
+        api.put(f"{base}/api/cameras/{camera_id}/zones", json={"zones": []}, timeout=10)
+
+        page.goto(base, wait_until="networkidle")
+        page.fill("input[type=email]", email)
+        page.fill("input[type=password]", password)
+        page.click("button[type=submit]")
+        page.wait_for_timeout(2500)
+
+        # Listen only after signing in: before that the app's session probe answering 401
+        # is expected, and the browser logs it as a console error.
         page.on(
             "console",
             lambda m: problems.append(f"console.{m.type}: {m.text}")
@@ -51,14 +88,6 @@ def main(argv: list[str]) -> int:
             else None,
         )
         page.on("pageerror", lambda e: problems.append(f"pageerror: {e}"))
-
-        # Start from a clean slate. Without this the run appends to whatever a previous
-        # run left behind, and the assertions below end up inspecting someone else's
-        # boundary - which is how a stale leftover zone can make a broken run look fine.
-        requests.put(f"{base}/api/zones", json={"zones": []}, timeout=10)
-
-        page.goto(base, wait_until="networkidle")
-        page.wait_for_timeout(2500)
 
         # -- draw ----------------------------------------------------------
         page.click('[data-view="boundaries"]')
@@ -80,7 +109,7 @@ def main(argv: list[str]) -> int:
         page.screenshot(path=str(out / "ui_boundary_saved.png"))
 
         # -- verify what was stored ----------------------------------------
-        zones = requests.get(f"{base}/api/zones", timeout=10).json()["zones"]
+        zones = api.get(f"{base}/api/cameras/{camera_id}/zones", timeout=10).json()["zones"]
         if len(zones) != 1:
             problems.append(f"expected exactly the boundary just drawn, found {len(zones)}")
         if not zones:
@@ -105,7 +134,7 @@ def main(argv: list[str]) -> int:
         deadline = time.time() + ALERT_TIMEOUT_S
         events: list[dict] = []
         while time.time() < deadline:
-            events = requests.get(f"{base}/api/events?limit=10", timeout=10).json()["events"]
+            events = api.get(f"{base}/api/events?limit=10", timeout=10).json()["events"]
             if len(events) >= 2:
                 break
             time.sleep(3)

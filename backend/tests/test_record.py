@@ -12,7 +12,7 @@ import time
 
 import pytest
 
-from fsbd.record import RecorderConfig, parse_source, prune_to_budget
+from perimeter.record import RecorderConfig, parse_source, prune_to_budget
 
 
 @pytest.mark.parametrize(

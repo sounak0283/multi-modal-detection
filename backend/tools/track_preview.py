@@ -26,9 +26,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 import cv2  # noqa: E402
 
-from fsbd.detect.person import PersonDetector  # noqa: E402
-from fsbd.detect.yolox_onnx import configure_opencv_threads  # noqa: E402
-from fsbd.track.tracker import PersonTracker  # noqa: E402
+from perimeter.detect.person import PersonDetector  # noqa: E402
+from perimeter.detect.yolox_onnx import configure_opencv_threads  # noqa: E402
+from perimeter.track.tracker import PersonTracker  # noqa: E402
 
 # Distinct, colour-blind-safe-ish palette cycled by track ID.
 PALETTE = [

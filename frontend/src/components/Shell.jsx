@@ -5,11 +5,29 @@ import { Dot } from './ui'
 const NAV = [
   { id: 'live', label: 'Live view', icon: PlayIcon },
   { id: 'boundaries', label: 'Boundaries', icon: ShapeIcon },
-  { id: 'camera', label: 'Camera', icon: CameraIcon },
+  { id: 'cameras', label: 'Cameras', icon: CameraIcon },
   { id: 'history', label: 'Alert history', icon: ListIcon },
+  { id: 'recognition', label: 'Recognition log', icon: ScanIcon },
 ]
 
-export default function Shell({ view, onNavigate, health, title, subtitle, actions, children }) {
+const ADMIN_NAV = [
+  { id: 'alerts', label: 'Alerts', icon: BellIcon },
+  { id: 'persons', label: 'People', icon: IdIcon },
+  { id: 'users', label: 'Accounts', icon: UserIcon },
+]
+
+export default function Shell({
+  view,
+  onNavigate,
+  health,
+  title,
+  subtitle,
+  actions,
+  user,
+  onLogout,
+  children,
+}) {
+  const nav = user?.role === 'admin' ? [...NAV, ...ADMIN_NAV] : NAV
   return (
     <div className="grid min-h-full grid-cols-1 md:grid-cols-[232px_minmax(0,1fr)]">
       <aside className="flex flex-col border-r border-ink-700 bg-ink-900 md:sticky md:top-0 md:h-screen">
@@ -22,7 +40,7 @@ export default function Shell({ view, onNavigate, health, title, subtitle, actio
         </div>
 
         <nav className="flex flex-1 flex-row gap-0.5 overflow-x-auto p-2.5 md:flex-col md:overflow-visible">
-          {NAV.map(({ id, label, icon: Icon }) => (
+          {nav.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
@@ -41,8 +59,9 @@ export default function Shell({ view, onNavigate, health, title, subtitle, actio
           ))}
         </nav>
 
-        <div className="hidden p-2.5 md:block">
+        <div className="hidden space-y-2 p-2.5 md:block">
           <StatusRail health={health} />
+          {user && <AccountRow user={user} onLogout={onLogout} />}
         </div>
       </aside>
 
@@ -60,30 +79,47 @@ export default function Shell({ view, onNavigate, health, title, subtitle, actio
   )
 }
 
-/* Camera and storage are separate indicators on purpose. They fail independently and
- * the response differs: a dead camera means the site is unwatched, a dead database
- * means alerts are firing but not being kept. One combined light would hide that. */
+/* Cameras and storage are separate indicators on purpose. They fail independently and
+ * the response differs: a camera down means one site is unwatched, a dead database
+ * means every alert is firing but not being kept. One combined light would hide that.
+ * Per-camera detail (fps, people tracked, feed state) lives on the Live view /
+ * Cameras page instead of here - the sidebar is a system-wide summary across any
+ * number of cameras, not one camera's dashboard. */
 function StatusRail({ health }) {
-  const feed = health?.feed_state
+  const cameras = health?.cameras ?? []
   const db = health?.database ?? {}
 
-  const feedTone = feed === 'live' ? 'ok' : feed === 'lost' ? 'alarm' : null
+  const running = cameras.filter((c) => c.running).length
+  const enabled = cameras.filter((c) => c.enabled).length
+  const camerasTone = enabled === 0 ? null : running === enabled ? 'ok' : 'alarm'
   const dbTone = db.connected ? 'ok' : db.configured ? 'alarm' : null
 
   return (
     <div className="rounded-lg border border-ink-700 bg-ink-800 px-3 py-2.5">
-      <Row tone={feedTone} label="Camera" value={feed || 'unknown'} />
+      <Row tone={camerasTone} label="Cameras" value={`${running}/${enabled} running`} />
       <Row
         tone={dbTone}
         label="Recording"
         value={db.connected ? 'recording' : db.configured ? 'db down' : 'not recording'}
       />
-      <Row label="Boundaries" value={health?.zones ?? 0} />
-      <p className="mt-2 border-t border-ink-700 pt-2 text-[11px] tabular-nums text-ink-400">
-        {health?.inference_ms != null
-          ? `${health.render_fps ?? 0} fps · ${health.inference_ms} ms · ${health.people_tracked ?? 0} tracked`
-          : 'pipeline not running'}
-      </p>
+    </div>
+  )
+}
+
+function AccountRow({ user, onLogout }) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-ink-700 bg-ink-800 px-3 py-2.5">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[12px] text-ink-100">{user.email}</p>
+        <p className="text-[10.5px] capitalize text-ink-400">{user.role}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onLogout}
+        className="shrink-0 rounded-md px-2 py-1 text-[11px] text-ink-300 transition-colors hover:bg-ink-700 hover:text-ink-100"
+      >
+        Log out
+      </button>
     </div>
   )
 }
@@ -141,6 +177,44 @@ function ListIcon() {
   return (
     <svg {...iconProps}>
       <path d="M2.5 4h11M2.5 8h11M2.5 12h7" />
+    </svg>
+  )
+}
+
+function UserIcon() {
+  return (
+    <svg {...iconProps}>
+      <circle cx="8" cy="5.3" r="2.6" />
+      <path d="M2.8 13.4c0-2.7 2.3-4.4 5.2-4.4s5.2 1.7 5.2 4.4" />
+    </svg>
+  )
+}
+
+function IdIcon() {
+  return (
+    <svg {...iconProps}>
+      <rect x="1.8" y="3" width="12.4" height="10" rx="1.4" />
+      <circle cx="5.6" cy="7.4" r="1.6" />
+      <path d="M3.4 11.2c0-1.4 1-2.2 2.2-2.2s2.2.8 2.2 2.2" />
+      <path d="M9.6 6.4h3M9.6 8.8h3" />
+    </svg>
+  )
+}
+
+function ScanIcon() {
+  return (
+    <svg {...iconProps}>
+      <path d="M2 5V3a1 1 0 0 1 1-1h2M14 2h2a1 1 0 0 1 1 1v2M14 14h2a1 1 0 0 1-1 1h-2M2 11v2a1 1 0 0 0 1 1h2" />
+      <circle cx="8" cy="8" r="2.4" />
+    </svg>
+  )
+}
+
+function BellIcon() {
+  return (
+    <svg {...iconProps}>
+      <path d="M4 6.5a4 4 0 0 1 8 0c0 3.5 1.2 4.5 1.2 4.5H2.8S4 10 4 6.5Z" />
+      <path d="M6.5 13.2a1.5 1.5 0 0 0 3 0" />
     </svg>
   )
 }

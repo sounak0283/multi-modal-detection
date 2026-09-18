@@ -26,9 +26,10 @@ deliberate rather than accidental — it was found by running the CI gate, not b
 |---|---|---|---|---|---|
 | YOLOX-Nano / Tiny — person detection | `models/yolox_person` | release 0.1.1rc0 | **Apache-2.0** | https://github.com/Megvii-BaseDetection/YOLOX/releases/tag/0.1.1rc0 | ☑ 2026-08-11 |
 | YOLOX-S — person detection (benchmark reference) | `models/yolox_person` | 2022nov | **Apache-2.0** | https://github.com/opencv/opencv_zoo/tree/main/models/object_detection_yolox | ☑ 2026-08-11 |
-| YuNet — face detection | *(Phase 8)* | 2023mar | **MIT** — © 2020 Shiqi Yu | https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet | ☑ 2026-08-11 |
-| SFace — face recognition | *(Phase 8)* | 2021dec | **Apache-2.0** | https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface | ☑ 2026-08-11 |
-| Fire/smoke detector | *(Phase 7)* | — | **Ours** — trained in-house | see §2 for training data provenance | ☐ |
+| YuNet — face detection | `models/yunet/` | 2023mar | **MIT** — © 2020 Shiqi Yu | https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet | ☑ 2026-09-15 |
+| SFace — face recognition | `models/sface/` | 2021dec | **Apache-2.0** | https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface | ☑ 2026-09-15 |
+| Fire/smoke detector | `models/firesmoke/` | 40-epoch fine-tune, trained 2026-09-16 | **Ours** — trained in-house (YOLOX-Nano architecture, Apache-2.0) | D-Fire via Kaggle mirror `https://www.kaggle.com/datasets/sayedgamal99/smoke-fire-detection-yolo` (CC0-1.0), repackaging `https://github.com/gaiasd/DFireDataset` — see §2 for the D-Fire CC0 caveat | ☑ 2026-09-16 |
+| PPE compliance classifier | *(Phase H)* | — | **Ours** — trained in-house | SH17 + Construction-PPE, licences to confirm before training (`PLATFORM_EXPANSION_PLAN.md` §5) | ☐ |
 
 Every model directory ships a `manifest.json` recording licence, source, SHA-256 per weight file,
 and — for in-house checkpoints — the dataset versions and hashes it was trained on, the training
@@ -60,7 +61,7 @@ Recorded so the decision is not silently reversed by a future contributor.
 
 | Excluded | Licence | Reason |
 |---|---|---|
-| `psycopg2` / `psycopg` (PostgreSQL drivers) | LGPL-with-exceptions / LGPL-3.0 | The default choice for Postgres in Python. Replaced by `pg8000` (BSD-3-Clause). |
+| `psycopg2` / `psycopg` (PostgreSQL drivers) | LGPL-with-exceptions / LGPL-3.0 | Historical: this project used PostgreSQL (via the BSD-3-Clause `pg8000`) through Expansion Plan Phase A's `PLAN.md` v1 scope. Storage moved to MongoDB Atlas in Phase A.1; kept here as a record of why psycopg was never the driver either way. |
 | Ultralytics YOLOv5 / v8 / v11 (code + weights) | AGPL-3.0 | Network use or distribution triggers full source disclosure. |
 | YOLOv6 (Meituan), YOLOv7 | GPL-3.0 | Copyleft. |
 | YOLO-NAS | Apache code, non-commercial weights | Repo badge looks clean; the weights are not. |
@@ -79,8 +80,8 @@ produce a shipped model must appear here with its licence and any attribution ob
 
 | Dataset | Size | Licence | Attribution required | Source | Downloaded | Verified |
 |---|---|---|---|---|---|---|
-| D-Fire | 21,527 images / 26,557 boxes | CC0 1.0 Universal *(compilation — see caveat)* | No (citation requested, not required) | https://github.com/gaiasd/DFireDataset | | ☐ |
-| FASDD_CV | 95,314 samples | *verify at source* | *verify* | https://doi.org/10.57760/sciencedb.j00104.00103 | | ☐ |
+| D-Fire | 21,527 images / 26,557 boxes (train 14,122 / val 3,099 / test 4,306 as split by the mirror below) | CC0 1.0 Universal *(compilation — see caveat)* | No (citation requested, not required) | Obtained via Kaggle mirror `https://www.kaggle.com/datasets/sayedgamal99/smoke-fire-detection-yolo` (repackages `https://github.com/gaiasd/DFireDataset`, same CC0-1.0 licence declared by that Kaggle listing) | 2026-09-16 | ☑ 2026-09-16 — verified the mirror's `data.yaml` class-index convention (`0: smoke, 1: fire`, opposite of this project's own `0: fire, 1: smoke`) against the actual label files' class-frequency distribution (class 1 = 9,638 boxes > class 0 = 7,794, consistent with D-Fire's published global counts fire 14,692 > smoke 11,865) before training — see `training/scripts/dfire_to_coco.py` |
+| FASDD_CV | 95,314 samples | *verify at source* | *verify* | https://doi.org/10.57760/sciencedb.j00104.00103 | not used | ☐ — not used in the 2026-09-16 training run; D-Fire alone was sufficient for this fine-tune |
 | Site negatives (`data/site_negatives`) | ~500–1000 images | **Ours** — captured on site | n/a | internal — customer premises | | n/a |
 
 > **Action:** FASDD's licence must be confirmed on the Science Data Bank landing page before any
@@ -111,6 +112,25 @@ Not a licence obligation under CC0, but requested by the authors and worth honou
 | FLAME1 | CC BY 4.0 | Aerial, classification/segmentation only. |
 | DFS (siyuanwu) | **No stated licence** | Unusable — absence of a licence is not permission. |
 | Roboflow Universe fire datasets | Mixed / often unspecified | Treat "unspecified" as unusable. Individual CC BY sets may be reconsidered case by case. |
+| SH17 (`mugheesahmad/sh17-dataset-for-ppe-detection`, Kaggle) | **CC BY-NC-SA 4.0** | Non-commercial + share-alike, both explicitly excluded by this file's own policy (§ top). Checked directly 2026-09-16 — disqualified regardless of any other confirmation; do not use for PPE (Phase H) training even though `PLATFORM_EXPANSION_PLAN.md` §5 originally named it. |
+
+### Pending licence confirmation — do not train commercially on these yet
+
+| Dataset | Licence | Status |
+|---|---|---|
+| SFCHD (`github.com/lijfrank/SFCHD-SCALE`) | **Unstated — no LICENSE file in the repo** | 12,373 images / 50,559 instances, 7 classes (Person, Safety Helmet, Safety Clothing, Other Clothing, Head, Blurred Clothing, Blurred Head), real CCTV footage from two chemical plants (Huazhong University of Science and Technology). **TODO: email the corresponding author (`lijfrank@hust.edu.cn`, found in the paper PDF) to confirm commercial-use terms before this is used for anything beyond local experimentation.** Downloaded (if at all) only after that confirmation, or kept strictly to non-shipping local evaluation until then. |
+| `shlokraval/ppe-dataset-yolov8` (Kaggle) | **UNCONFIRMED — do not use commercially until told otherwise** — Kaggle's own page states "Apache 2.0" (verified directly via the page's schema.org JSON-LD, 2026-09-16), but the dataset's own bundled `README.dataset.txt`/`README.roboflow.txt` (auto-generated by Roboflow at export time, describing the *actual* underlying content) states **"License: CC BY 4.0"**. Since the images/annotations originate from a Roboflow Universe project (`roboflow-universe-projects/personal-protective-equipment-combined-model`, not from the Kaggle re-uploader), the re-uploader's own Apache-2.0 tag cannot relicense content they did not originate — treat CC BY 4.0 (attribution required) as the operative constraint, not Apache-2.0, until this is resolved. | 44,002 images, 82,947 instances, 14 source classes (helmet/vest/gloves/goggles present+absent + out-of-scope classes dropped during conversion — see `training/scripts/ppe_taxonomy.py`). **Confirmed 2026-09-16 by perceptual hash (diff=0) that this dataset directly incorporates images from `snehilsanyal/construction-site-safety-image-dataset-roboflow`** (a separate Kaggle mirror of the Roboflow `construction-site-safety` project, also CC BY 4.0 — internally consistent with the README's stated licence even though the Kaggle tag disagrees). No evidence found of SH17 inclusion (different filename/export convention — SH17 is a raw Pexels scrape, not Roboflow-exported). **Action before any commercial use:** confirm which licence actually governs (contact the Kaggle uploader and/or the original Roboflow Universe project owner), and if CC BY 4.0 is confirmed, add the required attribution. |
+
+### Runtime data — generated on site, never shipped
+
+These directories are created by a running deployment, not downloaded, and are git-ignored
+(`backend/data/**`). They carry no third-party licence, but they are listed here so the asset gate
+(§6.1) matches them on purpose rather than by an incidental word elsewhere in this file.
+
+| Directory | Contents | Licence | Handling |
+|---|---|---|---|
+| `data/evidence` | Alert snapshots and pre/post-event clips | **Ours** — customer premises footage | Personal data; subject to `storage.retention_days` (PLAN.md §10.3) |
+| `data/identity_gallery` | Chroma index of enrolled-person face embeddings | **Ours** — biometric data | Biometric data (GDPR Art. 9 / DPDP / BIPA class); rebuilt from MongoDB `persons` on every enrolment/removal, purged with the person record |
 
 ---
 
@@ -133,18 +153,14 @@ Not a licence obligation under CC0, but requested by the authors and worth honou
 | `pydantic` | MIT | |
 | `requests` | Apache-2.0 | |
 | `PyYAML` | MIT | |
-| `python-dotenv` | BSD-3-Clause | Loads `.env`, keeping camera credentials out of the repository. No runtime dependencies. |
-| `pg8000` | BSD-3-Clause | PostgreSQL driver. Pure Python — also removes a compiler from the installer. **Chosen over psycopg for licence reasons, see below.** |
-| PostgreSQL server | PostgreSQL Licence (permissive, BSD-style) | Not redistributed by us; the customer runs their own instance. |
-
-> **Why not psycopg.** The obvious PostgreSQL driver is `psycopg2` (LGPL-with-exceptions)
-> or `psycopg` v3 (LGPL-3.0). Both are excluded by the policy above and would be caught
-> by the CI gate in §6 on the first `pip install` — the default choice would have broken
-> this project's own rules. `pg8000` is BSD-3-Clause and DB-API 2.0 compliant.
-> `asyncpg` (Apache-2.0) is also clean but async-only, which does not fit a threaded
-> pipeline. Recorded so the decision is not silently reversed by someone reaching for the
-> more familiar library.
-| SQLite | Public domain | Bundled with CPython. |
+| `python-dotenv` | BSD-3-Clause | Loads `.env`, keeping per-deployment secrets (AWS credentials fallback, SMTP, admin bootstrap) out of the repository. No runtime dependencies. |
+| `pymongo` | Apache-2.0 | MongoDB Atlas driver (Expansion Plan Phase A.1). Synchronous, matching this codebase's all-threaded (not asyncio) design — `AlertBus`'s background thread and FastAPI's sync `def` routes both assume blocking calls. Replaced `pg8000`/PostgreSQL. |
+| `bcrypt` | Apache-2.0 | Password hashing for session auth (Expansion Plan Phase B). |
+| `itsdangerous` | BSD-3-Clause | Signs the session cookie (Expansion Plan Phase B) — not a JWT, see `PLATFORM_EXPANSION_PLAN.md` §8. |
+| `chromadb` | Apache-2.0 | Face-embedding vector index (Expansion Plan Phase F redesign): nearest-neighbour match across every enrolled pose's embedding, persisted locally so the index survives a restart. Full transitive closure (onnxruntime, opentelemetry-\*, pydantic, uvicorn, grpcio, etc.) verified clean against this project's licence gate at adoption time — MIT/BSD/Apache-2.0 throughout, no GPL/LGPL/AGPL/Unknown. Chroma's own default embedding-function/telemetry code paths are unused; we bring our own SFace embeddings. |
+| `mongomock` | BSD-3-Clause | Dev-only (never shipped): in-memory MongoDB substitute used by the test suite, so tests need no live database. |
+| MongoDB Atlas | Proprietary managed service (not redistributed) | Not a code dependency — a hosted database the customer's deployment connects to. See `PLATFORM_EXPANSION_PLAN.md` §6-§8 for the hosting rationale and the note on why this does not reopen the AGPL/SSPL concern that ruled out MongoDB Enterprise Server as embedded software. |
+| SQLite | Public domain | Bundled with CPython. Not used at runtime; noted historically. |
 | `certifi` | **MPL-2.0** | Transitive via `requests`. File-level copyleft — acceptable **unmodified only**, see policy note above. |
 | `tqdm` | **MPL-2.0 AND MIT** | Transitive via `supervision`. Same condition as `certifi`. |
 | `numpy`, `urllib3`, `charset-normalizer`, `idna`, `annotated-types`, `pydantic-core`, `typing-extensions`, `starlette`, `anyio`, `sniffio`, `h11`, `click`, `colorama`, `defusedxml`, `flatbuffers`, `protobuf`, `sympy`, `mpmath`, `packaging` | MIT / BSD / Apache-2.0 / PSF | Transitive closure. Full inventory published by the CI job on every run. |

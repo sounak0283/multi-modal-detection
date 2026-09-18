@@ -17,6 +17,10 @@ inference:
   person_every_n: 2
   firesmoke_every_n: 8
   firesmoke_offset: 3
+  # PPE (Expansion Plan Phase H) runs every Nth DETECTION frame - it needs tracked
+  # person boxes, which only exist on detection frames, so no offset is needed the way
+  # fire/smoke's raw-camera-frame cadence has one (see settings.py's InferenceSettings).
+  ppe_every_n: 3
   input_size: 416
   # Set from the Phase 1 benchmark, not by assumption (PLAN.md section 9.2).
   precision: fp32 # fp32 | fp16 | int8
@@ -37,22 +41,43 @@ boundary:
   # 4 frames is therefore ~0.5-0.7 s (PLAN.md section 6.3).
   default_min_frames: 4
 
+crowd:
+  # DBSCAN over person foot points (Expansion Plan Phase G) - no model. eps_px is the
+  # neighbour radius in pixels; deliberately generous since perspective spreads a
+  # near-camera person's foot point further from their neighbours than a far-camera
+  # person's, for the same real-world distance.
+  eps_px: 80.0
+  min_samples: 2
+
 identity:
   # Default OFF. Biometric processing requires a consent story per deployment
   # (PLAN.md section 10.3). The rest of the product works without it.
-  enabled: false
+  # Enabled here for local dev testing only.
+  enabled: true
   min_person_box_px: 120
   cosine_threshold: 0.363
+  # Chroma's on-disk nearest-neighbour index (one vector per enrolled pose). Relative
+  # to the backend root, already covered by the backend/data/** gitignore rule.
+  gallery_dir: data/identity_gallery
 
 storage:
-  # PostgreSQL. The connection URL contains a password and is a per-deployment fact,
-  # so it lives in .env as FSBD_DATABASE_URL. Only the policy lives here.
+  # MongoDB. The connection URL contains a password and is a per-deployment fact,
+  # so it lives in .env as PERIMETER_MONGO_URL. Only the policy lives here.
   #
   # Retention is a stated, enforced obligation rather than a preference
   # (PLAN.md section 10.3) - especially once the identity layer ships, since alert
   # snapshots of identified people are personal data.
   retention_days: 30
+  # Evidence capture (Expansion Plan Phase C). The ring buffer holds this many seconds
+  # of JPEG frames per camera; on an alert, the writer waits post_roll_seconds so the
+  # buffer accumulates some "after" footage too, then muxes whatever is in the buffer
+  # into a clip - so ring_buffer_seconds should stay comfortably above post_roll_seconds.
   ring_buffer_seconds: 15
+  post_roll_seconds: 5
+  # Local filesystem for now, not S3 (no AWS account stood up for this repo yet) - see
+  # evidence/store.py. Relative to the backend root; already covered by the
+  # backend/data/** gitignore rule.
+  evidence_root: data/evidence
   snapshot_dir: snapshots
   clip_dir: clips
 
@@ -60,5 +85,7 @@ health:
   feed_lost_after_s: 10
   lens_obscured_after_s: 30
 
-alerts:
-  sinks: [] # telegram | mqtt | smtp | webhook
+# Alert routing rules (which severities go where, how often, who to) are dashboard-
+# managed since Expansion Plan Phase D - see the Alerts page, backed by MongoDB's
+# alert_config collection - not a file here. SMTP credentials
+# (PERIMETER_SMTP_HOST/PORT/USER/PASSWORD/FROM) still live in .env, a per-deployment fact.

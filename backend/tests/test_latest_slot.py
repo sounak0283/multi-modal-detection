@@ -10,7 +10,7 @@ from __future__ import annotations
 import threading
 import time
 
-from fsbd.capture.latest_slot import LatestSlot
+from perimeter.capture.latest_slot import LatestSlot
 
 
 def test_publish_then_get():

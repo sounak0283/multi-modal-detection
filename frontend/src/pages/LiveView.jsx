@@ -1,16 +1,26 @@
 import { useMemo } from 'react'
 import BoundaryCanvas from '../components/BoundaryCanvas'
-import { Card, CardHead, EmptyState } from '../components/ui'
+import { Card, CardHead, EmptyState, Stat } from '../components/ui'
 import { api, streamUrl } from '../api'
 import { usePolling } from '../lib/usePolling'
 import { ZONE_TYPES } from '../lib/zones'
 
-export default function LiveView({ zones }) {
-  // The stream URL must be stable, otherwise every re-render tears down the MJPEG
-  // connection and restarts it - which shows as a visible stutter every two seconds.
-  const src = useMemo(() => streamUrl(Date.now()), [])
-  const { data } = usePolling(() => api.liveEvents(20), 3000)
+export default function LiveView({ cameraId, zones }) {
+  // The stream URL must be stable per camera, otherwise every re-render tears down the
+  // MJPEG connection and restarts it - which shows as a visible stutter every two
+  // seconds. Re-derives only when the camera being viewed actually changes.
+  const src = useMemo(() => streamUrl(cameraId, Date.now()), [cameraId])
+  const { data } = usePolling(() => api.liveEvents(20, cameraId), 3000)
   const events = data?.events ?? []
+
+  // Per-camera stats (people tracked, zone occupancy, feed state) now live on the
+  // camera detail response rather than the old global /api/health, since any number of
+  // cameras can be running independently.
+  const { data: camera } = usePolling(() => api.getCamera(cameraId), 2000)
+  const { data: summary } = usePolling(() => api.eventsSummary(cameraId), 10000)
+  const occupancy = camera?.stats?.zone_occupancy ?? {}
+  const entriesToday = summary?.entries_by_zone_today ?? {}
+  const countableZones = zones.filter((zone) => zone.type === 'polygon')
 
   return (
     <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
@@ -19,6 +29,40 @@ export default function LiveView({ zones }) {
       </Card>
 
       <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-2 gap-3">
+          <Stat label="People on camera" value={camera?.stats?.people_tracked ?? 0} />
+          <Stat
+            label="Inside boundaries"
+            value={Object.values(occupancy).reduce((a, b) => a + b, 0)}
+          />
+        </div>
+
+        <Card>
+          <CardHead title="Occupancy" />
+          {countableZones.length === 0 ? (
+            <EmptyState>Draw a boundary (type Zone) to count people inside it.</EmptyState>
+          ) : (
+            <ul className="p-1.5">
+              {countableZones.map((zone) => (
+                <li
+                  key={zone.id}
+                  className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[12.5px] not-first:border-t not-first:border-ink-800"
+                >
+                  <span className="min-w-0 flex-1 truncate text-ink-200">
+                    {zone.name || zone.id}
+                  </span>
+                  <span className="tabular-nums font-semibold text-ink-100">
+                    {occupancy[zone.id] ?? 0} now
+                  </span>
+                  <span className="tabular-nums text-ink-400">
+                    {entriesToday[zone.id] ?? 0} today
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
         <Card>
           <CardHead title="Recent activity" />
           {events.length === 0 ? (

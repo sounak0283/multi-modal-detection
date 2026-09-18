@@ -6,8 +6,10 @@ import numpy as np
 import pytest
 from shapely.geometry import Polygon
 
-from fsbd.boundary.geometry import (
+from perimeter.boundary.geometry import (
+    TRUNCATED_FOOT_INSET,
     Side,
+    clamp_truncated_feet,
     foot_point,
     foot_points,
     point_in_polygon,
@@ -43,6 +45,31 @@ def test_foot_points_vectorised_matches_scalar():
 
 def test_foot_points_empty():
     assert foot_points(np.zeros((0, 4))).shape == (0, 2)
+
+
+def test_truncated_foot_is_pulled_into_the_bottom_band():
+    # A close-up webcam subject: box runs to the bottom of a 720px frame.
+    points = foot_points(np.array([[354.0, 228.0, 1043.0, 715.0]]))
+    clamped = clamp_truncated_feet(points, 720)
+    assert clamped[0, 0] == points[0, 0]
+    assert clamped[0, 1] == pytest.approx(720 * (1 - TRUNCATED_FOOT_INSET))
+
+
+def test_truncated_foot_lands_inside_a_zone_drawn_near_the_bottom_edge():
+    # The zone stops a few percent short of the bottom edge, as hand-drawn zones do.
+    zone = Polygon([(58, 176), (1279, 150), (1257, 698), (123, 699)])
+    points = foot_points(np.array([[354.0, 228.0, 1043.0, 715.0]]))
+    assert not point_in_polygon(tuple(points[0]), zone)
+    assert point_in_polygon(tuple(clamp_truncated_feet(points, 720)[0]), zone)
+
+
+def test_feet_visible_in_frame_are_not_moved():
+    points = foot_points(np.array([[100.0, 100.0, 200.0, 600.0]]))
+    assert clamp_truncated_feet(points, 720).tolist() == points.tolist()
+
+
+def test_clamp_truncated_feet_empty():
+    assert clamp_truncated_feet(np.zeros((0, 2), np.float32), 720).shape == (0, 2)
 
 
 # -- normalisation --------------------------------------------------------

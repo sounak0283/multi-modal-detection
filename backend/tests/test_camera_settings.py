@@ -11,7 +11,7 @@ import os
 
 import pytest
 
-from fsbd.settings import (
+from perimeter.settings import (
     CameraSettings,
     describe_source,
     load_settings,
@@ -24,7 +24,7 @@ from fsbd.settings import (
 def clean_env(monkeypatch):
     """Camera settings come from the environment, so each test starts from a clean one."""
     for key in list(os.environ):
-        if key.startswith("FSBD_"):
+        if key.startswith("PERIMETER_"):
             monkeypatch.delenv(key, raising=False)
 
 
@@ -51,7 +51,7 @@ def test_cctv_true_uses_the_rtsp_url():
 
 def test_cctv_true_without_a_url_raises_an_actionable_error():
     camera = CameraSettings(use_cctv=True, cctv_rtsp_url="")
-    with pytest.raises(ValueError, match="FSBD_CCTV_RTSP_URL"):
+    with pytest.raises(ValueError, match="PERIMETER_CCTV_RTSP_URL"):
         _ = camera.resolved_source
 
 
@@ -76,20 +76,20 @@ def test_substream_is_preferred_for_inference():
 
 @pytest.mark.parametrize("value", ["true", "True", "TRUE", "1", "yes", "on"])
 def test_truthy_spellings(monkeypatch, value):
-    monkeypatch.setenv("FSBD_USE_CCTV", value)
-    monkeypatch.setenv("FSBD_CCTV_RTSP_URL", "rtsp://x@y/z")
+    monkeypatch.setenv("PERIMETER_USE_CCTV", value)
+    monkeypatch.setenv("PERIMETER_CCTV_RTSP_URL", "rtsp://x@y/z")
     assert load_settings().camera.use_cctv is True
 
 
 @pytest.mark.parametrize("value", ["false", "False", "0", "no", "off", ""])
 def test_falsy_spellings(monkeypatch, value):
-    monkeypatch.setenv("FSBD_USE_CCTV", value)
+    monkeypatch.setenv("PERIMETER_USE_CCTV", value)
     assert load_settings().camera.use_cctv is False
 
 
 def test_a_typo_falls_back_to_the_default_not_silently_false(monkeypatch, caplog):
     """`USE_CCTV=Ture` quietly disabling the CCTV feed would be a confusing site visit."""
-    monkeypatch.setenv("FSBD_USE_CCTV", "Ture")
+    monkeypatch.setenv("PERIMETER_USE_CCTV", "Ture")
     with caplog.at_level("WARNING"):
         settings = load_settings()
     assert settings.camera.use_cctv is False
@@ -130,24 +130,24 @@ def test_describe_source_does_not_raise_on_a_half_configured_camera():
 def test_env_written_with_a_utf8_bom_is_still_read(tmp_path):
     """Notepad and PowerShell's Set-Content write UTF-8 WITH a BOM on Windows.
 
-    Decoded as plain utf-8 the first key becomes "\\ufeffFSBD_..." and that setting
+    Decoded as plain utf-8 the first key becomes "\\ufeffPERIMETER_..." and that setting
     silently does not exist - the app reports "not set" while the file plainly shows it.
     """
     env_file = tmp_path / ".env"
     env_file.write_text(
-        "FSBD_DATABASE_URL=postgresql://u:p@localhost:5432/fsbd\nFSBD_CAMERA_ID=bom_cam\n",
+        "PERIMETER_MONGO_URL=mongodb://u:p@localhost:27017\nPERIMETER_CAMERA_ID=bom_cam\n",
         encoding="utf-8-sig",
     )
 
     settings = load_settings(env_file=env_file)
 
-    assert settings.storage.database_url.endswith("/fsbd"), "first line lost to the BOM"
+    assert settings.storage.mongo_url.endswith("27017"), "first line lost to the BOM"
     assert settings.camera.id == "bom_cam"
 
 
 def test_env_without_a_bom_still_works(tmp_path):
     env_file = tmp_path / ".env"
-    env_file.write_text("FSBD_CAMERA_ID=plain_cam\n", encoding="utf-8")
+    env_file.write_text("PERIMETER_CAMERA_ID=plain_cam\n", encoding="utf-8")
     assert load_settings(env_file=env_file).camera.id == "plain_cam"
 
 
@@ -183,13 +183,13 @@ def test_save_updates_os_environ_for_the_running_process(tmp_path):
     save_camera_settings(
         CameraSettings(id="first", width=640, height=360), env_file=tmp_path / ".env"
     )
-    assert os.environ["FSBD_CAMERA_ID"] == "first"
+    assert os.environ["PERIMETER_CAMERA_ID"] == "first"
 
     save_camera_settings(
         CameraSettings(id="second", width=800, height=600), env_file=tmp_path / ".env"
     )
-    assert os.environ["FSBD_CAMERA_ID"] == "second"
-    assert os.environ["FSBD_CAMERA_WIDTH"] == "800"
+    assert os.environ["PERIMETER_CAMERA_ID"] == "second"
+    assert os.environ["PERIMETER_CAMERA_WIDTH"] == "800"
 
 
 def test_saving_twice_does_not_duplicate_keys(tmp_path):
@@ -198,7 +198,7 @@ def test_saving_twice_does_not_duplicate_keys(tmp_path):
     save_camera_settings(CameraSettings(id="b"), env_file=env_file)
 
     lines = [ln for ln in env_file.read_text(encoding="utf-8").splitlines()
-             if ln.startswith("FSBD_CAMERA_ID")]
+             if ln.startswith("PERIMETER_CAMERA_ID")]
     assert len(lines) == 1
 
 
@@ -223,7 +223,7 @@ def test_camera_is_not_read_from_app_yaml(tmp_path, monkeypatch):
         "camera:\n  id: from_yaml\n  decode_fps: 99\ninference:\n  person_every_n: 2\n",
         encoding="utf-8",
     )
-    monkeypatch.setenv("FSBD_CAMERA_ID", "from_env")
+    monkeypatch.setenv("PERIMETER_CAMERA_ID", "from_env")
 
     settings = load_settings(config_path=config, env_file=tmp_path / "absent.env")
 

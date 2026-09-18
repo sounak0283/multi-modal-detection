@@ -1,0 +1,141 @@
+<title>PPE Label Review</title>
+<style>
+  :root{
+    --bg:#f5f4f1; --surface:#ffffff; --border:#dedad2;
+    --ink:#1c1a17; --muted:#6b6459; --accent:#a15c2e; --accent-ink:#6e3f1f;
+    --ok-bg:#e7efe4; --ok-ink:#3c6b34; --warn-bg:#f7ecd8; --warn-ink:#8a5a12;
+    --bad-bg:#f6e3df; --bad-ink:#a13d2c; --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#17140f; --surface:#221d16; --border:#3a3225;
+      --ink:#f1ece2; --muted:#a89b85; --accent:#e0a066; --accent-ink:#f0c295;
+      --ok-bg:#243521; --ok-ink:#8fbf83; --warn-bg:#3a2f14; --warn-ink:#e0b45c;
+      --bad-bg:#3a201a; --bad-ink:#e08d78;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#17140f; --surface:#221d16; --border:#3a3225;
+    --ink:#f1ece2; --muted:#a89b85; --accent:#e0a066; --accent-ink:#f0c295;
+    --ok-bg:#243521; --ok-ink:#8fbf83; --warn-bg:#3a2f14; --warn-ink:#e0b45c;
+    --bad-bg:#3a201a; --bad-ink:#e08d78;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans', system-ui, sans-serif; margin:0}
+  .wrap{max-width:960px; margin:0 auto; padding:32px 20px 80px}
+  header{padding-block:12px 28px; border-bottom:1px solid var(--border); margin-bottom:32px}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent-ink)}
+  h1{font-family:'IBM Plex Mono', var(--mono); font-size:clamp(24px,4vw,34px); margin:6px 0 10px; text-wrap:balance}
+  .lede{color:var(--muted); max-width:62ch; line-height:1.55; margin:0 0 18px}
+  .stats{display:flex; gap:10px; flex-wrap:wrap}
+  .stat{font-family:var(--mono); font-size:12px; background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:6px 10px; color:var(--muted)}
+  .stat b{color:var(--ink)}
+  .toc{display:flex; flex-wrap:wrap; gap:6px; margin:20px 0 0}
+  .toc a{font-family:var(--mono); font-size:12px; color:var(--accent-ink); text-decoration:none; border:1px solid var(--border); border-radius:5px; padding:4px 9px; background:var(--surface)}
+  .toc a:hover{border-color:var(--accent-ink)}
+  section.cls{margin-bottom:40px; scroll-margin-top:16px}
+  .cls-head{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:6px}
+  .cls-name{font-family:var(--mono); font-size:18px; font-weight:600}
+  .badge{font-family:var(--mono); font-size:11px; letter-spacing:.03em; padding:2px 8px; border-radius:999px; text-transform:uppercase}
+  .badge.ok{background:var(--ok-bg); color:var(--ok-ink)}
+  .badge.warn{background:var(--warn-bg); color:var(--warn-ink)}
+  .badge.bad{background:var(--bad-bg); color:var(--bad-ink)}
+  .note{color:var(--muted); font-size:13.5px; line-height:1.55; margin:4px 0 14px; max-width:70ch}
+  .note strong{color:var(--ink)}
+  figure{margin:0; border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--surface)}
+  figure img{display:block; width:100%; height:auto}
+  figcaption{font-family:var(--mono); font-size:11px; color:var(--muted); padding:8px 12px; border-top:1px solid var(--border)}
+  footer{margin-top:48px; padding-top:20px; border-top:1px solid var(--border); font-size:12.5px; color:var(--muted); line-height:1.6}
+  footer a{color:var(--accent-ink)}
+  @media (max-width:520px){ .stats{flex-direction:column} }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Fire &amp; Boundary Detection &middot; Phase H data review</div>
+    <h1>PPE label review — shlokraval/ppe-dataset-yolov8</h1>
+    <p class="lede">20 randomly sampled ground-truth crops per class (green box = the annotated region), pulled straight from the merged training split. Updated after the Step 1 data-safety pass: helmet_absent contamination removed, vest_present's mislabel-source isolated, glasses excluded. Nothing here has been used for training or the CCTV proxy augmentation yet.</p>
+    <div class="stats">
+      <div class="stat"><b>43,096</b> images (post data-safety pass)</div>
+      <div class="stat">helmet_absent: <b>906 contaminated images removed</b></div>
+      <div class="stat">vest_present: <b>25.7% → 0.36%</b> mislabel rate — two-signal colour+stripe check</div>
+      <div class="stat">glasses: <b>excluded</b> — 65-72% near-duplication confirmed</div>
+      <div class="stat">licence: <b>unconfirmed</b> — see NOTICE.md</div>
+    </div>
+    <nav class="toc">
+      <a href="#helmet_present">helmet_present</a>
+      <a href="#helmet_absent">helmet_absent</a>
+      <a href="#vest_present">vest_present</a>
+      <a href="#vest_twosignal">vest two-signal (final)</a>
+      <a href="#vest_person_overlap">vest person-overlap</a>
+      <a href="#vest_absent">vest_absent</a>
+      <a href="#gloves_present">gloves_present</a>
+      <a href="#gloves_absent">gloves_absent</a>
+      <a href="#glasses_present">glasses (excluded)</a>
+    </nav>
+  </header>
+
+  <section class="cls" id="helmet_present">
+    <div class="cls-head"><span class="cls-name">helmet_present</span><span class="badge ok">42,428 instances</span></div>
+    <p class="note">Source: shlokraval <code>Hardhat</code>. Best-covered class in the merge by a wide margin.</p>
+    <figure><img src="helmet_present.jpg" alt="20 sample crops of helmet_present, ground-truth box in green"><figcaption>20 of 42,428 instances, randomly sampled (seed 0)</figcaption></figure>
+  </section>
+
+  <section class="cls" id="helmet_absent">
+    <div class="cls-head"><span class="cls-name">helmet_absent</span><span class="badge ok">12,053 instances</span> <span class="badge warn">906 images removed</span></div>
+    <p class="note">Source: shlokraval <code>NO-Hardhat</code>. Full-scale YuNet face-closeup scan found 18.4% of images (906 of 4,925) were portrait/face-dataset contamination from two source videos (<code>IMG_3099.mp4</code>, <code>RPReplay_Final1667001201.MP4</code>) — confirmed those videos contributed no other class's signal, so removed wholesale. Count below reflects the cleaned class.</p>
+    <figure><img src="helmet_absent.jpg" alt="20 sample crops of helmet_absent, ground-truth box in green"><figcaption>20 of 12,053 instances (post-cleanup), randomly sampled (seed 0) — note: this montage image predates the cleanup and may still show a contaminated example or two</figcaption></figure>
+  </section>
+
+  <section class="cls" id="vest_present">
+    <div class="cls-head"><span class="cls-name">vest_present</span><span class="badge ok">~3,840 of 3,854 estimated clean</span></div>
+    <p class="note">Source: shlokraval <code>Safety Vest</code>. Hi-vis colour outlier check alone found a <strong>25.7% mislabel rate</strong>, even after widening the hue range to include safety-green — but this turned out to be mostly a defect in the check itself, not the data. Full history: (1) source-attribution isolated three naming-convention families (<code>image</code> 78.6% flagged, <code>Image</code> 40.2%, <code>img</code> 36.3%) carrying most of the noise — removed only their <em>vest_present</em> boxes, corrected rate: 10.8% (417/3,854); (2) user's own visual review of the spot-check found the colour check was missing blue/cyan/pink/black vests entirely; (3) widened hue range further (adding blue/cyan/pink) <em>and</em> added a colour-independent Hough-transform stripe detector (every real vest has retroreflective striping regardless of base colour) — flagging only when <strong>both</strong> signals fail. <strong>Corrected rate: 0.36% (14/3,854).</strong> This is the trustworthy number.</p>
+    <figure><img src="vest_present.jpg" alt="20 sample crops of vest_present, ground-truth box in green"><figcaption>20 of 3,854 instances (post-cleanup), randomly sampled (seed 0) — note: this montage image predates the cleanup</figcaption></figure>
+  </section>
+
+  <section class="cls" id="vest_twosignal">
+    <div class="cls-head"><span class="cls-name">vest_present — two-signal check, final candidates</span><span class="badge ok">14 of 3,854 (0.36%)</span></div>
+    <p class="note">Every crop still flagged after BOTH the widened colour check and the stripe detector failed. <code>c</code> = colour hi-vis fraction, <code>s</code> = largest group of parallel line segments found. This tiny set is the actual candidate pool for genuine mislabels — worth a final manual glance, but two orders of magnitude smaller than the original 25.7% estimate.</p>
+    <figure><img src="vest_present_twosignal_flagged.jpg" alt="14 sample crops of vest_present instances failing both the colour and stripe checks"><figcaption>All 14 instances failing both signals</figcaption></figure>
+  </section>
+
+  <section class="cls" id="vest_person_overlap">
+    <div class="cls-head"><span class="cls-name">vest_present — person-overlap check (limited value)</span><span class="badge warn">21.1% flagged, but see caveat</span></div>
+    <p class="note"><strong>This check turned out to have a real blind spot — read before trusting the 21.1% figure.</strong> It runs the project's own YOLOX person detector and flags any item box with no overlapping person detection nearby, meant to catch wrong-object mislabels like a confirmed shoe-held-in-hand example labeled <code>vest_present</code>. Visual review of the flagged sample below shows the overwhelming majority are <em>genuine vests</em> in tight torso crops, motion blur, or unusual poses the whole-body detector simply doesn't have enough of a person to find — not mislabels. Worse: a wrong object held <em>by</em> a detected person (like the actual shoe case) would likely still pass this check, since the box falls inside that person's expanded bounding region regardless of what's labeled. Treat this as a weak sanity check, not a mislabel detector — the two-signal check above is the number that matters. For reference, the same check across all classes: helmet_present 11.8%, helmet_absent 5.5%, vest_absent 3.0%, gloves_present 41.0%, gloves_absent 45.2%, glasses_present 2.9%, glasses_absent 1.6% — gloves' very high rate is almost certainly hand-only close-up photography with no full body in frame, the same benign explanation, not a data quality signal.</p>
+    <figure><img src="vest_present_no_person_overlap.jpg" alt="40 sample crops of vest_present instances with no overlapping person detection"><figcaption>40 of 200 saved examples (1,362 total flagged) — read the caveat above before drawing conclusions from this</figcaption></figure>
+  </section>
+
+  <section class="cls" id="vest_present_2ndpass">
+    <div class="cls-head"><span class="cls-name">vest_present — remaining-flagged spot-check (superseded)</span><span class="badge warn">75 of 417, colour-only check</span></div>
+    <p class="note">Earlier pass using only the widened-colour check (before the stripe detector was added) — kept for the record, but see the two-signal section above for the corrected, trustworthy result. This montage is what led the user to spot blue/cyan/pink/black vests being wrongly flagged in the first place.</p>
+    <figure><img src="vest_present_2ndpass_flagged.jpg" alt="75 sample crops of vest_present instances still flagged after the bad-family removal, with hi-vis fraction score overlaid"><figcaption>75 of 417 remaining-flagged instances (colour-only check), randomly sampled (seed 0)</figcaption></figure>
+  </section>
+
+  <section class="cls" id="vest_absent">
+    <div class="cls-head"><span class="cls-name">vest_absent</span><span class="badge warn">2,022 instances</span></div>
+    <p class="note">Source: shlokraval <code>NO-Safety Vest</code>. <strong>~3:1 imbalance against vest_present</strong> — thinnest class in the merge besides the fully-uncovered ones. Worth a closer look for mislabeled crops given the small sample.</p>
+    <figure><img src="vest_absent.jpg" alt="20 sample crops of vest_absent, ground-truth box in green"><figcaption>20 of 2,022 instances, randomly sampled (seed 0)</figcaption></figure>
+  </section>
+
+  <section class="cls" id="gloves_present">
+    <div class="cls-head"><span class="cls-name">gloves_present</span><span class="badge warn">4,669 instances</span></div>
+    <p class="note">Source: shlokraval <code>Gloves</code>. Posed/web-only — no CCTV coverage exists for this item at all.</p>
+    <figure><img src="gloves_present.jpg" alt="20 sample crops of gloves_present, ground-truth box in green"><figcaption>20 of 4,669 instances, randomly sampled (seed 0)</figcaption></figure>
+  </section>
+
+  <section class="cls" id="gloves_absent">
+    <div class="cls-head"><span class="cls-name">gloves_absent</span><span class="badge warn">6,135 instances</span></div>
+    <p class="note">Source: shlokraval <code>NO-Gloves</code>. Bare-hand regions — check these carefully, bare hands are easy to over-annotate incidentally.</p>
+    <figure><img src="gloves_absent.jpg" alt="20 sample crops of gloves_absent, ground-truth box in green"><figcaption>20 of 6,135 instances, randomly sampled (seed 0)</figcaption></figure>
+  </section>
+
+  <section class="cls" id="glasses_present">
+    <div class="cls-head"><span class="cls-name">glasses_present / glasses_absent</span><span class="badge bad">EXCLUDED from training</span></div>
+    <p class="note">Source: shlokraval <code>Goggles</code> / <code>NO-Goggles</code>. Initial coarse duplicate check looked fine, but was based on an unreliable hash — a proper DCT perceptual hash (hamming≤2) found <strong>71.8% near-duplication</strong> in glasses_present (3,799 images → 1,072 unique clusters) and <strong>64.5%</strong> in glasses_absent (3,261 → 1,159 clusters). Combined with a manual finding of narrow-source, balaclava-heavy samples, this is excluded from this training run entirely — two independent signals pointing the same way.</p>
+    <figure><img src="glasses_present.jpg" alt="20 sample crops of glasses_present, ground-truth box in green — for reference only, this class is excluded"><figcaption>Reference only (excluded): 20 of 4,188 raw instances, randomly sampled (seed 0)</figcaption></figure>
+  </section>
+
+  <footer>
+    Generated by <code>training/scripts/ppe_sample_montage.py</code> + <code>ppe_step1_data_safety.py</code> + <code>ppe_step1_refine.py</code> + <code>ppe_vest_source_attribution.py</code> + <code>ppe_vest_second_pass.py</code>. <strong>shoes/boots</strong> has zero instances in this merge — no montage exists for it. Licence for this source dataset is unconfirmed (Kaggle page says Apache-2.0, the dataset's own bundled Roboflow README says CC BY 4.0) — see <code>NOTICE.md</code> §2. This model artifact is for internal testing only, not licensed for commercial use, pending that resolution. Do not use commercially until resolved.
+  </footer>
+</div>

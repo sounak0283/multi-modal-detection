@@ -12,7 +12,7 @@ import json
 import numpy as np
 import pytest
 
-from fsbd.detect.yolox_onnx import (
+from perimeter.detect.yolox_onnx import (
     PAD_VALUE,
     Detections,
     YoloxOnnx,
