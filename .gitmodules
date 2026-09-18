@@ -1,0 +1,4 @@
+[submodule "training/YOLOX"]
+	path = training/YOLOX
+	url = https://github.com/sounak0283/YOLOX.git
+	branch = perimeter-changes
