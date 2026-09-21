@@ -36,7 +36,7 @@ firesmoke:
   # Lower than fire: indoors, smoke reaches the camera first (PLAN.md section 5.4).
   # Raised from 0.35 for the same reason as conf_fire above - this was the class actually
   # false-triggering on bright ceiling panels.
-  conf_smoke: 0.65
+  conf_smoke: 0.70
   # K-of-N temporal gate. At firesmoke_every_n=8 this is a ~5 s window, ~3 s minimum
   # latency to alert. Shrinking it is how false alarms are made.
   gate_k: 6
@@ -134,9 +134,9 @@ features:
 
 # The dashboard's "Video test" page: play an uploaded video through the real detection code.
 test_video:
-  directory: data/test_videos   # relative to backend/; already covered by the data/** gitignore
+  directory: data/test_videos # relative to backend/; already covered by the data/** gitignore
   max_upload_mb: 2048
-  retention_days: 7             # uploaded videos older than this are deleted automatically
+  retention_days: 7 # uploaded videos older than this are deleted automatically
 
 health:
   feed_lost_after_s: 10
