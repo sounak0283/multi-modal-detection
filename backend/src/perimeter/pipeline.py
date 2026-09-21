@@ -36,6 +36,7 @@ from perimeter.alerts.messages import (
     firesmoke_message,
     ppe_message,
     unauthorized_access_message,
+    welding_message,
 )
 from perimeter.boundary.crowd import CrowdEvent, CrowdMonitor
 from perimeter.boundary.engine import BoundaryEngine, BoundaryEvent
@@ -46,6 +47,7 @@ from perimeter.cameras.models import (
     MODULE_FIRE_SMOKE,
     MODULE_IDENTITY,
     MODULE_PPE,
+    MODULE_WELDING,
     Camera,
     describe_source,
 )
@@ -57,6 +59,7 @@ from perimeter.detect.firesmoke import class_name as firesmoke_class_name
 from perimeter.detect.person import MIN_IDENTITY_BOX_HEIGHT_PX, PersonDetector
 from perimeter.detect.ppe import PPEClassifier, PPEMonitor, classify_state
 from perimeter.detect.temporal_gate import ConfirmedEvent, TemporalGate
+from perimeter.detect.welding import SparkDetector, SparkEvent
 from perimeter.detect.yolox_onnx import configure_opencv_threads
 from perimeter.identity.resolver import IdentityResolver, IdentityResult
 from perimeter.settings import Settings
@@ -156,6 +159,8 @@ class Pipeline:
         self.firesmoke_detector, self.firesmoke_gate = self._build_firesmoke(camera)
         self.crowd_monitor = self._build_crowd_monitor(camera)
         self.ppe_classifier, self.ppe_monitor = self._build_ppe(camera)
+        self.spark_detector = SparkDetector() if MODULE_WELDING in camera.enabled_modules else None
+        self._spark_box: tuple[tuple[float, ...], float] | None = None
 
         self._slot: LatestSlot[Frame] = LatestSlot()
         self._capture = self._build_capture(camera)
@@ -176,6 +181,16 @@ class Pipeline:
         self._masked: np.ndarray = np.zeros(0, dtype=bool)
         self._last_render_ts: float = 0.0
         self._last_error_log: float = float("-inf")
+        # Identity resolved on a track's ENTRY, remembered for its later EXIT (see the
+        # events loop in _process_detection) - a person has usually turned away by the
+        # time they exit, so re-running face detection there would mostly just fail;
+        # reusing the ENTRY result is both cheaper and more reliable than trying again.
+        # Value is (identity, frame.ts last touched) - pruning is on that timestamp, not
+        # on whether the track appears in the *current* frame's tracked set: a track
+        # PersonTracker briefly does not return (a missed detection, mid-occlusion) is
+        # not the same as one ByteTrack has actually deleted, and evicting on the first
+        # kind would routinely lose the identity well before the real EXIT arrives.
+        self._identity_by_track: dict[int, tuple[IdentityResult, float]] = {}
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -311,15 +326,26 @@ class Pipeline:
         self.firesmoke_detector, self.firesmoke_gate = self._build_firesmoke(camera)
         self.crowd_monitor = self._build_crowd_monitor(camera)
         self.ppe_classifier, self.ppe_monitor = self._build_ppe(camera)
+        self.spark_detector = SparkDetector() if MODULE_WELDING in camera.enabled_modules else None
+        self._spark_box = None
         with self._lock:
             self._tracked = None
             self._latest_jpeg = None
             self._latest_raw_jpeg = None
+            self._identity_by_track = {}
         # Old buffered frames belong to the feed just replaced, not the new one.
         self.ring_buffer = JpegRingBuffer(self.settings.storage.ring_buffer_seconds)
 
         self.stats.feed_state = FeedState.STARTING.value
         self._capture.start()
+
+    def play_once(self) -> None:
+        """For a file source: stop at the end instead of looping (call before start())."""
+        self._capture.loop = False
+
+    @property
+    def capture_finished(self) -> bool:
+        return self._capture.finished
 
     def _on_feed_state(self, state: FeedState) -> None:
         self.stats.feed_state = state.value
@@ -389,6 +415,9 @@ class Pipeline:
             if frame.seq % fs_every_n == self.settings.inference.firesmoke_offset % fs_every_n:
                 self._process_firesmoke(frame)
 
+        if self.spark_detector is not None:
+            self._process_sparks(frame)
+
         self._render(frame)
 
     def _track_render_fps(self) -> None:
@@ -442,14 +471,16 @@ class Pipeline:
             else {}
         )
 
+        if identity_active:
+            self._touch_live_identities(track_boxes.keys(), frame.ts)
+            self._prune_stale_identities(frame.ts)
+
         for event in events:
-            identity = None
-            if identity_active and event.kind is EventKind.ENTRY:
-                box = track_boxes.get(event.track_id)
-                if box is not None:
-                    identity = self.identity_resolver.resolve(
-                        frame.image, tuple(float(v) for v in box)
-                    )
+            identity = (
+                self._resolve_identity_for_event(event, frame.image, frame.ts, track_boxes)
+                if identity_active
+                else None
+            )
             self._publish(event, identity)
 
         if self.crowd_monitor is not None:
@@ -459,6 +490,62 @@ class Pipeline:
             ppe_every_n = max(1, self.settings.inference.ppe_every_n)
             if self.stats.detections_run % ppe_every_n == 0:
                 self._process_ppe(frame, tracked, masked, width, height)
+
+    def _touch_live_identities(self, live_track_ids, now_ts: float) -> None:
+        """Refresh the "last seen" timestamp for every remembered identity whose track
+        is present in this detection frame.
+
+        Without this, the stored timestamp is stamped once at ENTRY and never updated,
+        so `_prune_stale_identities` below measures "how long has this person been
+        anywhere near this zone" instead of "how long has their track actually been
+        gone" - a visit lasting longer than the occlusion tolerance (a very normal
+        thing) would then evict the identity before the real EXIT ever arrives, which is
+        exactly the bug this method exists to not have.
+        """
+        for tid in live_track_ids:
+            entry = self._identity_by_track.get(tid)
+            if entry is not None:
+                self._identity_by_track[tid] = (entry[0], now_ts)
+
+    def _prune_stale_identities(self, now_ts: float) -> None:
+        """Garbage-collect remembered identities whose track has been genuinely absent
+        (not refreshed by `_touch_live_identities`) for longer than the tracker's own
+        occlusion tolerance - by the time ByteTrack would actually drop the track,
+        remembering its identity has stopped being useful anyway.
+        """
+        ttl = self.settings.boundary.lost_track_seconds
+        self._identity_by_track = {
+            tid: (identity, ts)
+            for tid, (identity, ts) in self._identity_by_track.items()
+            if now_ts - ts <= ttl
+        }
+
+    def _resolve_identity_for_event(
+        self,
+        event: BoundaryEvent,
+        frame_image: np.ndarray,
+        frame_ts: float,
+        track_boxes: dict[int, np.ndarray],
+    ) -> IdentityResult | None:
+        """Identity for one boundary event (Expansion Plan Phase F).
+
+        ENTRY resolves fresh, from this same detection frame's raw pixel box, and
+        remembers the result under this track's id. EXIT reuses whatever was resolved at
+        that same track's ENTRY instead of re-running face detection - a person has
+        usually turned away by the time they leave, so a second attempt would mostly
+        just fail, and the identity does not change mid-visit anyway.
+        """
+        if event.kind is EventKind.ENTRY:
+            box = track_boxes.get(event.track_id)
+            if box is None:
+                return None
+            identity = self.identity_resolver.resolve(frame_image, tuple(float(v) for v in box))
+            self._identity_by_track[event.track_id] = (identity, frame_ts)
+            return identity
+        if event.kind is EventKind.EXIT:
+            entry = self._identity_by_track.get(event.track_id)
+            return entry[0] if entry is not None else None
+        return None
 
     def _process_ppe(
         self, frame: Frame, tracked, masked: np.ndarray, width: int, height: int
@@ -578,6 +665,7 @@ class Pipeline:
             return
         identity_status = identity.status if identity is not None else None
         identity_name = identity.name if identity is not None else None
+        identity_confidence = identity.confidence if identity is not None else None
         self.alerts.publish(
             {
                 "ts": event.ts,
@@ -595,6 +683,7 @@ class Pipeline:
                 "foot_point": list(event.foot_point),
                 "identity_status": identity_status,
                 "identity_name": identity_name,
+                "identity_confidence": identity_confidence,
             }
         )
         self._check_access_control(event, identity)
@@ -704,6 +793,34 @@ class Pipeline:
             }
         )
 
+    def _process_sparks(self, frame: Frame) -> None:
+        assert self.spark_detector is not None
+        event = self.spark_detector.update(frame.image, frame.ts)
+        if event is not None:
+            self._publish_sparks(event, frame)
+
+    def _publish_sparks(self, event: SparkEvent, frame: Frame) -> None:
+        self._spark_box = (event.bbox, time.time() + 5.0)
+        if self.alerts is None:
+            return
+        self.alerts.publish(
+            {
+                "ts": frame.ts,
+                "camera_id": self.camera.id,
+                "kind": "welding",
+                "subtype": "welding_spark",
+                "zone_id": None,
+                "zone_name": None,
+                "track_id": None,
+                "message": welding_message(),
+                "severity": "low",
+                "bbox": list(event.bbox),
+                "foot_point": None,
+                "identity_status": None,
+                "identity_name": None,
+            }
+        )
+
     # -- rendering ---------------------------------------------------------
 
     def _render(self, frame: Frame) -> None:
@@ -753,6 +870,14 @@ class Pipeline:
             for index in range(len(tracked)):
                 self._draw_track(canvas, tracked, index, masked)
 
+        spark = self._spark_box
+        if spark is not None and time.time() < spark[1]:
+            x1, y1, x2, y2 = (int(v) for v in spark[0])
+            cv2.rectangle(canvas, (x1, y1), (x2, y2), (0, 165, 255), 2)
+            cv2.putText(
+                canvas, "WELDING SPARKS", (x1, max(12, y1 - 8)),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2,
+            )
         self._draw_status_bar(canvas, len(tracked) if tracked is not None else 0)
         return canvas
 

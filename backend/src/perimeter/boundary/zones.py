@@ -364,8 +364,10 @@ class ZoneStore:
                 return False
 
         with self._lock:
-            self._zones_by_camera = parsed
             self._last_error = None
+            if parsed == self._zones_by_camera and self._version > 0:
+                return False  # unchanged: no version bump, no geometry rebuild, no log line
+            self._zones_by_camera = parsed
             self._version += 1
 
         total = sum(len(z) for z in parsed.values())

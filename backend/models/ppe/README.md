@@ -46,7 +46,7 @@ normally.
 ## Placing a model
 
 ```bash
-perimeter-dashboard --ppe-model models/ppe/model.onnx
+perimeter-server --ppe-model models/ppe/model.onnx
 # or just drop the file at the default path above - it's picked up automatically
 ```
 

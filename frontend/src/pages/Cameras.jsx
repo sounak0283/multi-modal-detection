@@ -33,6 +33,7 @@ const MODULE_OPTIONS = [
   { value: 'phone', label: 'Phone near ear' },
   { value: 'fire_smoke', label: 'Fire & smoke' },
   { value: 'identity', label: 'Identity / face recognition' },
+  { value: 'welding', label: 'Welding sparks (soft alert)' },
 ]
 
 // Off by default: a newly added camera should not start capturing/recording until an

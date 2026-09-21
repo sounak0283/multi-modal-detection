@@ -68,7 +68,7 @@ def make_event(zone_id="restricted", kind=EventKind.ENTRY, track_id=1):
 
 def test_publish_includes_identity_fields_when_resolved():
     pipeline, alerts = make_pipeline()
-    identity = IdentityResult(status="known", person_id="p1", name="Alex")
+    identity = IdentityResult(status="known", person_id="p1", name="Alex", confidence=0.812)
 
     pipeline._publish(make_event(zone_id="unrestricted"), identity)
 
@@ -76,6 +76,7 @@ def test_publish_includes_identity_fields_when_resolved():
     payload = alerts.published[0]
     assert payload["identity_status"] == "known"
     assert payload["identity_name"] == "Alex"
+    assert payload["identity_confidence"] == 0.812
     assert "Alex" in payload["message"]
 
 
@@ -185,6 +186,175 @@ def test_skipped_for_exit_events():
     pipeline._publish(make_event(kind=EventKind.EXIT), IdentityResult(status="unknown_face"))
 
     assert len(alerts.published) == 1
+
+
+class FakeIdentityResolver:
+    """A stub with the one method `_resolve_identity_for_event` actually calls - no need
+    for real YuNet/SFace models to test the ENTRY/EXIT wiring itself."""
+
+    def __init__(self, result: IdentityResult):
+        self.result = result
+        self.calls = 0
+
+    def resolve(self, frame_bgr, person_box_px):
+        self.calls += 1
+        return self.result
+
+
+# -- ENTRY-resolved identity is reused for the matching EXIT -----------------------
+
+
+def test_exit_reuses_the_identity_resolved_at_entry_without_re_resolving():
+    """A person has usually turned away by the time they exit - re-running face
+    detection there would mostly just fail. The EXIT for the same track id should get
+    the same identity ENTRY found, without calling the resolver a second time."""
+    pipeline, _alerts = make_pipeline()
+    pipeline.identity_resolver = FakeIdentityResolver(
+        IdentityResult(status="known", person_id="p1", name="Alex")
+    )
+    track_boxes = {7: (0.0, 0.0, 100.0, 200.0)}
+
+    entry_identity = pipeline._resolve_identity_for_event(
+        make_event(kind=EventKind.ENTRY, track_id=7),
+        frame_image=None, frame_ts=0.0, track_boxes=track_boxes,
+    )
+    exit_identity = pipeline._resolve_identity_for_event(
+        make_event(kind=EventKind.EXIT, track_id=7),
+        frame_image=None, frame_ts=1.0, track_boxes={},
+    )
+
+    assert entry_identity.name == "Alex"
+    assert exit_identity.name == "Alex"
+    assert pipeline.identity_resolver.calls == 1  # not called again for the EXIT
+
+
+def test_exit_for_a_track_with_no_prior_entry_gets_no_identity():
+    """E.g. a track born already inside the zone (§6.3's "born settled" rule) never
+    fires an ENTRY, so there is nothing to remember for its eventual EXIT - must not
+    crash, and must not fabricate an identity."""
+    pipeline, _alerts = make_pipeline()
+    pipeline.identity_resolver = FakeIdentityResolver(IdentityResult(status="unknown_face"))
+
+    exit_identity = pipeline._resolve_identity_for_event(
+        make_event(kind=EventKind.EXIT, track_id=99),
+        frame_image=None, frame_ts=0.0, track_boxes={},
+    )
+
+    assert exit_identity is None
+    assert pipeline.identity_resolver.calls == 0
+
+
+def test_different_tracks_do_not_share_a_remembered_identity():
+    pipeline, _alerts = make_pipeline()
+    pipeline.identity_resolver = FakeIdentityResolver(
+        IdentityResult(status="known", person_id="p1", name="Alex")
+    )
+    pipeline._resolve_identity_for_event(
+        make_event(kind=EventKind.ENTRY, track_id=1),
+        frame_image=None, frame_ts=0.0, track_boxes={1: (0.0, 0.0, 100.0, 200.0)},
+    )
+
+    exit_identity = pipeline._resolve_identity_for_event(
+        make_event(kind=EventKind.EXIT, track_id=2),
+        frame_image=None, frame_ts=0.0, track_boxes={},
+    )
+
+    assert exit_identity is None
+
+
+# -- pruning: time-based, not "missing from this frame's tracked set" --------------
+
+
+def test_prune_keeps_an_identity_still_within_the_occlusion_tolerance():
+    pipeline, _alerts = make_pipeline()
+    pipeline.identity_resolver = FakeIdentityResolver(
+        IdentityResult(status="known", person_id="p1", name="Alex")
+    )
+    pipeline._resolve_identity_for_event(
+        make_event(kind=EventKind.ENTRY, track_id=3),
+        frame_image=None, frame_ts=100.0, track_boxes={3: (0.0, 0.0, 100.0, 200.0)},
+    )
+
+    # A track PersonTracker just doesn't return for a frame or two (mid-occlusion, a
+    # missed detection) must not lose the remembered identity - this is the exact bug
+    # a presence-based prune caused: evicting well before the real EXIT arrived.
+    ttl = pipeline.settings.boundary.lost_track_seconds
+    pipeline._prune_stale_identities(now_ts=100.0 + ttl - 0.1)
+
+    exit_identity = pipeline._resolve_identity_for_event(
+        make_event(kind=EventKind.EXIT, track_id=3),
+        frame_image=None, frame_ts=100.0 + ttl - 0.1, track_boxes={},
+    )
+    assert exit_identity.name == "Alex"
+
+
+def test_a_visit_longer_than_the_ttl_still_keeps_its_identity_if_continuously_seen():
+    """The exact bug this whole mechanism exists to avoid: a person who simply stays in
+    the zone longer than lost_track_seconds (completely normal) must not lose their
+    identity by the time they exit, as long as their track keeps being seen."""
+    pipeline, _alerts = make_pipeline()
+    pipeline.identity_resolver = FakeIdentityResolver(
+        IdentityResult(status="known", person_id="p1", name="Alex")
+    )
+    pipeline._resolve_identity_for_event(
+        make_event(kind=EventKind.ENTRY, track_id=5),
+        frame_image=None, frame_ts=0.0, track_boxes={5: (0.0, 0.0, 100.0, 200.0)},
+    )
+
+    ttl = pipeline.settings.boundary.lost_track_seconds
+    # Seen every frame, well past what the raw TTL from ENTRY alone would allow.
+    for tick in range(1, int(ttl * 3)):
+        pipeline._touch_live_identities([5], now_ts=float(tick))
+        pipeline._prune_stale_identities(now_ts=float(tick))
+
+    exit_identity = pipeline._resolve_identity_for_event(
+        make_event(kind=EventKind.EXIT, track_id=5),
+        frame_image=None, frame_ts=float(int(ttl * 3)), track_boxes={},
+    )
+    assert exit_identity.name == "Alex"
+
+
+def test_a_genuine_gap_past_the_ttl_still_evicts_even_with_touching_elsewhere():
+    pipeline, _alerts = make_pipeline()
+    pipeline.identity_resolver = FakeIdentityResolver(
+        IdentityResult(status="known", person_id="p1", name="Alex")
+    )
+    pipeline._resolve_identity_for_event(
+        make_event(kind=EventKind.ENTRY, track_id=5),
+        frame_image=None, frame_ts=0.0, track_boxes={5: (0.0, 0.0, 100.0, 200.0)},
+    )
+
+    ttl = pipeline.settings.boundary.lost_track_seconds
+    # Track 5 is never touched again (genuinely gone) - only an unrelated track 6 is,
+    # so this isn't simply "nothing ever gets pruned".
+    pipeline._touch_live_identities([6], now_ts=ttl + 5.0)
+    pipeline._prune_stale_identities(now_ts=ttl + 5.0)
+
+    exit_identity = pipeline._resolve_identity_for_event(
+        make_event(kind=EventKind.EXIT, track_id=5),
+        frame_image=None, frame_ts=ttl + 5.0, track_boxes={},
+    )
+    assert exit_identity is None
+
+
+def test_prune_evicts_an_identity_past_the_occlusion_tolerance():
+    pipeline, _alerts = make_pipeline()
+    pipeline.identity_resolver = FakeIdentityResolver(
+        IdentityResult(status="known", person_id="p1", name="Alex")
+    )
+    pipeline._resolve_identity_for_event(
+        make_event(kind=EventKind.ENTRY, track_id=3),
+        frame_image=None, frame_ts=100.0, track_boxes={3: (0.0, 0.0, 100.0, 200.0)},
+    )
+
+    ttl = pipeline.settings.boundary.lost_track_seconds
+    pipeline._prune_stale_identities(now_ts=100.0 + ttl + 1.0)
+
+    exit_identity = pipeline._resolve_identity_for_event(
+        make_event(kind=EventKind.EXIT, track_id=3),
+        frame_image=None, frame_ts=100.0 + ttl + 1.0, track_boxes={},
+    )
+    assert exit_identity is None
 
 
 def test_skipped_when_identity_was_never_resolved():

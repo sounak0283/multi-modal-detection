@@ -90,7 +90,7 @@ export default function RecognitionLog({ cameras }) {
           <table className="w-full border-collapse text-[13px]">
             <thead>
               <tr className="bg-ink-800">
-                {['Time', 'Person', 'Camera', 'Boundary', 'Track', 'Evidence'].map((head) => (
+                {['Time', 'Person', 'Confidence', 'Camera', 'Boundary', 'Track', 'Evidence'].map((head) => (
                   <th
                     key={head}
                     className="whitespace-nowrap px-4 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-400"
@@ -112,6 +112,9 @@ export default function RecognitionLog({ cameras }) {
                     ) : (
                       <Badge tone="warn">Unrecognised</Badge>
                     )}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-ink-300">
+                    {formatConfidence(event.identity_confidence)}
                   </td>
                   <td className="whitespace-nowrap px-4 py-2.5 text-ink-200">
                     {cameraName(event.camera_id)}
@@ -190,6 +193,14 @@ export default function RecognitionLog({ cameras }) {
                 ) : (
                   <EmptyState>No evidence was captured for this event.</EmptyState>
                 )}
+                {viewing.identity_status === 'known' && (
+                  <p className="text-[12.5px] text-ink-300">
+                    Match confidence:{' '}
+                    <span className="font-semibold text-ink-100">
+                      {formatConfidence(viewing.identity_confidence)}
+                    </span>
+                  </p>
+                )}
               </div>
             </Card>
           </div>
@@ -197,6 +208,11 @@ export default function RecognitionLog({ cameras }) {
       )}
     </div>
   )
+}
+
+function formatConfidence(confidence) {
+  if (confidence == null) return '—'
+  return `${Math.round(confidence * 100)}%`
 }
 
 function formatWhen(iso) {

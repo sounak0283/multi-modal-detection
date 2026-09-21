@@ -79,8 +79,13 @@ class CaptureThread:
         height: int | None = None,
         fps: int | None = None,
         decode_fps: float | None = None,
+        loop: bool = True,
     ) -> None:
         self.source = source
+        # A recorded file normally restarts when it ends (the reconnect loop). `loop=False`
+        # plays it once and then stops for good - what the dashboard's video-test page wants.
+        self.loop = loop
+        self._finished = False
         self.slot = slot
         self.feed_lost_after_s = feed_lost_after_s
         self.on_state_change = on_state_change
@@ -122,6 +127,11 @@ class CaptureThread:
     @property
     def state(self) -> FeedState:
         return self._state
+
+    @property
+    def finished(self) -> bool:
+        """True once a non-looping file has been played to its end."""
+        return self._finished
 
     @property
     def frames_decoded(self) -> int:
@@ -209,6 +219,9 @@ class CaptureThread:
                 ok, image = cap.read()
                 read_count += 1
                 if not ok or image is None:
+                    if not self.loop and self._is_file():
+                        self._finished = True
+                        break
                     self._check_feed_lost()
                     break
 
@@ -224,14 +237,20 @@ class CaptureThread:
                 self.slot.publish(Frame(seq=self._seq, ts=self._last_frame_ts, image=image))
 
             cap.release()
+            if self._finished:
+                log.info("capture reached the end of %s", redact(self.source))
+                break
             if not self._stop.is_set():
                 self._sleep(backoff)
                 backoff = min(backoff * 2, RECONNECT_BACKOFF_MAX_S)
 
         log.info("capture thread stopped")
 
+    def _is_file(self) -> bool:
+        return not isinstance(self.source, int) and "://" not in str(self.source)
+
     def _file_fps(self, cap: cv2.VideoCapture) -> float:
-        if isinstance(self.source, int) or "://" in str(self.source):
+        if not self._is_file():
             return 0.0
         fps = float(cap.get(cv2.CAP_PROP_FPS) or 0.0)
         return fps if 0.0 < fps <= 240.0 else 0.0

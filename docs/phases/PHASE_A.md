@@ -122,7 +122,7 @@ These were real defects caught before they shipped, not just typos:
 - **MongoDB is now required at startup, not optional.** In the original PostgreSQL
   design, a database outage was non-fatal because zones lived in a YAML file independent
   of it. Now camera and zone configuration live in MongoDB too, so there is nothing to
-  run without it — `perimeter-dashboard` logs an error and exits (code 1) if `PERIMETER_MONGO_URL`
+  run without it — `perimeter-server` logs an error and exits (code 1) if `PERIMETER_MONGO_URL`
   is unset or unreachable at boot. A MongoDB outage *after* startup remains non-fatal for
   already-running cameras (unchanged `AlertBus` retry/backoff behaviour).
 - **`/api/events` no longer has an in-memory fallback.** The old version served from the

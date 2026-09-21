@@ -5,6 +5,7 @@ EvidenceWriter's injectable-mux testing pattern."""
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from perimeter.identity.gallery import FaceGallery, PersonRecord
 from perimeter.identity.resolver import IdentityResolver
@@ -86,6 +87,7 @@ def test_known_when_the_gallery_matches():
     assert result.status == "known"
     assert result.person_id == "p1"
     assert result.name == "Alex"
+    assert result.confidence == pytest.approx(1.0, abs=1e-4)
 
 
 def test_crop_at_the_frame_edge_does_not_raise():

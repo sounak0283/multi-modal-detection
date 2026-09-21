@@ -9,6 +9,7 @@ files written to disk.
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from perimeter.identity.gallery import FaceGallery, PersonRecord
 
@@ -35,7 +36,12 @@ def test_match_finds_the_closest_enrolled_person_above_threshold():
         ]
     )
 
-    assert gallery.match(alex) == ("p1", "Alex")
+    person_id, name, confidence = gallery.match(alex)
+    assert (person_id, name) == ("p1", "Alex")
+    # identical vectors -> cosine similarity 1.0. The score travels with the match
+    # (rather than being computed-then-discarded) precisely so a real deployment's
+    # matches can be audited and the threshold tuned from actual data.
+    assert confidence == pytest.approx(1.0, abs=1e-4)
 
 
 def test_match_returns_none_below_threshold():
@@ -109,7 +115,9 @@ def test_matches_against_any_of_a_persons_several_poses():
     live_capture[0] = 0.1
     live_capture[5] = 1.0  # close to the stored `left` pose, nowhere near `front`
 
-    assert gallery.match(live_capture) == ("p1", "Alex")
+    person_id, name, confidence = gallery.match(live_capture)
+    assert (person_id, name) == ("p1", "Alex")
+    assert confidence >= 0.8
 
 
 def test_rebuild_replaces_the_previous_contents():
@@ -121,7 +129,8 @@ def test_rebuild_replaces_the_previous_contents():
     gallery.rebuild([
         PersonRecord(id="p1", name="Alex", external_id="", active=True, embeddings=[alex.tolist()])
     ])
-    assert gallery.match(alex) == ("p1", "Alex")
+    person_id, name, _confidence = gallery.match(alex)
+    assert (person_id, name) == ("p1", "Alex")
 
     gallery.rebuild([])
 

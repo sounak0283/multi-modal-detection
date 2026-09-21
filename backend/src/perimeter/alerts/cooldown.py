@@ -32,7 +32,7 @@ SUPPORTED_SINK_TYPES = frozenset({"smtp"})
 # _publish_ppe/_check_access_control/_process_firesmoke), plus "phone" - not published by
 # any module yet (Phase I is unimplemented), but a rule can be pre-configured for it
 # before that module ships, same as the frontend's KIND_OPTIONS already allows.
-ALERT_KINDS = frozenset({"boundary", "crowd", "ppe", "access", "fire", "smoke", "phone"})
+ALERT_KINDS = frozenset({"boundary", "crowd", "ppe", "access", "fire", "smoke", "phone", "welding"})
 
 
 def _new_rule_id() -> str:
@@ -203,17 +203,33 @@ class CooldownGate:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._last_sent: dict[tuple[str, str | None, str | None, str | None], float] = {}
+        self._last_sent: dict[tuple[str, str | None, str | None, str | None, str], float] = {}
 
-    def allow(self, rule_id: str, rule: AlertRule, payload: dict[str, Any]) -> bool:
+    def allow(
+        self,
+        rule_id: str,
+        rule: AlertRule,
+        payload: dict[str, Any],
+        enforce_cooldown: bool = True,
+        scope: str = "",
+    ) -> bool:
+        """`enforce_cooldown=False` is for the follow-up email of an alert that already
+        went out (the one carrying the video link): same alert, so it must not be
+        swallowed by the cooldown that alert itself just started - but the severity floor
+        still applies."""
         payload_severity = _parse_severity(payload.get("severity"))
         if _SEVERITY_RANK[payload_severity] < _SEVERITY_RANK[rule.min_severity]:
             return False
 
-        if rule.cooldown_seconds <= 0:
+        if not enforce_cooldown or rule.cooldown_seconds <= 0:
             return True  # explicit bypass (PLATFORM_EXPANSION_PLAN.md §9)
 
-        key = (rule_id, payload.get("camera_id"), payload.get("kind"), payload.get("zone_id"))
+        # `scope` keeps separate cooldown clocks for alerts that must not compete: an email
+        # with NO video (a registered person, an exit) must not use up the slot of the email
+        # that carries the video for an unregistered one a second later.
+        key = (
+            rule_id, payload.get("camera_id"), payload.get("kind"), payload.get("zone_id"), scope
+        )
         now = time.monotonic()
         with self._lock:
             last = self._last_sent.get(key)

@@ -86,6 +86,17 @@ export const api = {
   deletePerson: (personId) =>
     request(`/api/persons/${encodeURIComponent(personId)}`, { method: 'DELETE' }),
 
+  // -- app settings + video test ------------------------------------------------
+  appSettings: () => request('/api/app-settings'),
+  saveAppSettings: (payload) =>
+    request('/api/app-settings', { method: 'PUT', body: JSON.stringify(payload) }),
+  testVideoStatus: () => request('/api/test-video/status'),
+  deleteTestVideo: (id) => request(`/api/test-video/uploads/${id}`, { method: 'DELETE' }),
+  startTestSession: (payload) =>
+    request('/api/test-video/session', { method: 'POST', body: JSON.stringify(payload) }),
+  getTestSession: (since = 0) => request(`/api/test-video/session?since=${since}`),
+  stopTestSession: () => request('/api/test-video/session', { method: 'DELETE' }),
+
   // -- alert config (Expansion Plan Phase D) -----------------------------------
   getAlertConfig: () => request('/api/alert-config'),
   saveAlertConfig: (config) =>
@@ -143,3 +154,33 @@ export const snapshotUrl = (cameraId, bust) => `/api/cameras/${cameraId}/snapsho
 // same reasoning already applied to the live snapshot/stream URLs above.
 export const eventSnapshotUrl = (eventId) => `/api/events/${eventId}/snapshot`
 export const eventClipUrl = (eventId) => `/api/events/${eventId}/clip`
+
+export const testStreamUrl = (sessionId) => `/api/test-video/session/stream?t=${sessionId}`
+
+/** Upload a video as the raw request body. `fetch` cannot report upload progress, so this
+ * uses XMLHttpRequest; the file name travels in a header (the server never trusts it as a
+ * path). Resolves with the stored video's metadata. */
+export function uploadTestVideo(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', '/api/test-video/upload')
+    xhr.setRequestHeader('X-Filename', encodeURIComponent(file.name))
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress?.(event.loaded / event.total)
+    }
+    xhr.onerror = () => reject(new Error('Cannot reach the server.'))
+    xhr.onload = () => {
+      let body = {}
+      try {
+        body = JSON.parse(xhr.responseText)
+      } catch {
+        /* not JSON */
+      }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(body)
+      else reject(new Error(body.detail || `Upload failed (${xhr.status})`))
+    }
+    xhr.send(file)
+  })
+}
+
+export const testVideoFrameUrl = (id) => `/api/test-video/uploads/${id}/frame`

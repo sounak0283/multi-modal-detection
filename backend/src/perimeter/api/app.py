@@ -31,6 +31,7 @@ from fastapi.responses import (
     FileResponse,
     HTMLResponse,
     JSONResponse,
+    RedirectResponse,
     Response,
     StreamingResponse,
 )
@@ -38,6 +39,8 @@ from fastapi.staticfiles import StaticFiles
 from pymongo.errors import PyMongoError, ServerSelectionTimeoutError
 
 from perimeter.alerts.cooldown import alert_config_from_dict
+from perimeter.api.testvideo_routes import add_test_video_routes
+from perimeter.appsettings import AppSettings, AppSettingsStore
 from perimeter.auth.models import Role, User, normalise_email, user_from_dict, validate_password
 from perimeter.auth.passwords import hash_password, verify_password
 from perimeter.auth.registry import UserRegistry
@@ -58,6 +61,8 @@ log = logging.getLogger("perimeter.api")
 # Enrollment requires one photo per pose (Expansion Plan Phase F). A single canonical
 # photo matches poorly against a live boundary-crossing frame, which rarely presents a
 # straight-on face - five angles give the matcher something close to every real crossing.
+# Lifetime of the presigned URL the dashboard is redirected to when evidence lives in S3.
+EVIDENCE_LINK_TTL_S = 300
 REQUIRED_POSES = {"front", "left", "right", "up", "down"}
 
 # Checked on create only: a camera id is used verbatim in /api/cameras/{id}/..., so "/" or
@@ -130,6 +135,9 @@ def create_app(
     evidence_store: Any | None = None,
     alert_config_store: Any | None = None,
     identity_resolver: IdentityResolver | None = None,
+    app_settings_store: Any | None = None,
+    test_video_store: Any | None = None,
+    test_sessions: Any | None = None,
 ) -> FastAPI:
     app = FastAPI(title="Fire, Smoke & Boundary Detection", docs_url="/api/docs")
 
@@ -666,7 +674,7 @@ def create_app(
 
     def _evidence_file(
         event_id: str, field: str, default_media_type: str, media_types_by_suffix: dict[str, str]
-    ) -> FileResponse:
+    ) -> Response:
         """Shared lookup for /snapshot and /clip: event exists, has that evidence key,
         and the file it points to is actually still on disk (Expansion Plan Phase C)."""
         if database is None:
@@ -679,6 +687,16 @@ def create_app(
         key = event.get(field)
         if not key:
             raise HTTPException(404, f"no {field.removesuffix('_path')} captured for this event")
+        if getattr(evidence_store, "is_remote", False):
+            # Remote (S3) evidence: never proxied through this server. A short-lived
+            # presigned URL is minted per request, after the auth check above, so a leaked
+            # dashboard link stops working within minutes.
+            try:
+                url = evidence_store.presigned_url(key, EVIDENCE_LINK_TTL_S)
+            except Exception as exc:  # noqa: BLE001
+                log.exception("could not sign an evidence link for %s", event_id)
+                raise HTTPException(502, "evidence storage is unreachable") from exc
+            return RedirectResponse(url, status_code=302)
         path = evidence_store.resolve(key)
         if path is None:
             raise HTTPException(404, "evidence file is missing")
@@ -688,11 +706,11 @@ def create_app(
     @router.get("/events/{event_id}/snapshot")
     def event_snapshot(
         event_id: str, _user: User = Depends(require_any_role)
-    ) -> FileResponse:
+    ) -> Response:
         return _evidence_file(event_id, "snapshot_path", "image/jpeg", {})
 
     @router.get("/events/{event_id}/clip")
-    def event_clip(event_id: str, _user: User = Depends(require_any_role)) -> FileResponse:
+    def event_clip(event_id: str, _user: User = Depends(require_any_role)) -> Response:
         return _evidence_file(event_id, "clip_path", "video/mp4", CLIP_MEDIA_TYPES)
 
     # -- alert config (Expansion Plan Phase D) --------------------------------
@@ -916,6 +934,26 @@ def create_app(
                 for c in cameras
             ],
         }
+
+    def _cameras_with_zones() -> list[dict[str, Any]]:
+        try:
+            return [
+                {"id": c.id, "name": c.name or c.id, "zones": len(store.zones(c.id))}
+                for c in registry.list()
+            ]
+        except PyMongoError:
+            return []
+
+    add_test_video_routes(
+        router,
+        require_admin=require_admin,
+        require_any_role=require_any_role,
+        app_settings=app_settings_store
+        or AppSettingsStore(None, AppSettings(video_test_enabled=settings.features.video_test)),
+        store=test_video_store,
+        sessions=test_sessions,
+        list_cameras=_cameras_with_zones,
+    )
 
     app.include_router(router)
     _mount_frontend(app)

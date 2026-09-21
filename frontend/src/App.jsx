@@ -9,6 +9,9 @@ import Persons from './pages/Persons'
 import RecognitionLog from './pages/RecognitionLog'
 import Alerts from './pages/Alerts'
 import AlertHistory from './pages/AlertHistory'
+import Evidence from './pages/Evidence'
+import VideoTest from './pages/VideoTest'
+import Settings from './pages/Settings'
 import Login from './pages/Login'
 import { Button, Select } from './components/ui'
 import { ToastProvider, useToast } from './components/Toast'
@@ -26,6 +29,9 @@ const VIEWS = {
   recognition: { title: 'Recognition log', subtitle: 'Every identity resolution, with camera and timestamp.' },
   users: { title: 'Accounts', subtitle: 'Who can sign in, and what they can change.' },
   history: { title: 'Alert history', subtitle: 'Every alert this system has recorded.' },
+  videotest: { title: 'Video test', subtitle: 'Run an uploaded video through the detectors like a live camera.' },
+  settings: { title: 'Settings', subtitle: 'System-wide switches.' },
+  evidence: { title: 'Evidence', subtitle: 'Watch the video and see the full details of each alert.' },
 }
 
 // Views where the per-camera boundary/zone data is relevant and a camera switcher makes
@@ -46,6 +52,12 @@ function Dashboard({ user, onLogout }) {
   const toast = useToast()
 
   const { data: health } = usePolling(api.health, 2000)
+  const { data: appSettings } = usePolling(api.appSettings, 5000)
+  const videoTestOn = appSettings ? appSettings.video_test_enabled !== false : true
+
+  useEffect(() => {
+    if (view === 'videotest' && !videoTestOn) setView('live')
+  }, [view, videoTestOn])
 
   const loadCameras = useCallback(async () => {
     try {
@@ -184,6 +196,7 @@ function Dashboard({ user, onLogout }) {
         title={VIEWS[view].title}
         subtitle={VIEWS[view].subtitle}
         actions={actions}
+        features={{ video_test: videoTestOn }}
         user={user}
         onLogout={onLogout}
       >
@@ -228,6 +241,11 @@ function Dashboard({ user, onLogout }) {
         {view === 'recognition' && <RecognitionLog cameras={cameras} />}
         {view === 'users' && isAdmin && <Users currentUser={user} />}
         {view === 'history' && <AlertHistory cameras={cameras} zones={zones} />}
+        {view === 'evidence' && <Evidence cameras={cameras} />}
+        {view === 'videotest' && isAdmin && videoTestOn && <VideoTest />}
+        {view === 'settings' && isAdmin && (
+          <Settings features={{ video_test: videoTestOn }} onChanged={() => window.location.reload()} />
+        )}
       </Shell>
       {/* Mounted outside any single view so a fire/smoke alert surfaces no matter which
           page is open - not just when History or Live view happens to be on screen. */}

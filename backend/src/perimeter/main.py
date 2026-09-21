@@ -1,6 +1,6 @@
 """Entry point: runs one pipeline per enabled camera and serves the dashboard.
 
-    perimeter-dashboard                      # uses .env + config/app.yaml + MongoDB
+    perimeter-server                      # uses .env + config/app.yaml + MongoDB
     python -m perimeter.main --source 0      # override/seed the first camera for a quick test
 
 The API binds to 127.0.0.1 by default. Every route now requires a logged-in session
@@ -39,13 +39,14 @@ from perimeter.alerts.cooldown import CooldownGate
 from perimeter.alerts.router import AlertRouter
 from perimeter.alerts.sinks.smtp import EmailSink
 from perimeter.api.app import create_app
+from perimeter.appsettings import AppSettings, AppSettingsStore
 from perimeter.auth.models import Role, User, normalise_email
 from perimeter.auth.passwords import hash_password
 from perimeter.auth.registry import UserRegistry
 from perimeter.boundary.zones import ZoneStore
 from perimeter.cameras.manager import PipelineManager
 from perimeter.cameras.registry import CameraRegistry
-from perimeter.evidence.store import LocalEvidenceStore
+from perimeter.evidence.store import build_evidence_store
 from perimeter.evidence.writer import EvidenceWriter
 from perimeter.identity.gallery import FaceGallery, PersonRecord
 from perimeter.identity.resolver import IdentityResolver
@@ -53,6 +54,12 @@ from perimeter.identity.sface import FaceEmbedder
 from perimeter.identity.yunet import FaceDetector
 from perimeter.settings import BACKEND_ROOT, load_settings
 from perimeter.store.db import Database
+from perimeter.testvideo.sessions import (
+    TestSessionManager,
+    model_info_from,
+    pipeline_factory_from,
+)
+from perimeter.testvideo.store import TestVideoStore
 
 log = logging.getLogger("perimeter")
 
@@ -167,7 +174,7 @@ def _bootstrap_first_admin(users: UserRegistry, settings) -> bool:
     return True
 
 
-def _build_email_sink(settings) -> EmailSink | None:
+def _build_email_sink(settings, database=None) -> EmailSink | None:
     """`None` when SMTP isn't configured - `AlertRouter.dispatch` already logs a warning
     per dispatch if a dashboard-managed rule wants email anyway (Expansion Plan Phase D).
     Email is an optional notification channel; unlike MongoDB, its absence is never fatal.
@@ -181,6 +188,7 @@ def _build_email_sink(settings) -> EmailSink | None:
         password=settings.alerts.smtp_password,
         from_addr=settings.alerts.smtp_from,
         use_tls=settings.alerts.smtp_use_tls,
+        on_result=database.mark_delivered if database is not None else None,
     )
 
 
@@ -228,7 +236,7 @@ def _build_identity_resolver(
 
 
 def _start_retention_sweeper(
-    database: Database, evidence_store: LocalEvidenceStore, retention_days: int
+    database: Database, evidence_store, retention_days: int
 ) -> threading.Thread:
     """Enforce `storage.retention_days` (Expansion Plan §8 / PLAN.md §10.3).
 
@@ -347,29 +355,56 @@ def main(argv: list[str] | None = None) -> int:
         identity_resolver=identity_resolver, ppe_model_path=ppe_model_path,
     )
 
-    evidence_store = LocalEvidenceStore(
-        root=BACKEND_ROOT / settings.storage.evidence_root,
-        snapshot_dir=settings.storage.snapshot_dir,
-        clip_dir=settings.storage.clip_dir,
+    evidence_store = build_evidence_store(settings, BACKEND_ROOT)
+
+    # Dashboard "Video test": play an uploaded file through the real pipeline. Its own
+    # pipelines are never registered with `manager`, so live cameras are unaffected.
+    app_settings_store = AppSettingsStore(
+        database.db["app_settings"],
+        AppSettings(video_test_enabled=settings.features.video_test),
     )
+    test_video_store = TestVideoStore(
+        BACKEND_ROOT / settings.test_video.directory,
+        max_bytes=settings.test_video.max_upload_mb * 1024 * 1024,
+        retention_days=settings.test_video.retention_days,
+    )
+    test_sessions = TestSessionManager(
+        test_video_store,
+        store,
+        model_info=model_info_from(manager),
+        pipeline_factory=pipeline_factory_from(manager),
+        real_bus=alerts,
+        camera_ids=lambda: [c.id for c in registry.list()],
+    )
+
+    alert_config_store = AlertConfigStore(database.db["alert_config"])
+    email_sink = _build_email_sink(settings, database)
+    if email_sink is not None:
+        email_sink.start()
+    alert_router = AlertRouter(alert_config_store, CooldownGate(), email_sink)
+
+    # The writer, not the bus, hands each alert to the router: the email waits for the video
+    # clip so it can carry a link to it (a clip that fails still lets the email go out, and
+    # a later retry sends a follow-up). See evidence/writer.py.
     evidence_writer = EvidenceWriter(
         database=database,
         store=evidence_store,
         ring_buffer_lookup=lambda cam_id: (
-            pipeline.ring_buffer if (pipeline := manager.get(cam_id)) else None
+            pipeline.ring_buffer
+            if (pipeline := manager.get(cam_id) or test_sessions.pipeline_for(cam_id))
+            else None
         ),
         post_roll_seconds=settings.storage.post_roll_seconds,
+        min_clip_seconds=settings.storage.min_clip_seconds,
+        policy=settings.storage.clip_policy,
+        urgent_post_roll_seconds=settings.storage.urgent_post_roll_seconds,
+        notify=alert_router.dispatch,
+        link_expiry_hours=settings.storage.s3_link_expiry_hours,
+        upload_attempts=settings.storage.s3_upload_attempts,
     )
     evidence_writer.start()
     alerts.sinks.append(evidence_writer.on_alert)
     _start_retention_sweeper(database, evidence_store, settings.storage.retention_days)
-
-    alert_config_store = AlertConfigStore(database.db["alert_config"])
-    email_sink = _build_email_sink(settings)
-    if email_sink is not None:
-        email_sink.start()
-    alert_router = AlertRouter(alert_config_store, CooldownGate(), email_sink)
-    alerts.sinks.append(alert_router.dispatch)
 
     if not args.no_pipeline:
         manager.start()
@@ -387,6 +422,9 @@ def main(argv: list[str] | None = None) -> int:
         evidence_store=evidence_store,
         alert_config_store=alert_config_store,
         identity_resolver=identity_resolver,
+        app_settings_store=app_settings_store,
+        test_video_store=test_video_store,
+        test_sessions=test_sessions,
     )
     host = args.host or settings.api.host
     port = args.port or settings.api.port

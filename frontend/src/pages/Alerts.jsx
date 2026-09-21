@@ -25,6 +25,7 @@ const KIND_OPTIONS = [
   { value: 'crowd', label: 'Crowd formation' },
   { value: 'fire', label: 'Fire' },
   { value: 'smoke', label: 'Smoke' },
+  { value: 'welding', label: 'Welding sparks' },
   { value: 'ppe', label: 'PPE violation' },
   { value: 'access', label: 'Unauthorized access' },
   { value: 'phone', label: 'Phone near ear' },

@@ -3,7 +3,7 @@ import { Badge, Button, Card, CardFoot, CardHead, EmptyState, Select, Stat } fro
 import { api, eventClipUrl, eventSnapshotUrl } from '../api'
 import { emitsEvents } from '../lib/zones'
 
-const KIND_LABEL = { boundary: 'Boundary', fire: 'Fire', smoke: 'Smoke', health: 'Camera' }
+const KIND_LABEL = { boundary: 'Boundary', fire: 'Fire', smoke: 'Smoke', welding: 'Welding sparks', health: 'Camera' }
 
 export default function AlertHistory({ cameras, zones }) {
   const [filters, setFilters] = useState({ kind: '', zoneId: '', cameraId: '', limit: 200 })
@@ -51,6 +51,7 @@ export default function AlertHistory({ cameras, zones }) {
               <option value="boundary">Boundary</option>
               <option value="fire">Fire</option>
               <option value="smoke">Smoke</option>
+              <option value="welding">Welding sparks</option>
               <option value="health">Camera health</option>
             </Select>
             <Select value={filters.zoneId} onChange={set('zoneId')} className="w-auto py-1.5">
@@ -198,7 +199,20 @@ function EvidenceLightbox({ event, onClose }) {
               />
             )}
             {!event.snapshot_path && !event.clip_path && (
-              <EmptyState>No evidence was captured for this alert.</EmptyState>
+              <EmptyState>
+                {event.clip_status === 'pending'
+                  ? 'The video is still being saved - reopen this alert in a minute.'
+                  : event.clip_status === 'failed'
+                    ? 'The video could not be saved after several attempts.'
+                    : 'No evidence was captured for this alert.'}
+              </EmptyState>
+            )}
+            {/* Permanent storage reference for admin audit; playback links are minted
+                fresh per view (they expire), so only the s3:// address is shown. */}
+            {event.clip_uri && (
+              <p className="break-all text-[11.5px] text-ink-400">
+                Stored at <span className="font-mono text-ink-300">{event.clip_uri}</span>
+              </p>
             )}
           </div>
         </Card>
@@ -224,7 +238,7 @@ function formatWhen(iso) {
 
 function toneFor(event) {
   if (event.kind === 'fire' || event.kind === 'smoke') return 'alarm'
-  if (event.kind === 'health') return 'info'
+  if (event.kind === 'health' || event.kind === 'welding') return 'info'
   return event.subtype === 'entry' ? 'ok' : 'warn'
 }
 

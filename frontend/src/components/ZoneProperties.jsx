@@ -12,7 +12,7 @@ import {
   Toggle,
 } from './ui'
 import { api } from '../api'
-import { DAYS, emitsEvents, typeOf } from '../lib/zones'
+import { DAYS, MODEL_CHOICES, convertZone, emitsEvents, typeOf } from '../lib/zones'
 
 const DETECT_OPTIONS = [
   { value: 'person', label: 'People' },
@@ -75,6 +75,27 @@ export default function ZoneProperties({ zone, onChange, onDelete }) {
             placeholder={zone.id}
             onChange={(e) => set({ name: e.target.value })}
           />
+        </Field>
+
+        <Field label="Model" hint="Which model uses this boundary, and how.">
+          <Select
+            value={zone.type}
+            onChange={(e) => onChange(convertZone(zone, e.target.value))}
+          >
+            {['People detection', 'Fire / smoke detection'].map((group) => (
+              <optgroup key={group} label={group}>
+                {MODEL_CHOICES.filter((c) => c.group === group).map((c) => (
+                  <option
+                    key={c.type}
+                    value={c.type}
+                    disabled={(zone.points.length === 2) !== (c.needs === 2)}
+                  >
+                    {c.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </Select>
         </Field>
 
         <Field label={alerts ? 'Detect' : 'Applies to'}>

@@ -35,9 +35,18 @@ MODULE_PPE = "ppe"
 MODULE_PHONE = "phone"
 MODULE_FIRE_SMOKE = "fire_smoke"
 MODULE_IDENTITY = "identity"
+MODULE_WELDING = "welding"
 
 ALL_MODULES = frozenset(
-    {MODULE_BOUNDARY, MODULE_CROWD, MODULE_PPE, MODULE_PHONE, MODULE_FIRE_SMOKE, MODULE_IDENTITY}
+    {
+        MODULE_BOUNDARY,
+        MODULE_CROWD,
+        MODULE_PPE,
+        MODULE_PHONE,
+        MODULE_FIRE_SMOKE,
+        MODULE_IDENTITY,
+        MODULE_WELDING,
+    }
 )
 # Modules that consume person tracks and zone membership from the boundary module.
 REQUIRES_BOUNDARY = frozenset({MODULE_CROWD, MODULE_PPE, MODULE_PHONE, MODULE_IDENTITY})

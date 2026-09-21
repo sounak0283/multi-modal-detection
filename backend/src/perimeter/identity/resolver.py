@@ -17,6 +17,7 @@ Three outcomes, matching PLAN.md section 7 exactly:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 import numpy as np
@@ -24,6 +25,8 @@ import numpy as np
 from perimeter.identity.gallery import FaceGallery
 from perimeter.identity.sface import FaceEmbedder
 from perimeter.identity.yunet import FaceBox, FaceDetector
+
+log = logging.getLogger("perimeter.identity")
 
 # The top ~35% of a person's bounding box is where a face sits under normal camera
 # geometry (PLAN.md section 7 step 2). Cropped from the full-resolution frame, never
@@ -36,6 +39,7 @@ class IdentityResult:
     status: str  # "known" | "unknown_face" | "no_face"
     person_id: str | None = None
     name: str | None = None
+    confidence: float | None = None  # cosine similarity, only set when status == "known"
 
 
 NO_FACE = IdentityResult(status="no_face")
@@ -75,6 +79,8 @@ class IdentityResolver:
         if box_height < self.min_person_box_px:
             # Step 1: below this, a face would be under ~40px and YuNet returns nothing
             # useful - skip the inference entirely rather than run it for nothing.
+            log.info("identity: no_face - person box only %dpx tall (needs %d)",
+                     box_height, self.min_person_box_px)
             return NO_FACE
 
         frame_height, frame_width = frame_bgr.shape[:2]
@@ -99,11 +105,22 @@ class IdentityResolver:
             crop = frame_bgr[cy1:cy2, cx1:cx2]
             face = self.detector.largest(crop)
         if face is None:
+            log.info("identity: no_face - YuNet found no face in the %dx%d crop",
+                     crop.shape[1], crop.shape[0])
             return NO_FACE
 
         embedding = self.embedder.embed(crop, face)
-        match = self.gallery.match(embedding)
-        if match is None:
+        nearest = self.gallery.nearest(embedding)
+        if nearest is None or nearest[2] < self.gallery.threshold:
+            if nearest is None:
+                log.info("identity: unknown_face - gallery is empty")
+            else:
+                log.info(
+                    "identity: unknown_face - closest was %s at %.3f, below threshold %.2f",
+                    nearest[1], nearest[2], self.gallery.threshold,
+                )
             return IdentityResult(status="unknown_face")
-        person_id, name = match
-        return IdentityResult(status="known", person_id=person_id, name=name)
+        person_id, name, confidence = nearest
+        log.info("identity: known - %s at %.3f (threshold %.2f)", name, confidence,
+                 self.gallery.threshold)
+        return IdentityResult(status="known", person_id=person_id, name=name, confidence=confidence)

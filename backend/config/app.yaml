@@ -62,7 +62,12 @@ identity:
   # Enabled here for local dev testing only.
   enabled: true
   min_person_box_px: 120
-  cosine_threshold: 0.363
+  # Raised from 0.363 (OpenCV's benchmark-tuned default) on 2026-09-21 after a real false
+  # match: a stranger in a grey hoodie was labelled as an enrolled person. A stopgap - the
+  # right value should come from the identity_confidence scores now recorded per match
+  # (Recognition Log page). A higher bar turns wrong names into "unrecognised", the safer
+  # failure direction (PLAN.md section 7).
+  cosine_threshold: 0.55
   # Chroma's on-disk nearest-neighbour index (one vector per enrolled pose). Relative
   # to the backend root, already covered by the backend/data/** gitignore rule.
   gallery_dir: data/identity_gallery
@@ -79,14 +84,59 @@ storage:
   # of JPEG frames per camera; on an alert, the writer waits post_roll_seconds so the
   # buffer accumulates some "after" footage too, then muxes whatever is in the buffer
   # into a clip - so ring_buffer_seconds should stay comfortably above post_roll_seconds.
-  ring_buffer_seconds: 15
-  post_roll_seconds: 5
-  # Local filesystem for now, not S3 (no AWS account stood up for this repo yet) - see
-  # evidence/store.py. Relative to the backend root; already covered by the
-  # backend/data/** gitignore rule.
+  ring_buffer_seconds: 10
+  # A clip is 10s in total: what the camera saw just BEFORE the alert plus post_roll_seconds
+  # AFTER it (10 - 3 = 7s before, 3s after). Never shorter than min_clip_seconds: if an alert
+  # arrives before that much has been recorded (right after a start or a camera reconnect)
+  # the clip waits for more footage. Urgent alerts skip that wait.
+  post_roll_seconds: 3
+  urgent_post_roll_seconds: 1
+  min_clip_seconds: 10
+  # WHICH alerts get a video clip. The camera buffers continuously; a clip is cut only when
+  # an alert is recorded and its rule below says so. Alerts and emails happen either way -
+  # this only decides whether a video is attached.
+  #   boundary_entry / boundary_exit:  all | unregistered | off
+  #       "unregistered" = record unless the person was recognised as an enrolled person, so a
+  #       registered person walking in is not recorded but a stranger (or an unreadable face)
+  #       is. Exits are off by default: the entry already has the footage.
+  #   crowd / fire / smoke / access / ppe:  on | off
+  clip_triggers:
+    boundary_entry: unregistered
+    boundary_exit: off
+    crowd: on
+    fire: on
+    smoke: on
+    access: on
+    ppe: on
+  # Urgent alerts are emailed IMMEDIATELY (the video follows as a second "VIDEO READY" email)
+  # and are processed on their own worker, so they never wait behind a slow upload.
+  urgent_kinds: [fire, smoke, crowd, access]
   evidence_root: data/evidence
   snapshot_dir: snapshots
   clip_dir: clips
+  # Where evidence lives: "local" (disk under evidence_root) or "s3". For s3 set
+  # PERIMETER_S3_BUCKET / PERIMETER_S3_REGION in .env and AWS credentials the usual boto3
+  # way (env vars, or an IAM role when running on AWS). A bad or missing S3 setup falls
+  # back to local disk with an error in the log rather than losing evidence.
+  backend: s3
+  s3_prefix: ""
+  # How long the video link in an alert email keeps working. S3 allows at most 168 (7 days).
+  # The link is a bearer token: anyone holding the email can open the video until it expires.
+  s3_link_expiry_hours: 72
+  # Attempts to upload one clip (backoff 5s, 30s, 120s between them). If all fail the alert
+  # email has already gone out without a link; the event is marked clip_status=failed.
+  s3_upload_attempts: 4
+
+# Dashboard sections that can be switched off. This is only the DEFAULT: an admin flips it from
+# the dashboard's Settings page and that choice is stored in MongoDB and wins over this file.
+features:
+  video_test: true
+
+# The dashboard's "Video test" page: play an uploaded video through the real detection code.
+test_video:
+  directory: data/test_videos   # relative to backend/; already covered by the data/** gitignore
+  max_upload_mb: 2048
+  retention_days: 7             # uploaded videos older than this are deleted automatically
 
 health:
   feed_lost_after_s: 10

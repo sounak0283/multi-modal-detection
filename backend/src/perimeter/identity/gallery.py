@@ -90,13 +90,14 @@ class FaceGallery:
         if ids:
             self._collection.add(ids=ids, embeddings=vectors, metadatas=metadatas)
 
-    def match(self, embedding: np.ndarray) -> tuple[str, str] | None:
-        """Best match above `threshold` across every pose of every active person, or
-        `None`. Returns `(person_id, name)`."""
+    def nearest(self, embedding: np.ndarray) -> tuple[str, str, float] | None:
+        """Closest enrolled vector regardless of threshold: `(person_id, name, similarity)`.
+        Exposed so a near-miss (a real match scoring just under `threshold`) can be seen
+        and logged - a bare `None` from `match()` hides whether the bar or the face was
+        the problem."""
         if self._count == 0:
             return None
-        norm = float(np.linalg.norm(embedding))
-        if norm == 0:
+        if float(np.linalg.norm(embedding)) == 0:
             return None
 
         result = self._collection.query(
@@ -107,9 +108,15 @@ class FaceGallery:
         metadatas = result.get("metadatas") or [[]]
         if not distances[0]:
             return None
-
-        similarity = 1.0 - float(distances[0][0])
-        if similarity < self.threshold:
-            return None
         meta = metadatas[0][0]
-        return meta["person_id"], meta["name"]
+        return meta["person_id"], meta["name"], 1.0 - float(distances[0][0])
+
+    def match(self, embedding: np.ndarray) -> tuple[str, str, float] | None:
+        """Best match at or above `threshold` across every pose of every active person,
+        or `None`. Returns `(person_id, name, similarity)` - the score travels with the
+        match (IdentityResult.confidence -> stored identity_confidence) so real matches
+        can be audited and the threshold tuned from data."""
+        nearest = self.nearest(embedding)
+        if nearest is None or nearest[2] < self.threshold:
+            return None
+        return nearest

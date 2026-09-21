@@ -68,6 +68,11 @@ def firesmoke_message(klass: str, zone_name: str | None = None) -> str:
     return f"{label} detected in {zone_name}" if zone_name else f"{label} detected"
 
 
+def welding_message(zone_name: str | None = None) -> str:
+    where = f" in {zone_name}" if zone_name else ""
+    return f"Welding sparks detected{where} - not a fire (soft alert)"
+
+
 def crowd_message(zone_name: str, cluster_size: int) -> str:
     """e.g. "Crowd forming in Loading Bay (6 people clustered)" (Expansion Plan
     Phase G)."""

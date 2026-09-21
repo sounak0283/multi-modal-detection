@@ -7,13 +7,16 @@ const NAV = [
   { id: 'boundaries', label: 'Boundaries', icon: ShapeIcon },
   { id: 'cameras', label: 'Cameras', icon: CameraIcon },
   { id: 'history', label: 'Alert history', icon: ListIcon },
+  { id: 'evidence', label: 'Evidence', icon: FilmIcon },
   { id: 'recognition', label: 'Recognition log', icon: ScanIcon },
 ]
 
 const ADMIN_NAV = [
+  { id: 'videotest', label: 'Video test', icon: TestIcon, feature: 'video_test' },
   { id: 'alerts', label: 'Alerts', icon: BellIcon },
   { id: 'persons', label: 'People', icon: IdIcon },
   { id: 'users', label: 'Accounts', icon: UserIcon },
+  { id: 'settings', label: 'Settings', icon: GearIcon },
 ]
 
 export default function Shell({
@@ -23,11 +26,15 @@ export default function Shell({
   title,
   subtitle,
   actions,
+  features,
   user,
   onLogout,
   children,
 }) {
-  const nav = user?.role === 'admin' ? [...NAV, ...ADMIN_NAV] : NAV
+  const nav =
+    user?.role === 'admin'
+      ? [...NAV, ...ADMIN_NAV.filter((item) => !item.feature || features?.[item.feature] !== false)]
+      : NAV
   return (
     <div className="grid min-h-full grid-cols-1 md:grid-cols-[232px_minmax(0,1fr)]">
       <aside className="flex flex-col border-r border-ink-700 bg-ink-900 md:sticky md:top-0 md:h-screen">
@@ -169,6 +176,32 @@ function CameraIcon() {
     <svg {...iconProps}>
       <rect x="1.8" y="4" width="12.4" height="8" rx="1.6" />
       <circle cx="8" cy="8" r="2.2" />
+    </svg>
+  )
+}
+
+function FilmIcon() {
+  return (
+    <svg {...iconProps}>
+      <rect x="2" y="3" width="12" height="10" rx="1.5" />
+      <path d="M6.5 6v4l3.5-2z" />
+    </svg>
+  )
+}
+
+function TestIcon() {
+  return (
+    <svg {...iconProps}>
+      <path d="M6 2.5h4M7 2.5v4L3.5 12.5a1 1 0 0 0 .9 1.5h7.2a1 1 0 0 0 .9-1.5L9 6.5v-4" />
+    </svg>
+  )
+}
+
+function GearIcon() {
+  return (
+    <svg {...iconProps}>
+      <circle cx="8" cy="8" r="2" />
+      <path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.8 3.8l1 1M11.2 11.2l1 1M12.2 3.8l-1 1M4.8 11.2l-1 1" />
     </svg>
   )
 }

@@ -74,4 +74,5 @@ def test_gallery_round_trips_a_real_embedding():
         )
     ])
 
-    assert gallery.match(vector) == ("p1", "Alex")
+    person_id, name, _confidence = gallery.match(vector)
+    assert (person_id, name) == ("p1", "Alex")

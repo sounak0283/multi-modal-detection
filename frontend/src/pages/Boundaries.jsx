@@ -3,7 +3,7 @@ import BoundaryCanvas from '../components/BoundaryCanvas'
 import ZoneProperties from '../components/ZoneProperties'
 import { Card, CardHead, EmptyState } from '../components/ui'
 import { snapshotUrl } from '../api'
-import { ZONE_TYPES, newZone, typeOf } from '../lib/zones'
+import { ZONE_TYPES, newZone, typeForPoints, typeOf } from '../lib/zones'
 import { useToast } from '../components/Toast'
 
 export default function Boundaries({
@@ -14,13 +14,17 @@ export default function Boundaries({
   setSelected,
   markDirty,
   readOnly = false,
+  backdropSrc = null,
 }) {
   const [drawing, setDrawing] = useState(null)
   const toast = useToast()
 
   // A frozen still, not the live stream: precise clicking against moving video is
   // miserable, and the boundary is static anyway.
-  const backdrop = useMemo(() => snapshotUrl(cameraId, Date.now()), [cameraId])
+  const backdrop = useMemo(
+    () => backdropSrc ?? snapshotUrl(cameraId, Date.now()),
+    [cameraId, backdropSrc],
+  )
 
   const update = useCallback(
     (next) => {
@@ -38,7 +42,7 @@ export default function Boundaries({
         toast(`A ${spec.label.toLowerCase()} needs at least ${spec.minPoints} points.`, 'error')
         return
       }
-      const zone = newZone(drawing.type, points, zones)
+      const zone = newZone(typeForPoints(points), points, zones)
       update([...zones, zone])
       setSelected(zones.length)
       setDrawing(null)
@@ -50,11 +54,11 @@ export default function Boundaries({
     ? 'View only - boundaries can be changed by an admin'
     : drawing
     ? ZONE_TYPES[drawing.type].area
-      ? `Click to place corners · double-click or Enter to close · Esc to cancel (${drawing.points.length} placed)`
-      : 'Click the two ends of the line · Esc to cancel'
+      ? `Click to place points (2 = a line, 3+ = an area) · double-click or Enter to finish · Esc to cancel (${drawing.points.length} placed)`
+      : ''
     : zones.length
       ? 'Click a boundary to select · drag a handle to move · right-click a handle to delete'
-      : 'Choose a boundary type below to draw your first one'
+      : 'Press Draw boundary below to draw your first one'
 
   const removeAt = useCallback(
     (index) => {
@@ -99,33 +103,24 @@ export default function Boundaries({
         {!readOnly && (
           <Card>
             <CardHead title="Add boundary" />
-            <div className="grid gap-2 p-4 sm:grid-cols-2 xl:grid-cols-4">
-              {Object.entries(ZONE_TYPES).map(([type, spec]) => (
-                <button
-                  key={type}
-                  type="button"
-                  data-type={type}
-                  title={spec.description}
-                  onClick={() => {
-                    setDrawing({ type, points: [] })
-                    setSelected(-1)
-                  }}
-                  className={`flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors ${
-                    drawing?.type === type
-                      ? 'border-brand-500 bg-brand-900'
-                      : 'border-ink-700 bg-ink-800 hover:border-ink-600'
-                  }`}
-                >
-                  <i
-                    className="h-2.5 w-2.5 shrink-0 rounded-sm"
-                    style={{ background: spec.colour }}
-                  />
-                  <span className="leading-tight">
-                    <strong className="block text-[13px] font-semibold">{spec.label}</strong>
-                    <small className="block text-[11px] text-ink-400">{spec.hint}</small>
-                  </span>
-                </button>
-              ))}
+            <div className="flex flex-wrap items-center gap-3 p-4">
+              <button
+                type="button"
+                data-type="draft"
+                onClick={() => {
+                  setDrawing({ type: 'draft', points: [] })
+                  setSelected(-1)
+                }}
+                className={`flex items-center gap-2.5 rounded-lg border px-4 py-2.5 text-left transition-colors ${
+                  drawing ? 'border-brand-500 bg-brand-900' : 'border-ink-700 bg-ink-800 hover:border-ink-600'
+                }`}
+              >
+                <i className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: ZONE_TYPES.draft.colour }} />
+                <strong className="text-[13px] font-semibold">Draw boundary</strong>
+              </button>
+              <p className="text-[12px] text-ink-400">
+                Draw the shape first, then choose which model uses it in its properties.
+              </p>
             </div>
             {drawing && (
               <div className="flex gap-2 border-t border-ink-800 px-4 py-3">

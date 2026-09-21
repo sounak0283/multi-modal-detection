@@ -41,6 +41,25 @@ export const ZONE_TYPES = {
   },
 }
 
+// What the user draws: one generic shape. It only becomes a specific kind of boundary
+// (people entry/exit, fire/smoke sensitivity, ignore region) once a model is chosen for it.
+ZONE_TYPES.draft = {
+  label: 'Boundary',
+  hint: 'draw, then choose the model',
+  colour: '#60a5fa',
+  area: true,
+  minPoints: 2,
+  description: 'Click the corners of the area, or two points for a line.',
+}
+
+// What each kind of boundary is for, grouped by the model that acts on it.
+export const MODEL_CHOICES = [
+  { group: 'People detection', type: 'polygon', label: 'Alert on entry / exit of the area', needs: 3 },
+  { group: 'People detection', type: 'tripwire', label: 'Alert when the line is crossed', needs: 2 },
+  { group: 'Fire / smoke detection', type: 'fire_roi', label: 'More sensitive inside the area', needs: 3 },
+  { group: 'Fire / smoke detection', type: 'exclusion', label: 'Ignore detections inside the area', needs: 3 },
+]
+
 export const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 
 export const typeOf = (zone) => ZONE_TYPES[zone?.type] ?? ZONE_TYPES.polygon
@@ -72,4 +91,20 @@ export function newZone(type, points, zones) {
     if (type === 'fire_roi') zone.conf_delta = -0.08
   }
   return zone
+}
+
+/** A drawn shape becomes a line for two points and an area for three or more; the default
+ * model for it is people detection (the common case), changeable afterwards. */
+export const typeForPoints = (points) => (points.length === 2 ? 'tripwire' : 'polygon')
+
+/** Re-purpose a boundary for another model, keeping what is not model-specific. */
+export function convertZone(zone, type) {
+  const fresh = newZone(type, zone.points, [])
+  return {
+    ...fresh,
+    id: zone.id,
+    name: zone.name,
+    severity: zone.severity ?? fresh.severity,
+    ...(zone.schedule ? { schedule: zone.schedule } : {}),
+  }
 }

@@ -75,13 +75,18 @@ def open_capture(source: str | int) -> cv2.VideoCapture:
     return cap
 
 
-def open_writer(path_stem: Path, fps: float, size: tuple[int, int]) -> tuple[cv2.VideoWriter, Path]:
+def open_writer(
+    path_stem: Path,
+    fps: float,
+    size: tuple[int, int],
+    candidates: tuple[tuple[str, str], ...] = CODEC_CANDIDATES,
+) -> tuple[cv2.VideoWriter, Path]:
     """Open a VideoWriter, falling back through codec candidates.
 
     OpenCV's VideoWriter fails by returning a non-opened object rather than raising, and
     which fourccs work varies by platform and build - so probe rather than assume.
     """
-    for fourcc_name, suffix in CODEC_CANDIDATES:
+    for fourcc_name, suffix in candidates:
         path = path_stem.with_suffix(suffix)
         fourcc = cv2.VideoWriter_fourcc(*fourcc_name)
         writer = cv2.VideoWriter(str(path), fourcc, fps, size)
@@ -91,7 +96,7 @@ def open_writer(path_stem: Path, fps: float, size: tuple[int, int]) -> tuple[cv2
         writer.release()
         path.unlink(missing_ok=True)
     raise RuntimeError(
-        f"No usable video codec. Tried {[c for c, _ in CODEC_CANDIDATES]}. "
+        f"No usable video codec. Tried {[c for c, _ in candidates]}. "
         f"Install a build of OpenCV with FFmpeg support."
     )
 

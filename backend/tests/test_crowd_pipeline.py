@@ -168,3 +168,22 @@ def test_crowd_zones_only_apply_to_polygon_type():
     pipeline._process_crowd(tracked, masked, 640, 480, ts=0.0)
 
     assert alerts.published == []
+
+
+def test_process_detection_actually_runs_the_crowd_check():
+    """Regression: an earlier refactor stranded the crowd/PPE calls after a `return`, so
+    they silently never ran - every other test here calls `_process_crowd` directly and so
+    could not notice. This drives the real `_process_detection` entry point."""
+    from perimeter.capture.source import Frame
+
+    pipeline, _alerts = make_pipeline()
+    tracked = make_tracked(CLUSTER)
+    pipeline.detector.detect = lambda image: None
+    pipeline.tracker.update = lambda detections: tracked
+    calls = []
+    pipeline._process_crowd = lambda *args, **kwargs: calls.append(args)
+
+    frame = Frame(seq=0, ts=1.0, image=np.zeros((480, 640, 3), dtype=np.uint8))
+    pipeline._process_detection(frame)
+
+    assert len(calls) == 1

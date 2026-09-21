@@ -135,15 +135,41 @@ class Database:
         )
 
     def update_evidence_paths(
-        self, event_id: str, snapshot_path: str | None = None, clip_path: str | None = None
+        self,
+        event_id: str,
+        snapshot_path: str | None = None,
+        clip_path: str | None = None,
+        *,
+        snapshot_uri: str | None = None,
+        clip_uri: str | None = None,
+        clip_status: str | None = None,
+        clip_attempts: int | None = None,
+        evidence_backend: str | None = None,
+        clip_link_url: str | None = None,
+        clip_link_expires_at: datetime | None = None,
     ) -> None:
-        """Called by `EvidenceWriter` once a clip/snapshot has actually been written -
-        the columns exist since Phase A but nothing ever set them before Phase C."""
-        updates: dict[str, Any] = {}
-        if snapshot_path is not None:
-            updates["snapshot_path"] = snapshot_path
-        if clip_path is not None:
-            updates["clip_path"] = clip_path
+        """Called by `EvidenceWriter` as evidence is written - the columns exist since
+        Phase A but nothing set them before Phase C.
+
+        `*_path` are storage keys. `*_uri` (e.g. `s3://bucket/key`) are the permanent
+        reference an admin audits; a presigned URL is deliberately never stored, since it
+        expires and embeds a signature. `clip_status` is pending | saved | failed.
+
+        The one exception is `clip_link_url` / `clip_link_expires_at`: a record of the exact
+        link an alert email carried, kept on request for audit. It is a live bearer link until
+        it expires, so it is stored beside its expiry and never re-served after that."""
+        candidates = {
+            "snapshot_path": snapshot_path,
+            "clip_path": clip_path,
+            "snapshot_uri": snapshot_uri,
+            "clip_uri": clip_uri,
+            "clip_status": clip_status,
+            "clip_attempts": clip_attempts,
+            "evidence_backend": evidence_backend,
+            "clip_link_url": clip_link_url,
+            "clip_link_expires_at": clip_link_expires_at,
+        }
+        updates = {k: v for k, v in candidates.items() if v is not None}
         if not updates:
             return
         self.db[EVENTS].update_one({"_id": ObjectId(event_id)}, {"$set": updates})

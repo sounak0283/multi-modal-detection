@@ -24,6 +24,9 @@ log = logging.getLogger("perimeter.alerts.sinks.smtp")
 
 SendFn = Callable[[EmailMessage], None]
 
+# Concurrent email sends. Small on purpose: Gmail rate-limits, and alerts are rare.
+DEFAULT_WORKERS = 3
+
 
 def _default_send(
     host: str, port: int, user: str, password: str, use_tls: bool
@@ -53,34 +56,56 @@ class EmailSink:
         from_addr: str,
         use_tls: bool = True,
         send: SendFn | None = None,
+        on_result: Callable[[str | None, str | None], None] | None = None,
+        workers: int = DEFAULT_WORKERS,
     ) -> None:
+        # on_result(event_id, error) - error is None on success. Lets the caller record
+        # delivery on the stored event; without it `delivered` stays False forever and
+        # nobody can tell a working sink from a broken one.
+        self._on_result = on_result
         self.from_addr = from_addr or user
         self._send = send or _default_send(host, port, user, password, use_tls)
 
         self._queue: queue.Queue[tuple[EmailMessage, str | None]] = queue.Queue()
-        self._thread: threading.Thread | None = None
+        # Each send opens its own SMTP session (a few seconds to 20s on Gmail). One worker
+        # meant a video email queued behind other alerts' emails, a full minute late, so a
+        # few sends may run at once.
+        self._workers = max(1, workers)
+        self._threads: list[threading.Thread] = []
         self._stop = threading.Event()
 
     # -- lifecycle -----------------------------------------------------------
 
     def start(self) -> None:
-        if self._thread is not None:
+        if self._threads:
             return
-        self._thread = threading.Thread(target=self._run, name="email-sink", daemon=True)
-        self._thread.start()
-        log.info("email sink started (from=%s)", self.from_addr)
+        for index in range(self._workers):
+            thread = threading.Thread(target=self._run, name=f"email-sink-{index}", daemon=True)
+            thread.start()
+            self._threads.append(thread)
+        log.info("email sink started (from=%s, %d sender(s))", self.from_addr, self._workers)
 
     def stop(self, timeout: float = 5.0) -> None:
         self._stop.set()
-        if self._thread is not None:
-            self._thread.join(timeout)
-            self._thread = None
+        for thread in self._threads:
+            thread.join(timeout)
+        self._threads = []
 
     # -- producer side (an AlertBus sink, via cooldown.route()) ---------------
 
-    def on_alert(self, payload: dict[str, Any], to: tuple[str, ...]) -> None:
-        message = _build_message(payload, self.from_addr, to)
+    def on_alert(
+        self, payload: dict[str, Any], to: tuple[str, ...], followup: bool = False
+    ) -> None:
+        message = _build_message(payload, self.from_addr, to, followup=followup)
         self._queue.put((message, payload.get("id")))
+
+    def _report(self, event_id: str | None, error: str | None) -> None:
+        if self._on_result is None or not event_id:
+            return
+        try:
+            self._on_result(event_id, error)
+        except Exception:  # noqa: BLE001 - bookkeeping must never kill the send thread
+            log.exception("could not record delivery result for event %s", event_id)
 
     # -- consumer side ---------------------------------------------------------
 
@@ -92,18 +117,25 @@ class EmailSink:
                 continue
             try:
                 self._send(message)
-            except Exception:  # noqa: BLE001 - a failed send must not kill this thread
+            except Exception as exc:  # noqa: BLE001 - a failed send must not kill this thread
                 log.exception("email send failed for event %s", event_id)
+                self._report(event_id, f"{type(exc).__name__}: {exc}")
+            else:
+                log.info("email sent for event %s to %s", event_id, message["To"])
+                self._report(event_id, None)
         log.info("email sink stopped")
 
 
-def _build_message(payload: dict[str, Any], from_addr: str, to: tuple[str, ...]) -> EmailMessage:
+def _build_message(
+    payload: dict[str, Any], from_addr: str, to: tuple[str, ...], followup: bool = False
+) -> EmailMessage:
     severity = str(payload.get("severity", "medium")).upper()
     kind = payload.get("kind", "alert")
     camera_id = payload.get("camera_id", "unknown camera")
 
     message = EmailMessage()
-    message["Subject"] = f"[{severity}] {kind} — {camera_id}"
+    prefix = "[VIDEO READY] " if followup else ""
+    message["Subject"] = f"{prefix}[{severity}] {kind} — {camera_id}"
     message["From"] = from_addr
     message["To"] = ", ".join(to)
 
@@ -122,5 +154,12 @@ def _build_message(payload: dict[str, Any], from_addr: str, to: tuple[str, ...])
         f"Severity: {severity}",
         f"Time:     {when}",
     ]
+    clip_url = payload.get("clip_url")
+    if clip_url:
+        lines += ["", f"Video:    {clip_url}"]
+        if payload.get("clip_link_expires_at"):
+            lines.append(f"          (link expires {payload['clip_link_expires_at']})")
+    elif followup:
+        lines += ["", "Video:    (not available)"]
     message.set_content("\n".join(lines))
     return message

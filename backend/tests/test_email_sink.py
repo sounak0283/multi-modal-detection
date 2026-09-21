@@ -135,9 +135,9 @@ def test_a_failed_send_is_logged_and_does_not_crash_the_thread():
 def test_start_is_idempotent():
     sink = make_sink()
     sink.start()
-    thread = sink._thread
+    threads = list(sink._threads)
     sink.start()
-    assert sink._thread is thread
+    assert sink._threads == threads and len(threads) == sink._workers
     sink.stop()
 
 
@@ -145,4 +145,69 @@ def test_stop_joins_the_thread():
     sink = make_sink()
     sink.start()
     sink.stop(timeout=2.0)
-    assert sink._thread is None
+    assert sink._threads == []
+
+
+def _drain(sink, expected, timeout=3.0):
+    import time
+
+    deadline = time.time() + timeout
+    while time.time() < deadline and len(expected) == 0:
+        time.sleep(0.02)
+
+
+def test_reports_success_so_delivered_can_be_recorded():
+    results = []
+    sink = EmailSink("h", 25, "u", "p", "from@x.com", send=lambda m: None,
+                     on_result=lambda eid, err: results.append((eid, err)))
+    sink.start()
+    sink.on_alert({"id": "evt1", "severity": "high", "kind": "boundary"}, ("to@x.com",))
+    _drain(sink, results)
+    sink.stop()
+
+    assert results == [("evt1", None)]
+
+
+def test_reports_the_error_when_a_send_fails():
+    results = []
+
+    def boom(_m):
+        raise OSError("smtp down")
+
+    sink = EmailSink("h", 25, "u", "p", "from@x.com", send=boom,
+                     on_result=lambda eid, err: results.append((eid, err)))
+    sink.start()
+    sink.on_alert({"id": "evt2", "severity": "high", "kind": "boundary"}, ("to@x.com",))
+    _drain(sink, results)
+    sink.stop()
+
+    assert results and results[0][0] == "evt2" and "smtp down" in results[0][1]
+
+
+def test_several_emails_are_sent_at_once_not_one_after_another():
+    """A slow SMTP session (5-20s on Gmail) must not hold up the email behind it - the one
+    carrying the video link was arriving a minute late queued behind no-video alerts."""
+    active, peak = [0], [0]
+    lock = threading.Lock()
+
+    def slow_send(_message):
+        with lock:
+            active[0] += 1
+            peak[0] = max(peak[0], active[0])
+        time.sleep(0.3)
+        with lock:
+            active[0] -= 1
+
+    sink = EmailSink("h", 25, "u", "p", "from@x.com", send=slow_send, workers=3)
+    sink.start()
+    started = time.time()
+    for i in range(3):
+        sink.on_alert({"id": f"e{i}", "severity": "high", "kind": "boundary"}, ("to@x.com",))
+    deadline = time.time() + 3
+    while time.time() < deadline and active[0] + peak[0] < 4 and time.time() - started < 1.2:
+        time.sleep(0.02)
+    time.sleep(0.5)
+    sink.stop()
+
+    assert peak[0] == 3  # all three in flight together
+    assert time.time() - started < 1.5  # ~0.3s of work, not 0.9s serial

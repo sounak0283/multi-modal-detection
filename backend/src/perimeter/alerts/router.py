@@ -27,16 +27,34 @@ class AlertRouter:
         self.gate = gate
         self.email_sink = email_sink
 
-    def dispatch(self, payload: dict[str, Any]) -> None:
+    def dispatch(
+        self,
+        payload: dict[str, Any],
+        followup: bool = False,
+        only_rules: set[str] | None = None,
+        scope: str = "",
+    ) -> set[str]:
+        """Route one alert; returns the ids of the rules it was sent to.
+
+        `followup=True` re-sends an already-alerted event once its video is ready (see
+        evidence/writer.py): cooldown is skipped, everything else still filters, and
+        `only_rules` restricts it to the rules whose first email actually went out - so an
+        alert the cooldown suppressed does not leak out later as a video email."""
         self.config_store.reload()
         config = self.config_store.get()
+        sent: set[str] = set()
 
         for rule in config.sinks:
             if not rule.enabled or rule.sink_type != "smtp":
                 continue
+            if only_rules is not None and rule.id not in only_rules:
+                continue
             if not rule.matches_kind(payload.get("kind")):
                 continue
-            if not self.gate.allow(rule.id, rule, payload):
+            allowed = self.gate.allow(
+                rule.id, rule, payload, enforce_cooldown=not followup, scope=scope
+            )
+            if not allowed:
                 continue
             if self.email_sink is None:
                 log.warning(
@@ -45,4 +63,6 @@ class AlertRouter:
                     rule.id,
                 )
                 continue
-            self.email_sink.on_alert(payload, rule.to)
+            self.email_sink.on_alert(payload, rule.to, followup=followup)
+            sent.add(rule.id)
+        return sent

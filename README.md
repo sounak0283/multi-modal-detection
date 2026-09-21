@@ -68,7 +68,7 @@ Since the [Expansion Plan](PLATFORM_EXPANSION_PLAN.md)'s Phase A, cameras are co
 through the **Cameras** page (or the `/api/cameras` API), backed by MongoDB — any number
 of them, each with its own module selection. The `.env` variables below only matter on a
 brand-new install with an empty camera registry: `main.py` seeds exactly one camera from
-them so `perimeter-dashboard` still "just works" without a dashboard visit first.
+them so `perimeter-server` still "just works" without a dashboard visit first.
 
 ```bash
 PERIMETER_USE_CCTV=false          # false → laptop webcam, true → site CCTV
@@ -94,7 +94,7 @@ PERIMETER_MONGO_DB=perimeter
 
 Indexes are created automatically at startup and the operation is idempotent. Unlike the
 project's original PostgreSQL-based design, **MongoDB is a hard requirement at startup**:
-`perimeter-dashboard` will not start without it, because camera and zone configuration live
+`perimeter-server` will not start without it, because camera and zone configuration live
 there too, not just alert history — there is no local file it can fall back to describing
 which cameras to run. A MongoDB outage *after* startup is still non-fatal for an
 already-running camera: the pipeline keeps detecting and the dashboard keeps showing
@@ -225,7 +225,7 @@ generated each boot and every session is logged out on the next restart. See
 ## Dashboard
 
 ```bash
-perimeter-dashboard                          # uses .env
+perimeter-server                          # uses .env
 python -m perimeter.main --source clip.mp4   # or point it at a file
 ```
 
@@ -398,7 +398,7 @@ Run it:
 
 ```bash
 cd backend
-perimeter-dashboard                    # → http://127.0.0.1:8000
+perimeter-server                    # → http://127.0.0.1:8000
 ```
 
 ## Site recorder (Phase 0)

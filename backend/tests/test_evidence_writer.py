@@ -30,10 +30,11 @@ class FakeDatabase:
         self.calls = []
         self.lock = threading.Lock()
 
-    def update_evidence_paths(self, event_id, snapshot_path=None, clip_path=None):
+    def update_evidence_paths(self, event_id, snapshot_path=None, clip_path=None, **extra):
         with self.lock:
             self.calls.append(
                 {"event_id": event_id, "snapshot_path": snapshot_path, "clip_path": clip_path}
+                | extra
             )
 
 

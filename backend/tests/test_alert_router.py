@@ -13,7 +13,7 @@ class FakeEmailSink:
     def __init__(self):
         self.calls = []
 
-    def on_alert(self, payload, to):
+    def on_alert(self, payload, to, followup=False):
         self.calls.append((payload, to))
 
 

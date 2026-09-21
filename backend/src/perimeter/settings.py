@@ -37,6 +37,8 @@ from urllib.parse import urlsplit, urlunsplit
 import yaml
 from dotenv import load_dotenv, set_key
 
+from perimeter.evidence.policy import ClipPolicy, policy_from_settings
+
 log = logging.getLogger("perimeter.settings")
 
 # backend/, not the repository root: the backend is a self-contained deployable unit and
@@ -265,6 +267,23 @@ class AlertSettings:
 
 
 @dataclass(frozen=True)
+class FeatureSettings:
+    """Sections of the dashboard an admin can switch off. The value here is only the default;
+    the Settings page overrides it (see appsettings.py)."""
+
+    video_test: bool = True
+
+
+@dataclass(frozen=True)
+class TestVideoSettings:
+    """Uploaded videos for the dashboard's video-test page."""
+
+    directory: str = "data/test_videos"
+    max_upload_mb: int = 2048
+    retention_days: int = 7
+
+
+@dataclass(frozen=True)
 class StorageSettings:
     """MongoDB Atlas connection and retention (Expansion Plan Phase A.1).
 
@@ -279,11 +298,30 @@ class StorageSettings:
 
     # Evidence capture (Expansion Plan Phase C). Reserved in app.yaml since Phase A;
     # wired up here for the first time.
-    ring_buffer_seconds: float = 15.0
-    post_roll_seconds: float = 5.0
+    ring_buffer_seconds: float = 10.0
+    post_roll_seconds: float = 3.0
+    # Urgent alerts (fire, smoke, crowd, unauthorized access) wait only this long before the
+    # clip is cut, and are emailed immediately with the video following.
+    urgent_post_roll_seconds: float = 1.0
+    # A clip is never shorter than this. If an alert lands before the buffer holds this much
+    # footage (just after a start or a camera reconnect) the writer waits for more.
+    min_clip_seconds: float = 10.0
+    # Which alerts get a clip and which are urgent - see evidence/policy.py.
+    clip_policy: ClipPolicy = field(default_factory=ClipPolicy)
     evidence_root: str = "data/evidence"
     snapshot_dir: str = "snapshots"
     clip_dir: str = "clips"
+
+    # Evidence backend: "local" (disk, the default) or "s3". Bucket/region are per-deployment
+    # facts (.env); AWS credentials come from boto3's standard chain, never from here.
+    backend: str = "local"
+    s3_bucket: str = ""
+    s3_region: str = ""
+    s3_prefix: str = ""
+    # Presigned links in alert emails. S3 caps SigV4 presigned URLs at 7 days.
+    s3_link_expiry_hours: float = 72.0
+    # Total upload attempts for one clip, with backoff between them (evidence/writer.py).
+    s3_upload_attempts: int = 4
 
     @property
     def enabled(self) -> bool:
@@ -302,6 +340,8 @@ class Settings:
     storage: StorageSettings = field(default_factory=StorageSettings)
     auth: AuthSettings = field(default_factory=AuthSettings)
     alerts: AlertSettings = field(default_factory=AlertSettings)
+    features: FeatureSettings = field(default_factory=FeatureSettings)
+    test_video: TestVideoSettings = field(default_factory=TestVideoSettings)
     # Which .env this was loaded from, so a save writes back to the same file rather
     # than always to the repository root.
     env_file: Path = BACKEND_ROOT / ".env"
@@ -447,11 +487,29 @@ def load_settings(
         mongo_url=os.getenv("PERIMETER_MONGO_URL", ""),
         mongo_db=os.getenv("PERIMETER_MONGO_DB", "perimeter"),
         retention_days=int(storage_yaml.get("retention_days", 30)),
-        ring_buffer_seconds=float(storage_yaml.get("ring_buffer_seconds", 15.0)),
-        post_roll_seconds=float(storage_yaml.get("post_roll_seconds", 5.0)),
+        # Never smaller than the minimum clip: a buffer that cannot hold min_clip_seconds
+        # could not produce one however long the writer waits.
+        ring_buffer_seconds=max(
+            float(storage_yaml.get("ring_buffer_seconds", 10.0)),
+            float(storage_yaml.get("min_clip_seconds", 10.0)),
+        ),
+        post_roll_seconds=float(storage_yaml.get("post_roll_seconds", 3.0)),
+        urgent_post_roll_seconds=max(0.0, float(storage_yaml.get("urgent_post_roll_seconds", 1.0))),
+        min_clip_seconds=max(0.0, float(storage_yaml.get("min_clip_seconds", 10.0))),
+        clip_policy=policy_from_settings(
+            storage_yaml.get("clip_triggers"), storage_yaml.get("urgent_kinds")
+        ),
         evidence_root=str(storage_yaml.get("evidence_root", "data/evidence")),
         snapshot_dir=str(storage_yaml.get("snapshot_dir", "snapshots")),
         clip_dir=str(storage_yaml.get("clip_dir", "clips")),
+        backend=str(storage_yaml.get("backend", "local")).strip().lower(),
+        s3_bucket=os.getenv("PERIMETER_S3_BUCKET", "").strip(),
+        s3_region=os.getenv("PERIMETER_S3_REGION", "").strip(),
+        s3_prefix=str(storage_yaml.get("s3_prefix", "")).strip("/"),
+        s3_link_expiry_hours=min(
+            168.0, max(0.02, float(storage_yaml.get("s3_link_expiry_hours", 72)))
+        ),
+        s3_upload_attempts=max(1, int(storage_yaml.get("s3_upload_attempts", 4))),
     )
 
     auth = AuthSettings(
@@ -471,6 +529,15 @@ def load_settings(
         smtp_use_tls=_env_bool("PERIMETER_SMTP_USE_TLS", True),
     )
 
+    features_yaml = _section(data, "features")
+    test_video_yaml = _section(data, "test_video")
+    features = FeatureSettings(video_test=bool(features_yaml.get("video_test", True)))
+    test_video = TestVideoSettings(
+        directory=str(test_video_yaml.get("directory", "data/test_videos")),
+        max_upload_mb=max(1, int(test_video_yaml.get("max_upload_mb", 2048))),
+        retention_days=max(1, int(test_video_yaml.get("retention_days", 7))),
+    )
+
     settings = Settings(
         camera=camera,
         inference=inference,
@@ -482,6 +549,8 @@ def load_settings(
         storage=storage,
         auth=auth,
         alerts=alerts,
+        features=features,
+        test_video=test_video,
         env_file=env_path,
         raw=data,
     )

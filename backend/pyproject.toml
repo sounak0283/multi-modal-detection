@@ -33,6 +33,8 @@ dependencies = [
     # Face-embedding vector index (Expansion Plan Phase F redesign): nearest-neighbour
     # match across every enrolled pose, on-disk so the index survives a restart.
     "chromadb>=1.0,<2",       # Apache-2.0
+    # S3 evidence storage (video clips + snapshots, presigned links in alert emails).
+    "boto3>=1.34,<2",         # Apache-2.0
 ]
 
 [project.optional-dependencies]
@@ -46,7 +48,7 @@ dev = [
 
 [project.scripts]
 perimeter-record = "perimeter.record:main"
-perimeter-dashboard = "perimeter.main:main"
+perimeter-server = "perimeter.main:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
