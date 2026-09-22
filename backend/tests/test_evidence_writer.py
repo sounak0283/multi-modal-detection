@@ -131,31 +131,37 @@ def test_snapshot_picked_is_closest_to_the_alert_timestamp(tmp_path):
 # -- graceful degradation ------------------------------------------------------
 
 
-def test_unknown_camera_is_skipped_without_crashing(tmp_path):
+def test_unknown_camera_does_not_crash_and_clip_status_says_failed(tmp_path):
+    """Regression: this used to leave `clip_status` unset forever - indistinguishable
+    from "still pending" - rather than recording that evidence could not be collected
+    (found live: a Video test session's camera disappears at the end of the video while
+    clip jobs for its last few alerts are still queued behind a backlog)."""
     database = FakeDatabase()
     writer = make_writer(tmp_path, database, ring_buffers={})  # no ring buffer for any camera
     writer.start()
     try:
         writer.on_alert(alert(camera_id="cam_gone"))
-        time.sleep(0.3)  # give the worker a chance to (not) do anything
+        assert wait_for(lambda: database.calls)
     finally:
         writer.stop()
 
-    assert database.calls == []
+    assert database.calls == [{"event_id": "evt1", "snapshot_path": None, "clip_path": None,
+                                "clip_status": "failed"}]
 
 
-def test_empty_ring_buffer_is_skipped_without_crashing(tmp_path):
+def test_empty_ring_buffer_does_not_crash_and_clip_status_says_failed(tmp_path):
     database = FakeDatabase()
     ring_buffers = {"cam_01": JpegRingBuffer(seconds=15)}  # empty
     writer = make_writer(tmp_path, database, ring_buffers)
     writer.start()
     try:
         writer.on_alert(alert())
-        time.sleep(0.3)
+        assert wait_for(lambda: database.calls)
     finally:
         writer.stop()
 
-    assert database.calls == []
+    assert database.calls == [{"event_id": "evt1", "snapshot_path": None, "clip_path": None,
+                                "clip_status": "failed"}]
 
 
 def test_a_single_buffered_frame_produces_a_snapshot_but_no_clip(tmp_path):

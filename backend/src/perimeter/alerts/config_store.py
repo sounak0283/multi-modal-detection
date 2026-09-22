@@ -90,8 +90,10 @@ class AlertConfigStore:
             return False
 
         with self._lock:
-            self._config = config
             self._last_error = None
+            if config == self._config and self._version > 0:
+                return False  # unchanged: no version bump, no log line every poll
+            self._config = config
             self._version += 1
         log.info("alert config loaded: %d sink rule(s)", len(config.sinks))
         return True

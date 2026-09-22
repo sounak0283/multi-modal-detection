@@ -163,6 +163,16 @@ class BoundarySettings:
     default_min_frames: int = 4
     lost_track_seconds: float = 5.0
     person_conf: float = 0.30
+    # ByteTrack's bar for STARTING a new track - separate from `person_conf`, which is
+    # the detector's own cutoff for reporting a box at all. A gap this wide (0.30 to the
+    # tracker default of 0.50) leaves a band where the detector sees someone but the
+    # tracker refuses to hold a track for them - measured on a real backlit-window scene
+    # where three people's scores oscillated between ~0.17 and ~0.63, spending much of
+    # that time inside the gap: tracks kept starting and dying instead of confirming, so
+    # occupancy/entry never fired even with people visibly, continuously on camera. The
+    # 2-consecutive-frame start requirement and the zone engine's own multi-frame entry
+    # hysteresis already guard against a lower bar admitting noise.
+    track_activation_threshold: float = 0.40
 
 
 @dataclass(frozen=True)
@@ -450,6 +460,7 @@ def load_settings(
         default_min_frames=int(boundary_yaml.get("default_min_frames", 4)),
         lost_track_seconds=float(boundary_yaml.get("lost_track_seconds", 5.0)),
         person_conf=float(boundary_yaml.get("person_conf", 0.30)),
+        track_activation_threshold=float(boundary_yaml.get("track_activation_threshold", 0.40)),
     )
 
     firesmoke_yaml = _section(data, "firesmoke")

@@ -339,6 +339,7 @@ def pipeline_factory_from(manager: Any) -> PipelineFactory:
             firesmoke_model_path=manager.firesmoke_model_path,
             identity_resolver=manager.identity_resolver,
             ppe_model_path=manager.ppe_model_path,
+            capture_realtime=False,
         )
 
     return build

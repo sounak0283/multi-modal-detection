@@ -182,6 +182,14 @@ function Setup({ status, onStarted }) {
             Choose one or several. Fire/smoke works on its own, with no boundary. Crowd, PPE and
             face recognition need the boundary (person detection), so it is added for you.
           </p>
+          {modules.includes('crowd') && (
+            <p className="rounded-lg border border-warn-900 bg-warn-900 px-3 py-2 text-[12px] text-warn-400">
+              Selecting Crowd here only turns the module on. In the boundary editor below, open
+              a boundary's properties, scroll to <strong>Crowd formation</strong>, and switch on
+              "Alert when people cluster here" — without that, no boundary will ever raise a
+              crowd alert, even with this ticked.
+            </p>
+          )}
           {needsZones && (
             <Field
               label="Start from a camera's boundaries (optional)"

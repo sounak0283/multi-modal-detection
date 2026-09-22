@@ -108,3 +108,19 @@ def test_version_increments_on_save():
     before = store.version
     store.save(AlertConfig())
     assert store.version == before + 1
+
+
+def test_reloading_an_unchanged_document_does_not_bump_version():
+    """A `GET /alert-config` poll calls reload() every time - if it bumped the version
+    and logged on every unchanged read, one open dashboard tab would spam the log
+    forever (this happened for real: 100+ identical log lines in one session)."""
+    collection = mongomock.MongoClient()["perimeter_test"]["alert_config"]
+    store = AlertConfigStore(collection, refresh_interval=0)
+    rule = sink_rule_from_dict({"type": "smtp", "to": ["a@b.com"]})
+    store.save(AlertConfig(sinks=(rule,)))
+    version_after_save = store.version
+
+    for _ in range(5):
+        assert store.reload(force=True) is False
+
+    assert store.version == version_after_save

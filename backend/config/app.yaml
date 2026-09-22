@@ -47,6 +47,13 @@ boundary:
   # Hysteresis in *detection frames*, which run at ~6-8 Hz, not at frame rate.
   # 4 frames is therefore ~0.5-0.7 s (PLAN.md section 6.3).
   default_min_frames: 4
+  # Lowered from the tracker's own default of 0.50 (2026-09-22): on a backlit scene
+  # (bright window behind seated people), measured detection scores oscillated between
+  # ~0.17 and ~0.63 for people plainly sitting still on camera - many real detections
+  # landed between this and person_conf (0.30), so tracks kept starting and dying
+  # instead of confirming, and occupancy/entry never fired. 0.40 catches those without
+  # admitting the lowest-confidence noise (~0.17-0.28 in the same measurement).
+  track_activation_threshold: 0.40
 
 crowd:
   # DBSCAN over person foot points (Expansion Plan Phase G) - no model. eps_px is the
@@ -108,6 +115,7 @@ storage:
     smoke: on
     access: on
     ppe: on
+    welding: on
   # Urgent alerts are emailed IMMEDIATELY (the video follows as a second "VIDEO READY" email)
   # and are processed on their own worker, so they never wait behind a slow upload.
   urgent_kinds: [fire, smoke, crowd, access]

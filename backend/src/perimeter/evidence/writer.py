@@ -316,13 +316,32 @@ class EvidenceWriter:
         event_id = payload.get("id")
         ring_buffer = self.ring_buffer_lookup(camera_id) if camera_id else None
         if ring_buffer is None:
-            log.debug("no ring buffer for camera %r (event %s) - skipping", camera_id, event_id)
+            # The camera (or, for a Video test session, the whole temporary pipeline) is
+            # already gone by the time this job was dequeued - most often a backlog of
+            # queued clip jobs still outstanding when a short-lived session/camera stops.
+            # Without this, clip_status was left at its initial unset value forever,
+            # indistinguishable from "still pending" (found live: several Video test
+            # clips stuck at None permanently after the video reached its end).
+            log.warning(
+                "no ring buffer for camera %r (event %s) - camera is no longer running, "
+                "evidence cannot be collected", camera_id, event_id,
+            )
+            if event_id:
+                self.database.update_evidence_paths(event_id, clip_status="failed")
             self._first_email(payload, pre_sent)
             return
 
         frames = self._collect_frames(ring_buffer, urgent=urgent)
         if not frames:
-            log.debug("ring buffer empty for camera %r (event %s) - skipping", camera_id, event_id)
+            # Same "must not leave clip_status unset forever" reasoning as the missing
+            # ring buffer case just above - this is also a terminal path (no retry is
+            # scheduled for it), so clip_status has to say so.
+            log.warning(
+                "ring buffer empty for camera %r (event %s) - evidence cannot be collected",
+                camera_id, event_id,
+            )
+            if event_id:
+                self.database.update_evidence_paths(event_id, clip_status="failed")
             self._first_email(payload, pre_sent)
             return
 

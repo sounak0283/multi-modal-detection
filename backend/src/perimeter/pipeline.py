@@ -6,6 +6,10 @@ Two threads plus the API's own. The capture thread decodes and publishes into a
 single-slot mailbox; the inference thread takes only the freshest frame and drops the
 rest. Alert delivery moves off this path in Phase 4.
 
+The one exception: `capture_realtime=False` (the Video test page only) makes that
+mailbox block instead of drop, so a finite recorded file gets every frame it decided to
+keep processed, not whatever inference happened to still be free for.
+
 Cadence
 -------
 Person detection runs on `seq % person_every_n == 0`. Fire/smoke (Expansion Plan Phase E)
@@ -132,6 +136,7 @@ class Pipeline:
         firesmoke_model_path: str | None = None,
         identity_resolver: IdentityResolver | None = None,
         ppe_model_path: str | None = None,
+        capture_realtime: bool = True,
     ) -> None:
         self.settings = settings
         self.camera = camera
@@ -139,6 +144,14 @@ class Pipeline:
         self.alerts = alerts
         self.firesmoke_model_path = firesmoke_model_path
         self.ppe_model_path = ppe_model_path
+        # False only for the Video test page: process an uploaded file as fast as the
+        # hardware allows instead of pacing it to its own real length, so results are
+        # complete and reproducible regardless of how many modules are enabled (a
+        # real-time-paced run drops more frames under heavier CPU load, which can hide a
+        # short, genuine event - measured directly: crowd detection throughput fell from
+        # ~2900 to ~1200 processed frames by the same point in one video once fire/smoke,
+        # welding and identity all ran alongside it).
+        self._capture_realtime = capture_realtime
         # Shared across every camera (Expansion Plan Phase F) - the models/gallery are
         # stateless per call and expensive to load, so one instance serves the whole
         # process rather than one per camera the way the fire/smoke detector does.
@@ -164,7 +177,7 @@ class Pipeline:
         self._spark_box: tuple[tuple[float, ...], float] | None = None
         self._fire_boxes: tuple[list[tuple[str, float, tuple[int, ...], bool]], float] | None = None
 
-        self._slot: LatestSlot[Frame] = LatestSlot()
+        self._slot: LatestSlot[Frame] = LatestSlot(blocking=not capture_realtime)
         self._capture = self._build_capture(camera)
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
@@ -211,6 +224,7 @@ class Pipeline:
         return PersonTracker(
             detection_fps=self.settings.inference.person_fps(camera.decode_fps),
             lost_track_seconds=self.settings.boundary.lost_track_seconds,
+            activation_threshold=self.settings.boundary.track_activation_threshold,
         )
 
     def _build_firesmoke(
@@ -282,6 +296,7 @@ class Pipeline:
             height=camera.height,
             fps=camera.fps,
             decode_fps=camera.decode_fps,
+            realtime=self._capture_realtime,
         )
 
     def start(self) -> None:
@@ -315,7 +330,7 @@ class Pipeline:
         self._capture.stop(timeout=3.0)
 
         self.camera = camera
-        self._slot = LatestSlot()
+        self._slot = LatestSlot(blocking=not self._capture_realtime)
         self._capture = self._build_capture(camera)
 
         self.detector = self._build_detector(camera)
@@ -484,10 +499,10 @@ class Pipeline:
                 if identity_active
                 else None
             )
-            self._publish(event, identity)
+            self._publish(event, identity, frame.video_pos_s)
 
         if self.crowd_monitor is not None:
-            self._process_crowd(tracked, masked, width, height, frame.ts)
+            self._process_crowd(tracked, masked, width, height, frame.ts, frame.video_pos_s)
 
         if self.ppe_classifier is not None:
             ppe_every_n = max(1, self.settings.inference.ppe_every_n)
@@ -584,10 +599,13 @@ class Pipeline:
                 for item in zone.ppe_required:
                     state = classify_state(probabilities.get(item, 0.0))
                     if self.ppe_monitor.update(zone_id, track_id, item, state):
-                        self._publish_ppe(zone, item, track_id, frame.ts)
+                        self._publish_ppe(zone, item, track_id, frame.ts, frame.video_pos_s)
         self.ppe_monitor.evict_stale()
 
-    def _publish_ppe(self, zone: Zone, item: str, track_id: int, ts: float) -> None:
+    def _publish_ppe(
+        self, zone: Zone, item: str, track_id: int, ts: float,
+        video_pos_s: float | None = None,
+    ) -> None:
         if self.alerts is None:
             return
         self.alerts.publish(
@@ -605,11 +623,13 @@ class Pipeline:
                 "foot_point": None,
                 "identity_status": None,
                 "identity_name": None,
+                "video_pos_s": video_pos_s,
             }
         )
 
     def _process_crowd(
-        self, tracked, masked: np.ndarray, width: int, height: int, ts: float
+        self, tracked, masked: np.ndarray, width: int, height: int, ts: float,
+        video_pos_s: float | None = None,
     ) -> None:
         """Crowd formation (Expansion Plan Phase G). Runs on every detection frame for
         a camera with the `crowd` module enabled - no model, so no cadence gating is
@@ -635,9 +655,11 @@ class Pipeline:
                 zone_id, visible[mask], zone.crowd_threshold, min_frames
             )
             if event is not None:
-                self._publish_crowd(event, zone, ts)
+                self._publish_crowd(event, zone, ts, video_pos_s)
 
-    def _publish_crowd(self, event: CrowdEvent, zone: Zone, ts: float) -> None:
+    def _publish_crowd(
+        self, event: CrowdEvent, zone: Zone, ts: float, video_pos_s: float | None = None,
+    ) -> None:
         if self.alerts is None:
             return
         message = (
@@ -663,10 +685,16 @@ class Pipeline:
                 "foot_point": None,
                 "identity_status": None,
                 "identity_name": None,
+                "video_pos_s": video_pos_s,
             }
         )
 
-    def _publish(self, event: BoundaryEvent, identity: IdentityResult | None = None) -> None:
+    def _publish(
+        self,
+        event: BoundaryEvent,
+        identity: IdentityResult | None = None,
+        video_pos_s: float | None = None,
+    ) -> None:
         """Hand an event to the alert thread for persistence and notification.
 
         Rendering the sentence here rather than at read time means the stored history
@@ -695,12 +723,16 @@ class Pipeline:
                 "identity_status": identity_status,
                 "identity_name": identity_name,
                 "identity_confidence": identity_confidence,
+                "video_pos_s": video_pos_s,
             }
         )
-        self._check_access_control(event, identity)
+        self._check_access_control(event, identity, video_pos_s)
 
     def _check_access_control(
-        self, event: BoundaryEvent, identity: IdentityResult | None
+        self,
+        event: BoundaryEvent,
+        identity: IdentityResult | None,
+        video_pos_s: float | None = None,
     ) -> None:
         """Restricted-zone allow-list (Expansion Plan Phase F.1).
 
@@ -736,6 +768,7 @@ class Pipeline:
                 "foot_point": list(event.foot_point),
                 "identity_status": identity.status,
                 "identity_name": identity.name,
+                "video_pos_s": video_pos_s,
             }
         )
 

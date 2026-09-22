@@ -64,8 +64,14 @@ class Frame:
     """
 
     seq: int
-    ts: float  # unix epoch
+    ts: float  # unix epoch - wall clock, always (evidence/ring-buffer timing needs it)
     image: np.ndarray
+    # How far into a FILE source's own content this frame is, independent of wall clock -
+    # `None` for a live camera, where "position in the source" has no meaning. In
+    # `realtime=False` mode `ts` and this diverge completely (a whole video is processed
+    # in far less real time than its own length), so anything that means "when in the
+    # video did this happen" - the Video test page's alert list - must read this, not `ts`.
+    video_pos_s: float | None = None
 
 
 class CaptureThread:
@@ -80,11 +86,16 @@ class CaptureThread:
         fps: int | None = None,
         decode_fps: float | None = None,
         loop: bool = True,
+        realtime: bool = True,
     ) -> None:
         self.source = source
         # A recorded file normally restarts when it ends (the reconnect loop). `loop=False`
         # plays it once and then stops for good - what the dashboard's video-test page wants.
         self.loop = loop
+        # `realtime=False` is the other half of that same page's "process this file as
+        # fast as the hardware allows" mode - see the read loop below for why this alone
+        # is not enough and the publish step also has to stop pacing itself to wall time.
+        self.realtime = realtime
         self._finished = False
         self.slot = slot
         self.feed_lost_after_s = feed_lost_after_s
@@ -209,32 +220,70 @@ class CaptureThread:
             read_count = 0
             publish_interval = 1.0 / self.decode_fps if self.decode_fps else 0.0
             next_publish = 0.0
+            # Non-realtime mode (the Video test page): reading is unpaced (below), and
+            # publishing switches from a wall-clock rate to a running fractional
+            # accumulator over READ frames (classic frame-rate-conversion technique - an
+            # integer stride like "every 2nd frame" loses fidelity whenever file_fps
+            # isn't a clean multiple of decode_fps, quietly under- or over-sampling), so
+            # the kept proportion of frames still matches decode_fps against the file's
+            # own timeline, not against however fast real time happens to be passing.
+            # Without this second half, the wall-clock publish gate alone would still cap
+            # actual throughput at decode_fps per real second, and removing the read
+            # pacing above would just mean decoding-and-discarding frames faster while
+            # waiting on it.
+            non_realtime_paced = bool(file_fps and self.decode_fps and not self.realtime)
+            keep_step = file_fps / self.decode_fps if non_realtime_paced else 0.0
+            next_keep_at = 0.0
 
             while not self._stop.is_set():
-                if file_fps:
+                if file_fps and self.realtime:
                     due = opened_at + read_count / file_fps
                     delay = due - time.perf_counter()
                     if delay > 0:
                         self._sleep(delay)
-                ok, image = cap.read()
+
+                if non_realtime_paced:
+                    # A discarded frame only needs `grab()` (advance the decoder), not
+                    # the full decode + colour convert `retrieve()` does - skipping that
+                    # for frames we're about to throw away is most of the real speed-up:
+                    # measured on a 3200x1800 video, decode dominates over inference.
+                    ok = cap.grab()
+                    image = None
+                    if ok and read_count >= next_keep_at:
+                        ok, image = cap.retrieve()
+                else:
+                    ok, image = cap.read()
                 read_count += 1
-                if not ok or image is None:
+                if not ok:
                     if not self.loop and self._is_file():
                         self._finished = True
                         break
                     self._check_feed_lost()
                     break
+                if image is None:
+                    continue  # grabbed-only: intentionally not decoded, nothing to publish
 
                 now = time.perf_counter()
                 self._last_frame_ts = time.time()
                 self._set_state(FeedState.LIVE)
-                if now < next_publish:
-                    continue
-                # Anchor to the schedule, not to `now`, so jitter does not erode the rate;
-                # re-anchor after a long stall rather than bursting to catch up.
-                next_publish = max(next_publish + publish_interval, now - publish_interval)
+                if non_realtime_paced:
+                    next_keep_at += keep_step
+                else:
+                    should_publish = now >= next_publish
+                    if should_publish:
+                        # Anchor to the schedule, not to `now`, so jitter does not erode
+                        # the rate; re-anchor after a long stall rather than catch up.
+                        next_publish = max(next_publish + publish_interval, now - publish_interval)
+                    if not should_publish:
+                        continue
                 self._seq += 1
-                self.slot.publish(Frame(seq=self._seq, ts=self._last_frame_ts, image=image))
+                video_pos_s = (read_count - 1) / file_fps if file_fps else None
+                self.slot.publish(
+                    Frame(
+                        seq=self._seq, ts=self._last_frame_ts, image=image,
+                        video_pos_s=video_pos_s,
+                    )
+                )
 
             cap.release()
             if self._finished:

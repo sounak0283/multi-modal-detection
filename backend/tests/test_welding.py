@@ -22,12 +22,14 @@ WHITE = (255, 255, 255)
 
 
 def spray(rng, cx=300, cy=200, n=14, colour=ORANGE):
-    """A burst of tiny, very bright specks around one point - different every frame."""
+    """A burst of tiny, very bright specks around one point - different every frame.
+    4x4 (not 1-2px) so the synthetic warm-pixel count is in the same ballpark as a real
+    spark's rendered size, not an order of magnitude below it."""
     frame = dark()
     for _ in range(n):
         x = int(cx + rng.integers(-50, 50))
         y = int(cy + rng.integers(-40, 40))
-        frame[y : y + 2, x : x + 2] = colour
+        frame[y : y + 4, x : x + 4] = colour
     return frame
 
 
@@ -86,6 +88,43 @@ def test_a_single_flicker_is_not_enough():
     rng = np.random.default_rng(4)
     frames = [dark()] * 5 + [spray(rng)] + [dark()] * 10
     assert not any(run(SparkDetector(), frames))
+
+
+def test_distinct_bursts_several_seconds_apart_each_raise_their_own_event():
+    """Shorter default re-arm than a single weld job's natural pauses: separate strikes
+    each get their own event (and so their own clip/history entry) instead of being
+    folded into one. Email pacing across these is a router-level cooldown, not this."""
+    rng = np.random.default_rng(6)
+    detector = SparkDetector()
+    frames = (
+        [(i / 12.0, spray(rng)) for i in range(30)]
+        + [(2.5 + i / 12.0, dark()) for i in range(80)]  # ~6.7s calm > default 4s re-arm
+        + [(9.5 + i / 12.0, spray(rng)) for i in range(30)]
+    )
+    events = [e for ts, frame in frames if (e := detector.update(frame, ts))]
+    assert len(events) == 2
+
+
+def test_an_abrupt_upward_jump_between_frames_never_confirms():
+    """Real sparks fall under gravity; a cluster that keeps relocating sharply upward
+    frame to frame looks more like an electrical arc restriking than a shower of embers
+    (see the module docstring's limitation note) and must not confirm."""
+    detector = SparkDetector()
+    rng = np.random.default_rng(7)
+    # A big jump (not just over the threshold) so cluster-centroid jitter from the random
+    # point scatter can never accidentally read as a small, undiscounted rise; and cy must
+    # stay within the frame, since a negative value wraps via numpy indexing.
+    frames = [spray(rng, cx=300, cy=350 - i * 80) for i in range(5)]
+    assert not any(run(detector, frames))
+
+
+def test_a_gently_falling_cluster_still_confirms():
+    """Regression: the upward-jump discount must not suppress the ordinary case of a
+    spark cluster drifting down (or holding roughly still) frame to frame."""
+    detector = SparkDetector()
+    rng = np.random.default_rng(8)
+    frames = [spray(rng, cx=300, cy=150 + i * 5) for i in range(10)]  # falls 5px/frame
+    assert any(run(detector, frames))
 
 
 def test_welding_is_a_module_that_does_not_need_the_boundary():

@@ -9,6 +9,24 @@ brightening fail the speck-size test.
 
 Deliberately separate from fire/smoke and never escalated: it tells a person "this looks
 like welding", it does not claim a fire.
+
+LIMITATION, stated plainly: an electrical short or arcing fault can look a lot like this -
+also many small very bright specks/flashes. The one extra signal used here is that welding
+sparks fall under gravity (the brightest cluster's position drifts down, frame to frame),
+so an abrupt jump *upward* between frames is discounted rather than counted as evidence
+(`upward_jump_px`). That is a real but weak signal, not a trained distinction between "this
+is welding" and "this is an electrical fault" - it was built without any labelled footage of
+electrical sparking to check against. If that footage becomes available, this should be
+replaced with an actual classifier trained on both classes, not extended with more heuristics.
+
+SECOND LIMITATION, found live (2026-09-22): a shiny/oily face under a bright ceiling light
+briefly raised a false "welding" alert. Unlike a matte surface, a specular highlight on skin
+shifts with tiny head movement (blinking, breathing), so it can look like scattered new bright
+specks the same way sparks do. `brightness` and `warm_min` were raised (225->240, 30->60,
+both still comfortably below every real spark measurement on file - see tests/test_welding.py
+and the offline scan in this module's git history) as a reasoned tightening toward what molten
+metal actually looks like versus typical indoor lighting on skin - not a confirmed fix, since
+the exact triggering frame was not captured to test against directly.
 """
 
 from __future__ import annotations
@@ -34,14 +52,15 @@ class SparkDetector:
         self,
         *,
         work_width: int = 640,
-        brightness: int = 225,
+        brightness: int = 240,
         min_specks: int = 8,
         max_speck_area: int = 150,
         cluster_radius: int = 90,
-        warm_min: int = 30,
+        warm_min: int = 60,
+        upward_jump_px: int = 25,
         confirm_k: int = 3,
         confirm_n: int = 10,
-        rearm_seconds: float = 20.0,
+        rearm_seconds: float = 4.0,
     ) -> None:
         self.work_width = work_width
         self.brightness = brightness
@@ -49,11 +68,13 @@ class SparkDetector:
         self.max_speck_area = max_speck_area
         self.cluster_radius = cluster_radius
         self.warm_min = warm_min
+        self.upward_jump_px = upward_jump_px
         self.confirm_k = confirm_k
         self.rearm_seconds = rearm_seconds
         self._recent: deque[bool] = deque(maxlen=confirm_n)
         self._previous: np.ndarray | None = None
         self._last_spark_ts = float("-inf")
+        self._last_centroid: tuple[float, float] | None = None
         self._latched = False
 
     def _bright_mask(self, image: np.ndarray) -> tuple[np.ndarray, np.ndarray, float]:
@@ -99,8 +120,11 @@ class SparkDetector:
         return int(((red >= 200) & (red - blue >= 70)).sum())
 
     def update(self, image: np.ndarray, ts: float) -> SparkEvent | None:
-        """Feed consecutive frames. Returns an event once per welding episode, when sparks
-        have persisted (k of the last n frames), and again only after `rearm_seconds` of calm."""
+        """Feed consecutive frames. Returns an event once per welding episode - when sparks
+        have persisted (k of the last n frames) - and again once a new episode starts, after
+        `rearm_seconds` with no spark activity at all (so several strikes in one weld job,
+        each separated by a calm gap, each raise their own event/clip; a continuous shower
+        with only brief gaps stays one episode)."""
         mask, small, scale = self._bright_mask(image)
         previous, self._previous = self._previous, mask
         if previous is None or previous.shape != mask.shape:
@@ -109,17 +133,34 @@ class SparkDetector:
         fresh = mask & ~cv2.dilate(previous.astype(np.uint8), _GROW).astype(bool)
         found = self._cluster(fresh)
         warmth = 0
+        centroid = None
         if found is not None:
             warmth = self._warmth(small, found[1])
             if warmth < self.warm_min:
                 found = None
-        self._recent.append(found is not None)
+        if found is not None:
+            x0, y0, x1, y1 = found[1]
+            centroid = ((x0 + x1) / 2.0, (y0 + y1) / 2.0)
+
+        # This frame's cluster still keeps the episode alive (`_last_spark_ts` below), but
+        # does not itself build confidence if it jumped sharply upward since the last one -
+        # see the module docstring's limitation note.
+        counts = found is not None
+        if counts and centroid is not None and self._last_centroid is not None:
+            dy = centroid[1] - self._last_centroid[1]
+            if dy < -self.upward_jump_px:
+                counts = False
+        if centroid is not None:
+            self._last_centroid = centroid
+
+        self._recent.append(counts)
         if found is not None:
             self._last_spark_ts = ts
 
         if self._latched and ts - self._last_spark_ts >= self.rearm_seconds:
             self._latched = False
             self._recent.clear()
+            self._last_centroid = None
 
         if found is None or self._latched or sum(self._recent) < self.confirm_k:
             return None

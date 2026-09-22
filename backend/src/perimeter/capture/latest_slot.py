@@ -37,9 +37,17 @@ class LatestSlot(Generic[T]):
 
     Dropped-frame counts are exposed because a high drop rate is the signal that
     inference cannot keep up - the number Phase 1's benchmark exists to establish.
+
+    `blocking=True` is the one deliberate exception to "publish never blocks", and it
+    exists for exactly one caller: the Video test page processing an uploaded file with
+    `realtime=False`. There, a finite, already-recorded file has no "live" to fall behind
+    - completeness matters more than latency, so publish waits for the previous frame to
+    be consumed instead of silently discarding whatever inference did not get to in time
+    (measured live: with drop-to-latest, adding more modules increased the drop rate
+    enough to intermittently lose short, real events instead of just slowing down).
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, blocking: bool = False) -> None:
         self._lock = threading.Lock()
         self._not_empty = threading.Condition(self._lock)
         self._item: T | None = None
@@ -47,15 +55,22 @@ class LatestSlot(Generic[T]):
         self._published = 0
         self._consumed = 0
         self._dropped = 0
+        self._blocking = blocking
 
     def publish(self, item: T) -> None:
-        """Overwrite the slot. Never blocks - the producer must not be held up."""
+        """Overwrite the slot. Never blocks the producer - unless constructed with
+        `blocking=True`, where it waits for the slot to be free instead of dropping."""
         with self._not_empty:
-            if self._item is not None:
+            if self._blocking:
+                while self._item is not None and not self._closed:
+                    self._not_empty.wait()
+                if self._closed:
+                    return
+            elif self._item is not None:
                 self._dropped += 1
             self._item = item
             self._published += 1
-            self._not_empty.notify()
+            self._not_empty.notify_all()
 
     def get(self, timeout: float | None = None) -> T | None:
         """Take the freshest item, waiting up to `timeout`.
@@ -69,6 +84,8 @@ class LatestSlot(Generic[T]):
                 return None
             item, self._item = self._item, None
             self._consumed += 1
+            if self._blocking:
+                self._not_empty.notify_all()  # wake a publisher waiting for the slot to free up
             return item
 
     def get_nowait(self) -> T | None:
@@ -77,6 +94,8 @@ class LatestSlot(Generic[T]):
                 return None
             item, self._item = self._item, None
             self._consumed += 1
+            if self._blocking:
+                self._not_empty.notify_all()
             return item
 
     def close(self) -> None:
