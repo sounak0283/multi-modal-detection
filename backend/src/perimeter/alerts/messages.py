@@ -82,6 +82,14 @@ def crowd_message(zone_name: str, cluster_size: int) -> str:
     return f"Crowd forming ({cluster_size} {people} clustered)"
 
 
+def crowd_dispersed_message(zone_name: str) -> str:
+    """e.g. "Crowd dispersed in Loading Bay". Sent once, when a confirmed crowd drops
+    back below its threshold and stays there - the other half of `crowd_message`."""
+    if zone_name:
+        return f"Crowd dispersed in {zone_name}"
+    return "Crowd dispersed"
+
+
 def ppe_message(zone_name: str, item: str) -> str:
     """e.g. "Missing helmet in Loading Bay" (Expansion Plan Phase H)."""
     if zone_name:

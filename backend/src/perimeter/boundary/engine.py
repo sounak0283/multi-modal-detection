@@ -283,11 +283,13 @@ class BoundaryEngine:
         POLYGON zone that declares `crowd_threshold` (Expansion Plan Phase G). Scoped to
         POLYGON only, matching `zone_occupancy()`'s existing scoping - crowd formation is
         an "area people occupy" concept, not one exclusion/fire_roi/tripwire zones have.
+
+        Always includes every such zone, with an empty mask when `foot_points_px` is
+        empty - the camera going from "a crowd" to "nobody at all" is the most common way
+        a crowd disperses, and the caller's hysteresis state machine needs that frame to
+        advance the same as any other, or a fully-emptied zone never reports dispersing.
         """
         result: dict[str, np.ndarray] = {}
-        if not len(foot_points_px):
-            return result
-
         from shapely.geometry import Point
 
         now = datetime.now()

@@ -170,6 +170,40 @@ def test_crowd_zones_only_apply_to_polygon_type():
     assert alerts.published == []
 
 
+def test_a_dispersal_alert_is_published_once_the_crowd_breaks_up():
+    pipeline, alerts = make_pipeline()
+    pipeline.store.save(
+        [
+            zone_from_dict(
+                {
+                    "id": "z1", "type": "polygon", "points": SQUARE,
+                    "crowd_threshold": 4, "crowd_min_frames": 2,
+                }
+            )
+        ],
+        "cam_01",
+    )
+
+    tracked = make_tracked(CLUSTER)
+    masked = np.zeros(len(CLUSTER), dtype=bool)
+    for _ in range(2):
+        pipeline._process_crowd(tracked, masked, 640, 480, ts=0.0)
+
+    empty = make_tracked([])
+    empty_masked = np.zeros(0, dtype=bool)
+    for _ in range(2):
+        pipeline._process_crowd(empty, empty_masked, 640, 480, ts=0.0)
+
+    assert [e["kind"] for e in alerts.published] == ["crowd", "crowd"]
+    formed, dispersed = alerts.published
+    assert formed["subtype"] == "formed" and "forming" in formed["message"]
+    assert dispersed["subtype"] == "dispersed"
+    assert dispersed["message"] == "Crowd dispersed in z1"
+    # Dispersal is informational, not a threat - it must not inherit the zone's
+    # (possibly high) severity used for the formation alert.
+    assert dispersed["severity"] == "low"
+
+
 def test_process_detection_actually_runs_the_crowd_check():
     """Regression: an earlier refactor stranded the crowd/PPE calls after a `return`, so
     they silently never ran - every other test here calls `_process_crowd` directly and so

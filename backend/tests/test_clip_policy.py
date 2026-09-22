@@ -47,6 +47,16 @@ def test_default_rules(payload, record):
     assert ClipPolicy().decide(payload).record is record
 
 
+def test_a_crowd_dispersal_alert_records_and_is_urgent_same_as_formation():
+    """The clip decision keys on `kind`, never `subtype` - unlike boundary entry/exit,
+    crowd's "formed" and "dispersed" subtypes must not need separate config."""
+    policy = ClipPolicy()
+    formed = policy.decide(alert(kind="crowd", subtype="formed"))
+    dispersed = policy.decide(alert(kind="crowd", subtype="dispersed"))
+    assert formed.record and formed.urgent
+    assert dispersed.record and dispersed.urgent
+
+
 def test_fire_smoke_crowd_and_access_are_urgent_but_boundary_is_not():
     policy = ClipPolicy()
     for kind in ("fire", "smoke", "crowd", "access"):

@@ -66,6 +66,50 @@ def test_fires_once_threshold_and_min_frames_are_met():
     assert event is not None
     assert event.zone_id == "z1"
     assert event.cluster_size == 6
+    assert event.formed is True
+
+
+def test_fires_a_dispersal_event_once_the_crowd_breaks_up_and_stays_gone():
+    monitor = CrowdMonitor(eps_px=30.0, min_samples=2)
+    crowd = cluster((0, 0), 6, spread=3.0)
+    empty = np.zeros((0, 2), np.float32)
+
+    for _ in range(3):
+        formed = monitor.update("z1", crowd, threshold=5, min_frames=3)
+    assert formed is not None and formed.formed is True
+
+    assert monitor.update("z1", empty, threshold=5, min_frames=3) is None  # age 1
+    assert monitor.update("z1", empty, threshold=5, min_frames=3) is None  # age 2
+    dispersed = monitor.update("z1", empty, threshold=5, min_frames=3)  # age 3
+
+    assert dispersed is not None
+    assert dispersed.zone_id == "z1"
+    assert dispersed.formed is False
+
+
+def test_a_zone_that_never_crossed_the_threshold_emits_no_dispersal():
+    """Nothing to disperse from - a permanently empty or sparse zone must stay silent,
+    not announce a "dispersal" the moment it happens to see zero people."""
+    monitor = CrowdMonitor(eps_px=30.0, min_samples=2)
+    empty = np.zeros((0, 2), np.float32)
+    events = [monitor.update("z1", empty, threshold=5, min_frames=3) for _ in range(6)]
+    assert all(e is None for e in events)
+
+
+def test_a_single_recovered_detection_frame_does_not_cancel_a_forming_dispersal():
+    monitor = CrowdMonitor(eps_px=30.0, min_samples=2)
+    crowd = cluster((0, 0), 6, spread=3.0)
+    empty = np.zeros((0, 2), np.float32)
+
+    for _ in range(3):
+        monitor.update("z1", crowd, threshold=5, min_frames=3)
+
+    events = []
+    for frame in [empty, empty, crowd, empty, empty, empty]:
+        events.append(monitor.update("z1", frame, threshold=5, min_frames=3))
+
+    assert sum(e is not None for e in events) == 1
+    assert next(e for e in events if e is not None).formed is False
 
 
 def test_does_not_refire_while_the_crowd_persists():

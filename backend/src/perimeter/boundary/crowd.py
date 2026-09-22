@@ -9,9 +9,10 @@ wide zone - clustering the foot points is what makes that distinction.
 
 Hysteresis mirrors `BoundaryEngine`'s confirmed/candidate design (boundary/engine.py),
 simplified to a size-only state: a per-zone state machine fires once when the largest
-cluster reaches `threshold` and holds for `min_frames` consecutive detection frames, then
-requires the cluster to drop below threshold again before it can re-fire - so one
-persistent crowd does not spam an alert every subsequent frame.
+cluster reaches `threshold` and holds for `min_frames` consecutive detection frames -
+"formed" - and again once it drops below `threshold` and stays there for `min_frames`
+frames - "dispersed" - so one persistent crowd does not spam an alert every subsequent
+frame, but the site still hears when it broke up.
 """
 
 from __future__ import annotations
@@ -79,6 +80,7 @@ class _ZoneCrowdState:
 class CrowdEvent:
     zone_id: str
     cluster_size: int
+    formed: bool  # True = crossed up to threshold, False = dropped back below it
 
 
 class CrowdMonitor:
@@ -93,7 +95,11 @@ class CrowdMonitor:
         self, zone_id: str, foot_points_px: np.ndarray, threshold: int, min_frames: int
     ) -> CrowdEvent | None:
         """Advance one zone by one detection frame. Call once per zone per detection
-        frame, with only the foot points already known to be inside that zone."""
+        frame, with only the foot points already known to be inside that zone.
+
+        Returns an event on a confirmed threshold crossing in either direction - a
+        zone that never crossed up never emits a dispersal, since there is nothing to
+        disperse from."""
         sizes = _dbscan_cluster_sizes(foot_points_px, self.eps_px, self.min_samples)
         largest = max(sizes, default=0)
         state = self._states.setdefault(zone_id, _ZoneCrowdState())
@@ -112,7 +118,10 @@ class CrowdMonitor:
 
         state.confirmed = observed
         state.age = 0
-        return CrowdEvent(zone_id=zone_id, cluster_size=largest) if observed else None
+        # `largest` on a dispersal is the (sub-threshold) size right now, e.g. 1 or 2
+        # stragglers - not the peak the crowd reached, which this state machine never
+        # tracked. Good enough for "it broke up"; not a "down from N" figure.
+        return CrowdEvent(zone_id=zone_id, cluster_size=largest, formed=observed)
 
 
 # Re-exported for tests that want to exercise the clustering primitive in isolation

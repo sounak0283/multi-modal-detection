@@ -12,6 +12,8 @@ import time
 from perimeter.alerts.bus import AlertBus
 from perimeter.alerts.messages import (
     boundary_message,
+    crowd_dispersed_message,
+    crowd_message,
     firesmoke_message,
     health_message,
     subject_for,
@@ -59,6 +61,14 @@ def test_health_and_firesmoke_wording():
     assert "stopped responding" in health_message("feed_lost", "cam_01")
     assert firesmoke_message("fire", "Server Room") == "Fire detected in Server Room"
     assert firesmoke_message("smoke") == "Smoke detected"
+
+
+def test_crowd_formed_and_dispersed_wording():
+    assert crowd_message("Loading Bay", 6) == "Crowd forming in Loading Bay (6 people clustered)"
+    assert crowd_message("Loading Bay", 1) == "Crowd forming in Loading Bay (1 person clustered)"
+    assert crowd_message("", 3) == "Crowd forming (3 people clustered)"
+    assert crowd_dispersed_message("Loading Bay") == "Crowd dispersed in Loading Bay"
+    assert crowd_dispersed_message("") == "Crowd dispersed"
 
 
 # -- coordinate coercion ---------------------------------------------------

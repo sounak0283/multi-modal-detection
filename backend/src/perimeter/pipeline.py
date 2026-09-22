@@ -32,6 +32,7 @@ import numpy as np
 from perimeter.alerts.bus import AlertBus
 from perimeter.alerts.messages import (
     boundary_message,
+    crowd_dispersed_message,
     crowd_message,
     firesmoke_message,
     ppe_message,
@@ -161,6 +162,7 @@ class Pipeline:
         self.ppe_classifier, self.ppe_monitor = self._build_ppe(camera)
         self.spark_detector = SparkDetector() if MODULE_WELDING in camera.enabled_modules else None
         self._spark_box: tuple[tuple[float, ...], float] | None = None
+        self._fire_boxes: tuple[list[tuple[str, float, tuple[int, ...], bool]], float] | None = None
 
         self._slot: LatestSlot[Frame] = LatestSlot()
         self._capture = self._build_capture(camera)
@@ -328,6 +330,7 @@ class Pipeline:
         self.ppe_classifier, self.ppe_monitor = self._build_ppe(camera)
         self.spark_detector = SparkDetector() if MODULE_WELDING in camera.enabled_modules else None
         self._spark_box = None
+        self._fire_boxes = None
         with self._lock:
             self._tracked = None
             self._latest_jpeg = None
@@ -610,17 +613,17 @@ class Pipeline:
     ) -> None:
         """Crowd formation (Expansion Plan Phase G). Runs on every detection frame for
         a camera with the `crowd` module enabled - no model, so no cadence gating is
-        needed the way fire/smoke's second, offset cadence is."""
+        needed the way fire/smoke's second, offset cadence is.
+
+        Deliberately runs with zero tracked people too (an empty `tracked`, or everyone
+        masked out): that is how a crowd disperses down to nothing, and each zone's
+        hysteresis state machine must see that frame to ever confirm a dispersal."""
         assert self.crowd_monitor is not None
-        if not len(tracked):
-            return
-        feet = tracked.foot_points(height)
+        feet = tracked.foot_points(height) if len(tracked) else np.zeros((0, 2), np.float32)
         # Exclusion zones suppress detections for every module, not just boundary -
         # someone standing in a masked-out area (a queue line, a waiting area marked as
         # an exclusion zone) should not count toward a crowd.
         visible = feet[~masked] if len(masked) == len(feet) else feet
-        if not len(visible):
-            return
 
         membership = self.engine.crowd_membership(visible, width, height)
         for zone_id, mask in membership.items():
@@ -637,17 +640,25 @@ class Pipeline:
     def _publish_crowd(self, event: CrowdEvent, zone: Zone, ts: float) -> None:
         if self.alerts is None:
             return
+        message = (
+            crowd_message(zone.display_name, event.cluster_size)
+            if event.formed
+            else crowd_dispersed_message(zone.display_name)
+        )
         self.alerts.publish(
             {
                 "ts": ts,
                 "camera_id": self.camera.id,
                 "kind": "crowd",
-                "subtype": None,
+                "subtype": "formed" if event.formed else "dispersed",
                 "zone_id": zone.id,
                 "zone_name": zone.display_name,
                 "track_id": None,
-                "message": crowd_message(zone.display_name, event.cluster_size),
-                "severity": zone.severity.value,
+                "message": message,
+                # A dispersal is informational, not a threat - it never needs the zone's
+                # own (possibly high/critical) severity, which exists to size the alarm
+                # for people gathering, not for them leaving.
+                "severity": zone.severity.value if event.formed else "low",
                 "bbox": None,
                 "foot_point": None,
                 "identity_status": None,
@@ -740,6 +751,7 @@ class Pipeline:
         height, width = frame.image.shape[:2]
 
         accepted: list[tuple[str, tuple[float, float, float, float]]] = []
+        seen: list[tuple[str, float, tuple[int, ...], bool]] = []
         for index in range(len(detections)):
             klass = firesmoke_class_name(int(detections.class_ids[index]))
             box = tuple(float(v) for v in detections.xyxy[index])
@@ -747,6 +759,7 @@ class Pipeline:
             center = ((box[0] + box[2]) / 2.0, (box[1] + box[3]) / 2.0)
 
             if self.engine.suppressed_mask(np.array([center]), width, height, klass)[0]:
+                seen.append((klass, score, tuple(int(v) for v in box), False))
                 continue  # an exclusion zone masks this class here (e.g. the welding bay)
 
             base_conf = (
@@ -756,9 +769,12 @@ class Pipeline:
             )
             delta = self.engine.confidence_delta(center, width, height)  # <= 0
             if score < base_conf + delta:
+                seen.append((klass, score, tuple(int(v) for v in box), False))
                 continue
 
             accepted.append((klass, box))
+            seen.append((klass, score, tuple(int(v) for v in box), True))
+        self._fire_boxes = (seen, time.time() + 1.5)
 
         for confirmed in self.firesmoke_gate.update(accepted):
             self._publish_firesmoke(confirmed, frame, width, height)
@@ -870,6 +886,15 @@ class Pipeline:
             for index in range(len(tracked)):
                 self._draw_track(canvas, tracked, index, masked)
 
+        fire = self._fire_boxes
+        if fire is not None and time.time() < fire[1]:
+            for klass, score, (x1, y1, x2, y2), counted in fire[0]:
+                colour = (40, 40, 255) if counted else (150, 150, 150)
+                label = f"{klass.upper()} {score:.2f}" + ("" if counted else " below threshold")
+                cv2.rectangle(canvas, (x1, y1), (x2, y2), colour, 2)
+                cv2.putText(
+                    canvas, label, (x1, max(12, y1 - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, colour, 2,
+                )
         spark = self._spark_box
         if spark is not None and time.time() < spark[1]:
             x1, y1, x2, y2 = (int(v) for v in spark[0])
