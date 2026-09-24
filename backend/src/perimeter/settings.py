@@ -201,6 +201,11 @@ class CrowdSettings:
     """
 
     eps_px: float = 80.0
+    # Fraction of frame height, e.g. 0.08 = 8%. None (default) keeps `eps_px` as a
+    # fixed pixel radius - set this to make clustering scale across cameras of
+    # different resolution/framing instead (see crowd.py's DEFAULT_EPS_PX comment for
+    # why a fixed pixel value alone does not hold across cameras).
+    eps_frac: float | None = None
     min_samples: int = 2
 
 
@@ -473,8 +478,10 @@ def load_settings(
     )
 
     crowd_yaml = _section(data, "crowd")
+    eps_frac_raw = crowd_yaml.get("eps_frac")
     crowd = CrowdSettings(
         eps_px=float(crowd_yaml.get("eps_px", 80.0)),
+        eps_frac=float(eps_frac_raw) if eps_frac_raw is not None else None,
         min_samples=int(crowd_yaml.get("min_samples", 2)),
     )
 

@@ -26,6 +26,14 @@ from scipy.spatial import cKDTree
 # works in. Foot points, not body centres, are what's clustered - perspective makes a
 # near-camera person's foot point spread further from their neighbours than a
 # far-camera person's for the same real-world distance, so this is deliberately generous.
+#
+# A fixed pixel value only holds for the camera it was measured against, though: two
+# people standing shoulder to shoulder in a 2560x1920 frame land 150-350px apart in raw
+# pixels (measured directly against real footage), well outside this 80px default tuned
+# for a different camera's framing - so a fixed `eps_px` alone silently never clusters
+# on a high-resolution or wide-framed feed. `eps_frac`, expressed as a fraction of frame
+# height, is what actually scales across cameras; `eps_px` remains the floor/fallback
+# used when no frame height is available (e.g. a caller that never adopted it).
 DEFAULT_EPS_PX = 80.0
 DEFAULT_MIN_SAMPLES = 2  # points needed to form a cluster (DBSCAN's core-point rule)
 
@@ -85,22 +93,43 @@ class CrowdEvent:
 
 class CrowdMonitor:
     def __init__(
-        self, eps_px: float = DEFAULT_EPS_PX, min_samples: int = DEFAULT_MIN_SAMPLES
+        self,
+        eps_px: float = DEFAULT_EPS_PX,
+        min_samples: int = DEFAULT_MIN_SAMPLES,
+        eps_frac: float | None = None,
     ) -> None:
         self.eps_px = eps_px
         self.min_samples = min_samples
+        # None keeps the old fixed-pixel behaviour exactly (every existing caller that
+        # never passes this, and every caller that never passes `frame_height` to
+        # `update`, is unaffected).
+        self.eps_frac = eps_frac
         self._states: dict[str, _ZoneCrowdState] = {}
 
+    def _eps_for(self, frame_height: float | None) -> float:
+        if self.eps_frac is not None and frame_height:
+            return self.eps_frac * frame_height
+        return self.eps_px
+
     def update(
-        self, zone_id: str, foot_points_px: np.ndarray, threshold: int, min_frames: int
+        self,
+        zone_id: str,
+        foot_points_px: np.ndarray,
+        threshold: int,
+        min_frames: int,
+        frame_height: float | None = None,
     ) -> CrowdEvent | None:
         """Advance one zone by one detection frame. Call once per zone per detection
         frame, with only the foot points already known to be inside that zone.
 
+        `frame_height` scales the neighbour radius to this frame when `eps_frac` was
+        configured; omit it (or leave `eps_frac` unset) to use the fixed `eps_px`.
+
         Returns an event on a confirmed threshold crossing in either direction - a
         zone that never crossed up never emits a dispersal, since there is nothing to
         disperse from."""
-        sizes = _dbscan_cluster_sizes(foot_points_px, self.eps_px, self.min_samples)
+        eps = self._eps_for(frame_height)
+        sizes = _dbscan_cluster_sizes(foot_points_px, eps, self.min_samples)
         largest = max(sizes, default=0)
         state = self._states.setdefault(zone_id, _ZoneCrowdState())
 

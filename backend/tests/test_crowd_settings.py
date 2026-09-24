@@ -27,6 +27,7 @@ def test_defaults_match_the_committed_app_yaml_when_the_block_is_absent(tmp_path
     settings = load_settings(config_path=path, env_file=tmp_path / ".env")
 
     assert settings.crowd.eps_px == 80.0
+    assert settings.crowd.eps_frac is None
     assert settings.crowd.min_samples == 2
 
 
@@ -43,4 +44,13 @@ def test_a_partial_block_falls_back_to_defaults_for_the_rest(tmp_path):
     settings = load_settings(config_path=path, env_file=tmp_path / ".env")
 
     assert settings.crowd.eps_px == 100.0
+    assert settings.crowd.eps_frac is None
     assert settings.crowd.min_samples == 2  # untouched default
+
+
+def test_reads_eps_frac_when_present(tmp_path):
+    path = write_yaml(tmp_path, "crowd:\n  eps_frac: 0.1\n")
+    settings = load_settings(config_path=path, env_file=tmp_path / ".env")
+
+    assert settings.crowd.eps_frac == 0.1
+    assert settings.crowd.eps_px == 80.0  # untouched default, kept as the fallback

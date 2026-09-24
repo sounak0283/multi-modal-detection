@@ -199,7 +199,11 @@ def test_delete_purges_the_camera_s_zones_so_a_reused_id_starts_clean(client):
     resurface, unreviewed, on whatever new camera claims the same id - geometrically
     'valid' (normalised 0-1 points) but pointed at a different real-world area."""
     client.post("/api/cameras", json=make_camera())
-    zone = {"id": "bay", "type": "polygon", "points": [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]]}
+    zone = {
+        "id": "bay",
+        "type": "polygon",
+        "points": [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]],
+    }
     client.put("/api/cameras/cam_01/zones", json={"zones": [zone]})
 
     client.delete("/api/cameras/cam_01")

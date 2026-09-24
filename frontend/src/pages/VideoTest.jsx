@@ -329,7 +329,14 @@ export default function VideoTest() {
         shown.current = 0
       }
       const fresh = s.alerts.map((a) => ({ ...a, sessionId: s.id }))
-      alertsRef.current = [...alertsRef.current, ...fresh]
+      // De-dupe by id and re-sort by video time: belt-and-braces against a stray
+      // overlapping poll (see usePolling's in-flight guard) still appending an
+      // already-seen batch, which would otherwise duplicate and reorder the list.
+      const merged = [...alertsRef.current, ...fresh]
+      const seen = new Set()
+      alertsRef.current = merged
+        .filter((a) => (seen.has(a.id) ? false : (seen.add(a.id), true)))
+        .sort((a, b) => a.video_time_s - b.video_time_s)
       shown.current = alertsRef.current.length
       setSession({ ...s, allAlerts: alertsRef.current })
     } catch (err) {

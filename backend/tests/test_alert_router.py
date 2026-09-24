@@ -118,7 +118,12 @@ def test_dispatch_applies_the_cooldown_gate():
 
 def test_dispatch_skips_a_rule_whose_kinds_do_not_include_the_event():
     rule = sink_rule_from_dict(
-        {"type": "smtp", "to": ["fire@example.com"], "min_severity": "low", "kinds": ["fire", "smoke"]}
+        {
+            "type": "smtp",
+            "to": ["fire@example.com"],
+            "min_severity": "low",
+            "kinds": ["fire", "smoke"],
+        }
     )
     store = make_store(AlertConfig(sinks=(rule,)))
     sink = FakeEmailSink()
@@ -131,7 +136,12 @@ def test_dispatch_skips_a_rule_whose_kinds_do_not_include_the_event():
 
 def test_dispatch_forwards_a_rule_whose_kinds_include_the_event():
     rule = sink_rule_from_dict(
-        {"type": "smtp", "to": ["boundary@example.com"], "min_severity": "low", "kinds": ["boundary"]}
+        {
+            "type": "smtp",
+            "to": ["boundary@example.com"],
+            "min_severity": "low",
+            "kinds": ["boundary"],
+        }
     )
     store = make_store(AlertConfig(sinks=(rule,)))
     sink = FakeEmailSink()
@@ -158,10 +168,20 @@ def test_empty_kinds_matches_every_alert_kind():
 
 def test_kinds_and_recipients_can_differ_per_rule():
     fire_rule = sink_rule_from_dict(
-        {"type": "smtp", "to": ["safety@example.com"], "min_severity": "low", "kinds": ["fire", "smoke"]}
+        {
+            "type": "smtp",
+            "to": ["safety@example.com"],
+            "min_severity": "low",
+            "kinds": ["fire", "smoke"],
+        }
     )
     boundary_rule = sink_rule_from_dict(
-        {"type": "smtp", "to": ["security@example.com"], "min_severity": "low", "kinds": ["boundary", "crowd"]}
+        {
+            "type": "smtp",
+            "to": ["security@example.com"],
+            "min_severity": "low",
+            "kinds": ["boundary", "crowd"],
+        }
     )
     store = make_store(AlertConfig(sinks=(fire_rule, boundary_rule)))
     sink = FakeEmailSink()

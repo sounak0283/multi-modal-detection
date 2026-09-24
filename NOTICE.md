@@ -131,6 +131,7 @@ These directories are created by a running deployment, not downloaded, and are g
 |---|---|---|---|
 | `data/evidence` | Alert snapshots and pre/post-event clips | **Ours** — customer premises footage | Personal data; subject to `storage.retention_days` (PLAN.md §10.3) |
 | `data/identity_gallery` | Chroma index of enrolled-person face embeddings | **Ours** — biometric data | Biometric data (GDPR Art. 9 / DPDP / BIPA class); rebuilt from MongoDB `persons` on every enrolment/removal, purged with the person record |
+| `data/test_videos` | User-uploaded clips used to dry-run detection/boundary config against, plus a JSON sidecar of duration/fps/resolution | **Customer-supplied** — whatever footage an operator uploads for testing | Personal data if the clip shows people/premises; not evidence, deleted independently of `storage.retention_days` |
 
 ---
 

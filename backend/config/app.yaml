@@ -56,10 +56,15 @@ boundary:
   track_activation_threshold: 0.40
 
 crowd:
-  # DBSCAN over person foot points (Expansion Plan Phase G) - no model. eps_px is the
-  # neighbour radius in pixels; deliberately generous since perspective spreads a
-  # near-camera person's foot point further from their neighbours than a far-camera
-  # person's, for the same real-world distance.
+  # DBSCAN over person foot points (Expansion Plan Phase G) - no model. eps_frac is the
+  # neighbour radius as a fraction of frame height, so clustering scales across cameras
+  # of different resolution/framing instead of a single fixed pixel count working for
+  # only the camera it was measured against. Calibrated 2026-09-23 against real footage:
+  # people standing genuinely together measured 126-190px apart on a 1920px-tall frame
+  # (0.066-0.10 of height); unrelated people measured 300px+ apart. 0.10 covers the
+  # grouped case with margin below the separated case.
+  eps_frac: 0.10
+  # Fallback fixed-pixel radius, used only if a caller never passes frame height.
   eps_px: 80.0
   min_samples: 2
 

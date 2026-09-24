@@ -15,8 +15,15 @@ export function usePolling(fn, intervalMs, enabled = true) {
   useEffect(() => {
     if (!enabled) return undefined
     let cancelled = false
+    let inFlight = false
 
     const tick = async () => {
+      // A tick whose request/response outlives the interval (a slow, CPU-saturated
+      // backend - e.g. a heavy Video test run) must not overlap with the next one:
+      // two in-flight calls can resolve out of order and race on whatever cursor
+      // the caller derives from `data`, duplicating and reordering results.
+      if (inFlight) return
+      inFlight = true
       try {
         const result = await saved.current()
         if (!cancelled) {
@@ -25,6 +32,8 @@ export function usePolling(fn, intervalMs, enabled = true) {
         }
       } catch (err) {
         if (!cancelled) setError(err)
+      } finally {
+        inFlight = false
       }
     }
 

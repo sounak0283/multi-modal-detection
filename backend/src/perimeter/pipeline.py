@@ -264,7 +264,9 @@ class Pipeline:
         if MODULE_CROWD not in camera.enabled_modules:
             return None
         return CrowdMonitor(
-            eps_px=self.settings.crowd.eps_px, min_samples=self.settings.crowd.min_samples
+            eps_px=self.settings.crowd.eps_px,
+            min_samples=self.settings.crowd.min_samples,
+            eps_frac=self.settings.crowd.eps_frac,
         )
 
     def _build_ppe(self, camera: Camera) -> tuple[PPEClassifier | None, PPEMonitor | None]:
@@ -652,7 +654,7 @@ class Pipeline:
                 continue
             min_frames = zone.crowd_min_frames or self.settings.boundary.default_min_frames
             event = self.crowd_monitor.update(
-                zone_id, visible[mask], zone.crowd_threshold, min_frames
+                zone_id, visible[mask], zone.crowd_threshold, min_frames, frame_height=height
             )
             if event is not None:
                 self._publish_crowd(event, zone, ts, video_pos_s)
@@ -839,6 +841,7 @@ class Pipeline:
                 "foot_point": None,
                 "identity_status": None,
                 "identity_name": None,
+                "video_pos_s": frame.video_pos_s,
             }
         )
 
@@ -867,6 +870,7 @@ class Pipeline:
                 "foot_point": None,
                 "identity_status": None,
                 "identity_name": None,
+                "video_pos_s": frame.video_pos_s,
             }
         )
 

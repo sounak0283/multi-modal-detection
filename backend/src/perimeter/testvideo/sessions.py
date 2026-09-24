@@ -116,10 +116,20 @@ class _SessionAlerts:
 
     def publish(self, payload: dict[str, Any]) -> None:
         session = self._session
+        # `video_pos_s` is the frame's actual position in the source file's own
+        # timeline - required once a session can run faster than real time (a whole
+        # video finishes in well under its own length), where wall-clock elapsed since
+        # session start no longer has anything to do with where in the video this
+        # happened. Falls back to wall-clock elapsed for a live-camera source, where
+        # "position in the file" has no meaning and realtime pacing keeps the two equal
+        # anyway.
+        video_pos_s = payload.get("video_pos_s")
+        if video_pos_s is None:
+            video_pos_s = time.time() - session.started_at
         alert = TestAlert(
             id=uuid.uuid4().hex[:12],
             ts=payload.get("ts") or time.time(),
-            video_time_s=round(time.time() - session.started_at, 1),
+            video_time_s=round(video_pos_s, 1),
             kind=str(payload.get("kind")),
             subtype=payload.get("subtype"),
             severity=str(payload.get("severity", "medium")),

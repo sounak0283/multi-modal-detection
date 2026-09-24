@@ -159,3 +159,35 @@ def test_zones_are_tracked_independently():
     for _ in range(3):
         monitor.update("z1", crowd, threshold=5, min_frames=3)
         assert monitor.update("z2", sparse, threshold=5, min_frames=3) is None
+
+
+# -- eps_frac: neighbour radius that scales with frame height -----------------------
+
+
+def test_eps_frac_unset_ignores_frame_height_and_behaves_exactly_like_before():
+    """No eps_frac configured (the default) - passing frame_height must change nothing,
+    so every existing caller that never adopts it is unaffected."""
+    monitor = CrowdMonitor(eps_px=30.0, min_samples=2)
+    points = cluster((0, 0), 6, spread=3.0)
+    event = monitor.update("z1", points, threshold=5, min_frames=1, frame_height=2000.0)
+    assert event is not None and event.formed is True
+
+
+def test_eps_frac_scales_the_radius_to_a_larger_frame():
+    """Two points 150px apart: outside a 30px fixed radius, but inside 10% of a
+    2000px-tall frame (200px) - the scenario this fixes (a high-res camera where a
+    fixed eps_px never reaches genuinely grouped people)."""
+    points = np.array([[0.0, 0.0], [150.0, 0.0]], dtype=np.float32)
+    monitor = CrowdMonitor(eps_px=30.0, min_samples=2, eps_frac=0.10)
+
+    assert monitor.update("z1", points, threshold=2, min_frames=1, frame_height=None) is None, (
+        "no frame_height given - must fall back to the fixed eps_px and stay unclustered"
+    )
+    event = monitor.update("z2", points, threshold=2, min_frames=1, frame_height=2000.0)
+    assert event is not None and event.formed is True
+
+
+def test_eps_frac_does_not_cluster_points_still_outside_the_scaled_radius():
+    points = np.array([[0.0, 0.0], [500.0, 0.0]], dtype=np.float32)
+    monitor = CrowdMonitor(eps_px=30.0, min_samples=2, eps_frac=0.10)
+    assert monitor.update("z1", points, threshold=2, min_frames=1, frame_height=2000.0) is None
