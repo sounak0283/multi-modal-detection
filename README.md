@@ -35,6 +35,13 @@ curl -L -o models/yolox_person/yolox_nano.onnx \
   https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_nano.onnx
 ```
 
+Install the PPE helmet detector from `demo_package.zip` (SHA-256 checked against
+`models/ppe/manifest.json` before it is written):
+
+```bash
+python tools/install_ppe_model.py --zip "path/to/demo_package.zip"
+```
+
 `manifest.json` is load-bearing for correctness, not just licensing: it records each
 model's expected colour order. Megvii's exports expect BGR; OpenCV Zoo's re-export of
 the same architecture expects RGB, and the wrong choice costs ~25 % recall **silently**.
@@ -193,16 +200,20 @@ crowd persists. See `docs/phases/PHASE_G.md` for the full record.
 
 ### PPE detection (Expansion Plan Phase H)
 
-The software path is fully built — a whole-person-crop multi-label classifier wrapper,
-an explicit present/absent/indeterminate threshold, per-zone/per-item hysteresis, alert
-publishing — but **no model ships in this repo**. Unlike fire/smoke, this needs a
-genuinely new model architecture, not a fine-tune of the existing person detector; see
-`backend/models/ppe/README.md` and `PLATFORM_EXPANSION_PLAN.md` §5 for the recipe
-(SH17 + Construction-PPE). Until a real `model.onnx` is placed at
-`backend/models/ppe/`, any camera with the `ppe` module enabled just logs that it's
-inactive and runs everything else normally — this is not a startup failure. Pick
-required items (helmet/vest/gloves/shoes/glasses) per zone in the boundary editor. See
-`docs/phases/PHASE_H.md` for the full record.
+**Helmet checking works** with the `final_C_v2` head/helmet detector from
+`demo_package.zip` (install command under [Models](#models)). It runs on each tracked
+person inside a zone whose required PPE includes **helmet**: a bare head seen on 3
+consecutive PPE checks raises "Missing helmet in <zone>", and the live overlay marks each
+head HELMET (green), NO HELMET? (amber, not yet confirmed) or NO HELMET (red). Enable the
+`ppe` module on a camera or in Video test, then tick helmet on a Zone in the boundary editor.
+
+This model sees **helmets only**. A zone that requires vest/gloves/shoes/glasses logs a
+warning once and never alerts for those items; they need a model that has not been
+trained yet (`PLATFORM_EXPANSION_PLAN.md` §5). `ppe.backend: classifier` in
+`config/app.yaml` switches back to the original multi-label classifier interface
+(`models/ppe/model.onnx`). With no model file present, PPE logs that it is inactive and
+everything else runs normally. Details and accuracy limits: `backend/models/ppe/README.md`;
+full record: `docs/phases/PHASE_H.md`.
 
 ## Auth
 
