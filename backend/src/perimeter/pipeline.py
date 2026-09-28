@@ -74,9 +74,11 @@ from perimeter.track.tracker import PersonTracker
 log = logging.getLogger("perimeter.pipeline")
 
 MAX_RECENT_EVENTS = 200
-# PPE runs every ppe_every_n detection frames; a mark outlives a couple of checks so the
-# overlay does not blink between them.
-PPE_MARK_TTL_S = 1.5
+# A PPE overlay mark lives for this many PPE checks after it was measured (checks run
+# every ppe_every_n detection frames), so it does not blink between checks. Aged in
+# detection frames, not wall-clock seconds: the Video test page runs faster than real
+# time, where a seconds-based TTL kept marks alive across several scenes.
+PPE_MARK_MAX_CHECKS = 2
 ERROR_LOG_INTERVAL_S = 30.0
 JPEG_QUALITY = 75
 
@@ -180,8 +182,9 @@ class Pipeline:
         self.spark_detector = SparkDetector() if MODULE_WELDING in camera.enabled_modules else None
         self._spark_box: tuple[tuple[float, ...], float] | None = None
         self._fire_boxes: tuple[list[tuple[str, float, tuple[int, ...], bool]], float] | None = None
-        # track_id -> (head box, label, violation confirmed, expiry) for the overlay.
-        self._ppe_marks: dict[int, tuple[tuple[float, ...], str, bool, float]] = {}
+        # track_id -> (head box relative to the person box, label, violation confirmed,
+        # detections_run when measured) for the overlay.
+        self._ppe_marks: dict[int, tuple[tuple[float, ...], str, bool, int]] = {}
         self._ppe_unsupported_warned: set[tuple[str, str]] = set()
 
         self._slot: LatestSlot[Frame] = LatestSlot(blocking=not capture_realtime)
@@ -609,7 +612,7 @@ class Pipeline:
         classifier = self.ppe_classifier
         supported = getattr(classifier, "supported_items", None)
         membership = self.engine.ppe_membership(visible_feet, width, height)
-        marks: dict[int, tuple[tuple[float, ...], str, bool, float]] = {}
+        marks: dict[int, tuple[tuple[float, ...], str, bool, int]] = {}
         for zone_id, mask in membership.items():
             zone = self.engine.zone_by_id(zone_id)
             if zone is None or not zone.ppe_required:
@@ -649,14 +652,24 @@ class Pipeline:
                         self._publish_ppe(zone, item, track_id, frame.ts, frame.video_pos_s)
                 if head_box is not None and label:
                     violating = self.ppe_monitor.is_confirmed(zone_id, track_id, "helmet")
-                    marks[track_id] = (head_box, label, violating, time.time() + PPE_MARK_TTL_S)
+                    pw, ph = max(1, x2 - x1), max(1, y2 - y1)
+                    relative = (
+                        (head_box[0] - x1) / pw, (head_box[1] - y1) / ph,
+                        (head_box[2] - x1) / pw, (head_box[3] - y1) / ph,
+                    )
+                    marks[track_id] = (relative, label, violating, self.stats.detections_run)
         self.ppe_monitor.evict_stale()
+        live = {int(t) for t in tracked.track_ids}
+        oldest = self.stats.detections_run - self._ppe_mark_max_age()
         with self._lock:
-            now = time.time()
             self._ppe_marks = {
-                tid: mark for tid, mark in self._ppe_marks.items() if mark[3] > now
+                tid: mark for tid, mark in self._ppe_marks.items()
+                if tid in live and mark[3] >= oldest
             }
             self._ppe_marks.update(marks)
+
+    def _ppe_mark_max_age(self) -> int:
+        return PPE_MARK_MAX_CHECKS * max(1, self.settings.inference.ppe_every_n)
 
     def _publish_ppe(
         self, zone: Zone, item: str, track_id: int, ts: float,
@@ -987,11 +1000,19 @@ class Pipeline:
                     canvas, label, (x1, max(12, y1 - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, colour, 2,
                 )
         with self._lock:
-            ppe_marks = list(self._ppe_marks.values())
-        now = time.time()
-        for head_box, label, violating, expiry in ppe_marks:
-            if expiry < now:
+            ppe_marks = dict(self._ppe_marks)
+        oldest = self.stats.detections_run - self._ppe_mark_max_age()
+        for index in range(len(tracked) if tracked is not None and ppe_marks else 0):
+            mark = ppe_marks.get(int(tracked.track_ids[index]))
+            if mark is None or mark[3] < oldest:
                 continue
+            relative, label, violating, _measured = mark
+            px1, py1, px2, py2 = (float(v) for v in tracked.xyxy[index])
+            pw, ph = px2 - px1, py2 - py1
+            head_box = (
+                px1 + relative[0] * pw, py1 + relative[1] * ph,
+                px1 + relative[2] * pw, py1 + relative[3] * ph,
+            )
             if label == "HELMET":
                 colour = (0, 200, 0)
             elif violating:

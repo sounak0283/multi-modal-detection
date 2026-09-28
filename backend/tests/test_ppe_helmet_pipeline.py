@@ -117,7 +117,7 @@ def test_overlay_marks_the_head_and_flags_it_once_confirmed():
     pipeline._masked = np.zeros(1, bool)
 
     pipeline._process_ppe(make_frame(), make_tracked(), np.zeros(1, bool), 640, 480)
-    _box, label, violating, _expiry = pipeline._ppe_marks[7]
+    _relative, label, violating, _measured = pipeline._ppe_marks[7]
     assert (label, violating) == ("NO HELMET", False)
 
     for _ in range(2):
@@ -127,3 +127,56 @@ def test_overlay_marks_the_head_and_flags_it_once_confirmed():
     canvas = pipeline._annotate(make_frame().image)
     # Red (BGR 0,0,255) rectangle edge on the head box's top-left corner.
     assert tuple(canvas[100, 110]) == (0, 0, 255)
+
+
+AMBER = (0, 165, 255)  # bare head seen, not yet confirmed
+
+
+def run_one_check(pipeline):
+    pipeline._tracked = make_tracked()
+    pipeline._masked = np.zeros(1, bool)
+    pipeline._process_ppe(make_frame(), make_tracked(), np.zeros(1, bool), 640, 480)
+
+
+def head_edge_pixel(pipeline, x, y=115):
+    """A point on a head box's right edge, clear of the person box's own outline."""
+    return tuple(pipeline._annotate(make_frame().image)[y, x])
+
+
+def unmarked_pixel(pipeline, x, y=115):
+    marks, pipeline._ppe_marks = pipeline._ppe_marks, {}
+    try:
+        return head_edge_pixel(pipeline, x, y)
+    finally:
+        pipeline._ppe_marks = marks
+
+
+def test_mark_follows_the_person_when_they_move():
+    pipeline, _ = make_pipeline()
+    save_zone(pipeline, ["helmet"])
+    pipeline.ppe_classifier = FakePersonChecker(helmet=0.1)
+    pipeline.ppe_monitor = PPEMonitor()
+    run_one_check(pipeline)
+    assert head_edge_pixel(pipeline, 140) == AMBER  # head box (110,100)-(140,130)
+
+    pipeline._tracked = make_tracked(box=(300.0, 100.0, 350.0, 300.0))  # moved 200 px right
+    assert head_edge_pixel(pipeline, 340) == AMBER  # same relative spot on the new box
+    assert head_edge_pixel(pipeline, 140) == unmarked_pixel(pipeline, 140)
+
+
+def test_no_mark_once_the_track_is_gone_or_the_mark_is_old():
+    pipeline, _ = make_pipeline()
+    save_zone(pipeline, ["helmet"])
+    pipeline.ppe_classifier = FakePersonChecker(helmet=0.1)
+    pipeline.ppe_monitor = PPEMonitor()
+    run_one_check(pipeline)
+
+    other = make_tracked()
+    other.track_ids[0] = 99  # a different person where track 7 used to be
+    pipeline._tracked = other
+    assert head_edge_pixel(pipeline, 140) == unmarked_pixel(pipeline, 140)
+
+    pipeline._tracked = make_tracked()
+    assert head_edge_pixel(pipeline, 140) == AMBER
+    pipeline.stats.detections_run += pipeline._ppe_mark_max_age() + 1
+    assert head_edge_pixel(pipeline, 140) == unmarked_pixel(pipeline, 140)

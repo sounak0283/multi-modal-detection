@@ -177,6 +177,20 @@ def test_real_model_loads_and_returns_the_classifier_shape():
 
 
 @pytest.mark.skipif(
+    not (REAL_MODEL.is_file() and PERSON_MODEL.is_file()),
+    reason="PPE weights not installed - run tools/install_ppe_model.py",
+)
+def test_real_model_never_modifies_the_shared_frame():
+    """The crop is a view into the frame every other module reads (fire, sparks,
+    identity, evidence); inference must not write through it."""
+    rng = np.random.default_rng(0)
+    frame = rng.integers(0, 256, (480, 640, 3), dtype=np.uint8)
+    before = frame.copy()
+    PPEHelmetDetector(REAL_MODEL).classify_person(frame, PERSON)
+    assert np.array_equal(frame, before)
+
+
+@pytest.mark.skipif(
     not (REAL_MODEL.is_file() and PERSON_MODEL.is_file() and SAMPLE.is_file()),
     reason="PPE weights or demo_package sample video not present",
 )
