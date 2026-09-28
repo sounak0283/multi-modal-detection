@@ -15,6 +15,7 @@ import Settings from './pages/Settings'
 import Login from './pages/Login'
 import { Button, Select } from './components/ui'
 import { ToastProvider, useToast } from './components/Toast'
+import ErrorBoundary from './components/ErrorBoundary'
 import FireAlertOverlay from './components/FireAlertOverlay'
 import AlertSoundPlayer from './components/AlertSoundPlayer'
 import { api, setUnauthorizedHandler } from './api'
@@ -292,12 +293,14 @@ export default function App() {
   }
 
   return (
-    <ToastProvider>
-      {!checked ? null : user ? (
-        <Dashboard user={user} onLogout={logout} />
-      ) : (
-        <Login onSuccess={setUser} />
-      )}
-    </ToastProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        {!checked ? null : user ? (
+          <Dashboard user={user} onLogout={logout} />
+        ) : (
+          <Login onSuccess={setUser} />
+        )}
+      </ToastProvider>
+    </ErrorBoundary>
   )
 }

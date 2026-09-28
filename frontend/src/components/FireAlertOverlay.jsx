@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 
 const POLL_MS = 2500
+// `seen` only needs to dedupe against what a poll could plausibly re-fetch, not every
+// alert this tab has ever shown - capped so a dashboard left open for days doesn't grow
+// this forever.
+const SEEN_CAP = 500
 
 /* Fire/smoke alerts are not a Toast: Toast auto-dismisses after a few seconds, which is
  * fine for "saved successfully" and wrong for "there may be a fire" - this stays on
@@ -33,6 +37,9 @@ export default function FireAlertOverlay() {
         const key = `${event.ts}|${event.kind}|${event.message}`
         if (seen.current.has(key)) return false
         seen.current.add(key)
+        if (seen.current.size > SEEN_CAP) {
+          seen.current.delete(seen.current.values().next().value)
+        }
         return true
       })
       if (fresh.length) {

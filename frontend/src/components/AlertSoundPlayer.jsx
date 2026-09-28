@@ -4,6 +4,8 @@ import { api } from '../api'
 const EVENTS_POLL_MS = 2500
 const CONFIG_POLL_MS = 10000
 const SEVERITY_RANK = { low: 0, medium: 1, high: 2, critical: 3 }
+// See FireAlertOverlay's identical cap - same reasoning, same shape of `seen` Set.
+const SEEN_CAP = 500
 
 /* Plays a short beep in the browser for a new alert meeting the configured severity
  * floor (Expansion Plan Phase D). Always mounted, renders nothing - same shape as
@@ -59,6 +61,9 @@ export default function AlertSoundPlayer() {
         const key = `${event.ts}|${event.kind}|${event.message}`
         if (seen.current.has(key)) continue
         seen.current.add(key)
+        if (seen.current.size > SEEN_CAP) {
+          seen.current.delete(seen.current.values().next().value)
+        }
 
         const rank = SEVERITY_RANK[event.severity] ?? SEVERITY_RANK.medium
         if (sound_enabled && rank >= floor) beep()
