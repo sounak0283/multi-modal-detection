@@ -16,6 +16,7 @@ const HIT_RADIUS = 9
 
 export default function BoundaryCanvas({
   src,
+  onImageError,
   zones = [],
   selectedIndex = -1,
   drawing = null,
@@ -190,6 +191,7 @@ export default function BoundaryCanvas({
           src={src}
           alt="Camera view"
           onLoad={measure}
+          onError={onImageError}
           className="block w-auto max-w-full"
           style={{ maxHeight: 'calc(100vh - 250px)' }}
         />

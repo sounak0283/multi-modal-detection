@@ -1,15 +1,15 @@
-import { useMemo } from 'react'
 import BoundaryCanvas from '../components/BoundaryCanvas'
 import { Card, CardHead, EmptyState, Stat } from '../components/ui'
-import { api, streamUrl } from '../api'
+import { api } from '../api'
 import { usePolling } from '../lib/usePolling'
+import { useRetryingStream } from '../lib/useRetryingStream'
 import { ZONE_TYPES } from '../lib/zones'
 
 export default function LiveView({ cameraId, zones }) {
-  // The stream URL must be stable per camera, otherwise every re-render tears down the
-  // MJPEG connection and restarts it - which shows as a visible stutter every two
-  // seconds. Re-derives only when the camera being viewed actually changes.
-  const src = useMemo(() => streamUrl(cameraId, Date.now()), [cameraId])
+  // The stream URL must be stable across re-renders, otherwise every render tears down
+  // the MJPEG connection and restarts it (a visible stutter every two seconds). It
+  // changes only on mount (keyed on cameraId) and after a load error, to retry.
+  const { src, onError } = useRetryingStream(cameraId)
   const { data } = usePolling(() => api.liveEvents(20, cameraId), 3000)
   const events = data?.events ?? []
 
@@ -25,7 +25,7 @@ export default function LiveView({ cameraId, zones }) {
   return (
     <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
       <Card className="p-0">
-        <BoundaryCanvas src={src} zones={zones} />
+        <BoundaryCanvas src={src} onImageError={onError} zones={zones} />
       </Card>
 
       <div className="flex flex-col gap-4">
