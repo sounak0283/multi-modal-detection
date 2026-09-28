@@ -209,6 +209,36 @@ class CrowdSettings:
     min_samples: int = 2
 
 
+PPE_BACKENDS = ("helmet_detector", "classifier")
+
+
+@dataclass(frozen=True)
+class PPESettings:
+    """Which PPE model runs, and its tuning (Expansion Plan Phase H).
+
+    `helmet_detector` is the YOLOX head/helmet detector from demo_package (final_C_v2);
+    `classifier` is the original whole-crop multi-label classifier interface. Switching
+    back is a one-line config change - both stay wired in `Pipeline._build_ppe`.
+    """
+
+    backend: str = "helmet_detector"
+    helmet_detector_model: str = "models/ppe/ppe_final_C_v2_320.onnx"
+    classifier_model: str = "models/ppe/model.onnx"
+    # Package thresholds (model_card.md): head 0.45 keeps head recall >= 90% on colour
+    # val; helmet 0.55 is F1-optimal.
+    head_threshold: float = 0.45
+    helmet_threshold: float = 0.55
+    # The model was only trained/validated on people at least this tall.
+    min_person_height_px: int = 96
+
+    @property
+    def model_path(self) -> str:
+        return (
+            self.helmet_detector_model if self.backend == "helmet_detector"
+            else self.classifier_model
+        )
+
+
 @dataclass(frozen=True)
 class IdentitySettings:
     """Identity/face recognition tuning (Expansion Plan Phase F; PLAN.md section 7).
@@ -350,6 +380,7 @@ class Settings:
     boundary: BoundarySettings = field(default_factory=BoundarySettings)
     firesmoke: FireSmokeSettings = field(default_factory=FireSmokeSettings)
     crowd: CrowdSettings = field(default_factory=CrowdSettings)
+    ppe: PPESettings = field(default_factory=PPESettings)
     identity: IdentitySettings = field(default_factory=IdentitySettings)
     api: ApiSettings = field(default_factory=ApiSettings)
     storage: StorageSettings = field(default_factory=StorageSettings)
@@ -485,6 +516,24 @@ def load_settings(
         min_samples=int(crowd_yaml.get("min_samples", 2)),
     )
 
+    ppe_yaml = _section(data, "ppe")
+    ppe_defaults = PPESettings()
+    ppe_backend = str(ppe_yaml.get("backend", ppe_defaults.backend)).strip().lower()
+    if ppe_backend not in PPE_BACKENDS:
+        raise ValueError(f"ppe.backend must be one of {PPE_BACKENDS}, got {ppe_backend!r}")
+    ppe = PPESettings(
+        backend=ppe_backend,
+        helmet_detector_model=str(
+            ppe_yaml.get("helmet_detector_model", ppe_defaults.helmet_detector_model)
+        ),
+        classifier_model=str(ppe_yaml.get("classifier_model", ppe_defaults.classifier_model)),
+        head_threshold=float(ppe_yaml.get("head_threshold", ppe_defaults.head_threshold)),
+        helmet_threshold=float(ppe_yaml.get("helmet_threshold", ppe_defaults.helmet_threshold)),
+        min_person_height_px=int(
+            ppe_yaml.get("min_person_height_px", ppe_defaults.min_person_height_px)
+        ),
+    )
+
     identity_yaml = _section(data, "identity")
     identity = IdentitySettings(
         enabled=bool(identity_yaml.get("enabled", False)),
@@ -562,6 +611,7 @@ def load_settings(
         boundary=boundary,
         firesmoke=firesmoke,
         crowd=crowd,
+        ppe=ppe,
         identity=identity,
         api=api,
         storage=storage,

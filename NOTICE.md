@@ -29,7 +29,8 @@ deliberate rather than accidental — it was found by running the CI gate, not b
 | YuNet — face detection | `models/yunet/` | 2023mar | **MIT** — © 2020 Shiqi Yu | https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet | ☑ 2026-09-15 |
 | SFace — face recognition | `models/sface/` | 2021dec | **Apache-2.0** | https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface | ☑ 2026-09-15 |
 | Fire/smoke detector | `models/firesmoke/` | 40-epoch fine-tune, trained 2026-09-16 | **Ours** — trained in-house (YOLOX-Nano architecture, Apache-2.0) | D-Fire via Kaggle mirror `https://www.kaggle.com/datasets/sayedgamal99/smoke-fire-detection-yolo` (CC0-1.0), repackaging `https://github.com/gaiasd/DFireDataset` — see §2 for the D-Fire CC0 caveat | ☑ 2026-09-16 |
-| PPE compliance classifier | *(Phase H)* | — | **Ours** — trained in-house | SH17 + Construction-PPE, licences to confirm before training (`PLATFORM_EXPANSION_PLAN.md` §5) | ☐ |
+| PPE helmet detector (head / helmet) | `models/ppe/` | `final_C_v2` (`ppe_final_C_v2_320.onnx`), from `demo_package.zip`, installed 2026-09-28 | **Ours** — YOLOX-Nano architecture (Apache-2.0); trained outside this repo, training commit not recorded in the package | Hard Hat Workers (CC0), SHEL5K (CC BY 4.0), Roboflow Construction Site Safety v30 (CC BY 4.0), per the package's `model_card.md` — CC BY sources need attribution in §5 before distribution | ☐ — dataset licences as stated by the package, not independently re-verified |
+| PPE compliance classifier (legacy multi-label interface, `ppe.backend: classifier`) | `models/ppe/` | — (no weights) | **Ours** — trained in-house | SH17 + Construction-PPE, licences to confirm before training (`PLATFORM_EXPANSION_PLAN.md` §5) | ☐ |
 
 Every model directory ships a `manifest.json` recording licence, source, SHA-256 per weight file,
 and — for in-house checkpoints — the dataset versions and hashes it was trained on, the training

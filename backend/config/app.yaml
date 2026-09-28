@@ -68,6 +68,19 @@ crowd:
   eps_px: 80.0
   min_samples: 2
 
+ppe:
+  # helmet_detector: YOLOX head/helmet detector (demo_package final_C_v2, helmet only -
+  #   no vest/gloves/shoes/glasses; zones requiring those stay "indeterminate").
+  # classifier: the original whole-crop multi-label classifier (models/ppe/model.onnx).
+  # Switching back is just this line; --ppe-model on the command line still overrides
+  # the path below for whichever backend is selected.
+  backend: helmet_detector
+  helmet_detector_model: models/ppe/ppe_final_C_v2_320.onnx
+  classifier_model: models/ppe/model.onnx
+  head_threshold: 0.45
+  helmet_threshold: 0.55
+  min_person_height_px: 96
+
 identity:
   # Default OFF. Biometric processing requires a consent story per deployment
   # (PLAN.md section 10.3). The rest of the product works without it.

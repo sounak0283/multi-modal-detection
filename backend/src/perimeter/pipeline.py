@@ -62,7 +62,8 @@ from perimeter.capture.source import CaptureThread, FeedState, Frame
 from perimeter.detect.firesmoke import FireSmokeDetector
 from perimeter.detect.firesmoke import class_name as firesmoke_class_name
 from perimeter.detect.person import MIN_IDENTITY_BOX_HEIGHT_PX, PersonDetector
-from perimeter.detect.ppe import PPEClassifier, PPEMonitor, classify_state
+from perimeter.detect.ppe import PPEClassifier, PPEMonitor, classify_state, person_crop
+from perimeter.detect.ppe_helmet import PPEHelmetDetector
 from perimeter.detect.temporal_gate import ConfirmedEvent, TemporalGate
 from perimeter.detect.welding import SparkDetector, SparkEvent
 from perimeter.detect.yolox_onnx import configure_opencv_threads
@@ -73,6 +74,9 @@ from perimeter.track.tracker import PersonTracker
 log = logging.getLogger("perimeter.pipeline")
 
 MAX_RECENT_EVENTS = 200
+# PPE runs every ppe_every_n detection frames; a mark outlives a couple of checks so the
+# overlay does not blink between them.
+PPE_MARK_TTL_S = 1.5
 ERROR_LOG_INTERVAL_S = 30.0
 JPEG_QUALITY = 75
 
@@ -176,6 +180,9 @@ class Pipeline:
         self.spark_detector = SparkDetector() if MODULE_WELDING in camera.enabled_modules else None
         self._spark_box: tuple[tuple[float, ...], float] | None = None
         self._fire_boxes: tuple[list[tuple[str, float, tuple[int, ...], bool]], float] | None = None
+        # track_id -> (head box, label, violation confirmed, expiry) for the overlay.
+        self._ppe_marks: dict[int, tuple[tuple[float, ...], str, bool, float]] = {}
+        self._ppe_unsupported_warned: set[tuple[str, str]] = set()
 
         self._slot: LatestSlot[Frame] = LatestSlot(blocking=not capture_realtime)
         self._capture = self._build_capture(camera)
@@ -269,24 +276,38 @@ class Pipeline:
             eps_frac=self.settings.crowd.eps_frac,
         )
 
-    def _build_ppe(self, camera: Camera) -> tuple[PPEClassifier | None, PPEMonitor | None]:
+    def _build_ppe(
+        self, camera: Camera
+    ) -> tuple[PPEClassifier | PPEHelmetDetector | None, PPEMonitor | None]:
         """Best-effort, same posture as `_build_firesmoke` (Expansion Plan Phase H):
-        no trained weights ship in this repo, so a missing/unloadable model degrades to
-        a clean, logged no-op rather than a startup failure."""
+        weights are not in git, so a missing/unloadable model degrades to a clean, logged
+        no-op rather than a startup failure. `ppe.backend` picks the model family."""
         if MODULE_PPE not in camera.enabled_modules or not self.ppe_model_path:
             return None, None
+        ppe = self.settings.ppe
+        threads = self.settings.inference.intra_op_threads
         try:
-            classifier = PPEClassifier(
-                self.ppe_model_path,
-                intra_op_threads=self.settings.inference.intra_op_threads,
-            )
+            if ppe.backend == "helmet_detector":
+                classifier = PPEHelmetDetector(
+                    self.ppe_model_path,
+                    head_threshold=ppe.head_threshold,
+                    helmet_threshold=ppe.helmet_threshold,
+                    min_person_height_px=ppe.min_person_height_px,
+                    intra_op_threads=threads,
+                )
+            else:
+                classifier = PPEClassifier(self.ppe_model_path, intra_op_threads=threads)
         except Exception as exc:  # noqa: BLE001 - any load failure degrades, never crashes
             log.warning(
-                "PPE enabled for %s but no usable model at %s (%s) - module inactive",
-                camera.id, self.ppe_model_path, exc,
+                "PPE enabled for %s but the %s model at %s could not be loaded (%s) - "
+                "module inactive",
+                camera.id, ppe.backend, self.ppe_model_path, exc,
             )
             return None, None
-        log.info("PPE compliance checking active for %s", camera.id)
+        log.info(
+            "PPE compliance checking active for %s (%s, items: %s)",
+            camera.id, ppe.backend, ", ".join(sorted(classifier.supported_items)),
+        )
         return classifier, PPEMonitor()
 
     def _build_capture(self, camera: Camera) -> CaptureThread:
@@ -585,10 +606,27 @@ class Pipeline:
         visible_boxes = tracked.xyxy[keep]
         visible_ids = tracked.track_ids[keep]
 
+        classifier = self.ppe_classifier
+        supported = getattr(classifier, "supported_items", None)
         membership = self.engine.ppe_membership(visible_feet, width, height)
+        marks: dict[int, tuple[tuple[float, ...], str, bool, float]] = {}
         for zone_id, mask in membership.items():
             zone = self.engine.zone_by_id(zone_id)
             if zone is None or not zone.ppe_required:
+                continue
+            checked_items = [
+                item for item in zone.ppe_required
+                if supported is None or item in supported
+            ]
+            for item in zone.ppe_required.difference(checked_items):
+                if (zone_id, item) not in self._ppe_unsupported_warned:
+                    self._ppe_unsupported_warned.add((zone_id, item))
+                    log.warning(
+                        "zone %s on %s requires %r, which the active PPE model (%s) cannot "
+                        "detect - that item is never checked", zone.display_name,
+                        self.camera.id, item, self.settings.ppe.backend,
+                    )
+            if not checked_items:
                 continue
             for index in np.nonzero(mask)[0]:
                 track_id = int(visible_ids[index])
@@ -597,12 +635,28 @@ class Pipeline:
                 x2, y2 = min(width, int(box[2])), min(height, int(box[3]))
                 if x2 <= x1 or y2 <= y1:
                     continue
-                probabilities = self.ppe_classifier.classify(frame.image[y1:y2, x1:x2])
-                for item in zone.ppe_required:
+                if hasattr(classifier, "classify_person"):
+                    result = classifier.classify_person(frame.image, (x1, y1, x2, y2))
+                    probabilities, head_box, label = (
+                        result.probabilities, result.head_box, result.label
+                    )
+                else:  # duck-typed classifier exposing only classify(crop)
+                    crop, _origin = person_crop(frame.image, (x1, y1, x2, y2))
+                    probabilities, head_box, label = classifier.classify(crop), None, None
+                for item in checked_items:
                     state = classify_state(probabilities.get(item, 0.0))
                     if self.ppe_monitor.update(zone_id, track_id, item, state):
                         self._publish_ppe(zone, item, track_id, frame.ts, frame.video_pos_s)
+                if head_box is not None and label:
+                    violating = self.ppe_monitor.is_confirmed(zone_id, track_id, "helmet")
+                    marks[track_id] = (head_box, label, violating, time.time() + PPE_MARK_TTL_S)
         self.ppe_monitor.evict_stale()
+        with self._lock:
+            now = time.time()
+            self._ppe_marks = {
+                tid: mark for tid, mark in self._ppe_marks.items() if mark[3] > now
+            }
+            self._ppe_marks.update(marks)
 
     def _publish_ppe(
         self, zone: Zone, item: str, track_id: int, ts: float,
@@ -932,6 +986,23 @@ class Pipeline:
                 cv2.putText(
                     canvas, label, (x1, max(12, y1 - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, colour, 2,
                 )
+        with self._lock:
+            ppe_marks = list(self._ppe_marks.values())
+        now = time.time()
+        for head_box, label, violating, expiry in ppe_marks:
+            if expiry < now:
+                continue
+            if label == "HELMET":
+                colour = (0, 200, 0)
+            elif violating:
+                colour = (0, 0, 255)
+            else:  # bare head seen, not yet confirmed by the hysteresis
+                colour, label = (0, 165, 255), "NO HELMET?"
+            x1, y1, x2, y2 = (int(v) for v in head_box)
+            cv2.rectangle(canvas, (x1, y1), (x2, y2), colour, 2)
+            cv2.putText(
+                canvas, label, (x1, max(12, y1 - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, colour, 2,
+            )
         spark = self._spark_box
         if spark is not None and time.time() < spark[1]:
             x1, y1, x2, y2 = (int(v) for v in spark[0])
