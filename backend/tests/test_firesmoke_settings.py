@@ -63,3 +63,16 @@ def test_a_partial_block_falls_back_to_defaults_for_the_rest(tmp_path):
     assert settings.firesmoke.conf_fire == 0.9
     assert settings.firesmoke.conf_smoke == 0.35  # untouched default
     assert settings.firesmoke.gate_k == 6
+
+
+def test_alert_gap_defaults_to_30_seconds(tmp_path):
+    path = write_yaml(tmp_path, "storage:\n  retention_days: 30\n")
+    settings = load_settings(config_path=path, env_file=tmp_path / ".env")
+    assert settings.firesmoke.alert_gap_seconds == 30.0
+
+
+def test_alert_gap_zero_and_negative_mean_the_k_of_n_gate(tmp_path):
+    for raw, expected in (("0", 0.0), ("-5", 0.0), ("45", 45.0)):
+        path = write_yaml(tmp_path, f"firesmoke:\n  alert_gap_seconds: {raw}\n")
+        settings = load_settings(config_path=path, env_file=tmp_path / ".env")
+        assert settings.firesmoke.alert_gap_seconds == expected

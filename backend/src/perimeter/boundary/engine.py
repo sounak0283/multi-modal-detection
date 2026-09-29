@@ -38,7 +38,15 @@ import numpy as np
 from shapely.geometry import Polygon
 
 from perimeter.boundary.geometry import FRAME_EDGE_TOLERANCE, Side, side_of_polyline
-from perimeter.boundary.zones import Direction, EventKind, Severity, Zone, ZoneStore, ZoneType
+from perimeter.boundary.zones import (
+    FIRE_ROI_MAX_SENSITIVITY,
+    Direction,
+    EventKind,
+    Severity,
+    Zone,
+    ZoneStore,
+    ZoneType,
+)
 from perimeter.track.tracker import TrackedDetections
 
 log = logging.getLogger("perimeter.boundary.engine")
@@ -256,7 +264,7 @@ class BoundaryEngine:
             assert compiled.polygon is not None
             if compiled.polygon.covers(Point(point_px)):
                 delta = min(delta, zone.conf_delta)
-        return delta
+        return max(delta, -FIRE_ROI_MAX_SENSITIVITY)
 
     def fire_roi_zone_at(
         self, point_px: tuple[float, float], width: int, height: int

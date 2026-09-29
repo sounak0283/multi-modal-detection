@@ -45,7 +45,14 @@ from perimeter.alerts.messages import (
 )
 from perimeter.boundary.crowd import CrowdEvent, CrowdMonitor
 from perimeter.boundary.engine import BoundaryEngine, BoundaryEvent
-from perimeter.boundary.zones import EventKind, Severity, Zone, ZoneStore, ZoneType
+from perimeter.boundary.zones import (
+    FIRE_ROI_MAX_SENSITIVITY,
+    EventKind,
+    Severity,
+    Zone,
+    ZoneStore,
+    ZoneType,
+)
 from perimeter.cameras.models import (
     MODULE_BOUNDARY,
     MODULE_CROWD,
@@ -79,6 +86,9 @@ MAX_RECENT_EVENTS = 200
 # detection frames, not wall-clock seconds: the Video test page runs faster than real
 # time, where a seconds-based TTL kept marks alive across several scenes.
 PPE_MARK_MAX_CHECKS = 2
+# Below-threshold fire/smoke boxes within this much of their bar are drawn grey on the
+# overlay ("why didn't that alert?"); anything weaker is not drawn.
+FIRE_NEAR_MISS = 0.10
 ERROR_LOG_INTERVAL_S = 30.0
 JPEG_QUALITY = 75
 
@@ -177,6 +187,8 @@ class Pipeline:
             default_min_frames=settings.boundary.default_min_frames,
         )
         self.firesmoke_detector, self.firesmoke_gate = self._build_firesmoke(camera)
+        # class -> time of that class's last alarm (alert_gap_seconds mode).
+        self._firesmoke_last_alarm: dict[str, float] = {}
         self.crowd_monitor = self._build_crowd_monitor(camera)
         self.ppe_classifier, self.ppe_monitor = self._build_ppe(camera)
         self.spark_detector = SparkDetector() if MODULE_WELDING in camera.enabled_modules else None
@@ -253,6 +265,7 @@ class Pipeline:
                 conf_fire=self.settings.firesmoke.conf_fire,
                 conf_smoke=self.settings.firesmoke.conf_smoke,
                 intra_op_threads=self.settings.inference.intra_op_threads,
+                max_roi_sensitivity=FIRE_ROI_MAX_SENSITIVITY,
             )
         except Exception as exc:  # noqa: BLE001 - any load failure degrades, never crashes
             log.warning(
@@ -367,6 +380,7 @@ class Pipeline:
             default_min_frames=self.settings.boundary.default_min_frames,
         )
         self.firesmoke_detector, self.firesmoke_gate = self._build_firesmoke(camera)
+        self._firesmoke_last_alarm = {}
         self.crowd_monitor = self._build_crowd_monitor(camera)
         self.ppe_classifier, self.ppe_monitor = self._build_ppe(camera)
         self.spark_detector = SparkDetector() if MODULE_WELDING in camera.enabled_modules else None
@@ -853,6 +867,7 @@ class Pipeline:
         height, width = frame.image.shape[:2]
 
         accepted: list[tuple[str, tuple[float, float, float, float]]] = []
+        strongest: dict[str, tuple[float, tuple[float, float, float, float]]] = {}
         seen: list[tuple[str, float, tuple[int, ...], bool]] = []
         for index in range(len(detections)):
             klass = firesmoke_class_name(int(detections.class_ids[index]))
@@ -871,15 +886,38 @@ class Pipeline:
             )
             delta = self.engine.confidence_delta(center, width, height)  # <= 0
             if score < base_conf + delta:
-                seen.append((klass, score, tuple(int(v) for v in box), False))
+                # The detector now decodes well below every bar (so fire_roi deltas can
+                # work); only near misses are worth showing on the overlay.
+                if score >= base_conf + delta - FIRE_NEAR_MISS:
+                    seen.append((klass, score, tuple(int(v) for v in box), False))
                 continue
 
             accepted.append((klass, box))
+            if score > strongest.get(klass, (-1.0, box))[0]:
+                strongest[klass] = (score, box)
             seen.append((klass, score, tuple(int(v) for v in box), True))
         self._fire_boxes = (seen, time.time() + 1.5)
 
-        for confirmed in self.firesmoke_gate.update(accepted):
-            self._publish_firesmoke(confirmed, frame, width, height)
+        confirmed_events = self.firesmoke_gate.update(accepted)
+        gap = self.settings.firesmoke.alert_gap_seconds
+        if gap <= 0:
+            for confirmed in confirmed_events:
+                self._publish_firesmoke(confirmed, frame, width, height)
+            return
+
+        # First detection alarms at once; then one alarm per class per `gap` seconds while
+        # it is still being detected. Video time for file sources, so the Video test page
+        # (which runs faster than real time) spaces alarms like a live camera would.
+        now = frame.video_pos_s if frame.video_pos_s is not None else frame.ts
+        for klass, (_score, box) in strongest.items():
+            last = self._firesmoke_last_alarm.get(klass)
+            if last is not None and now - last < gap:
+                continue
+            self._firesmoke_last_alarm[klass] = now
+            event = ConfirmedEvent(
+                klass=klass, bbox=box, escalate=self.firesmoke_gate.is_growing(klass, box)
+            )
+            self._publish_firesmoke(event, frame, width, height)
 
     def _publish_firesmoke(
         self, event: ConfirmedEvent, frame: Frame, width: int, height: int

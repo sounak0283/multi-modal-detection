@@ -23,6 +23,7 @@ SMOKE_CLASS_ID = 1
 FIRE_SMOKE_CLASS_IDS = {FIRE_CLASS_ID, SMOKE_CLASS_ID}
 
 DEFAULT_NMS = 0.5
+MIN_DECODE_CONF = 0.05
 
 
 class FireSmokeDetector:
@@ -33,13 +34,18 @@ class FireSmokeDetector:
         conf_smoke: float,
         nms_threshold: float = DEFAULT_NMS,
         intra_op_threads: int | None = None,
+        max_roi_sensitivity: float = 0.0,
     ) -> None:
-        # The ONNX-decode threshold is the lower of the two class thresholds so neither
-        # class is discarded before Pipeline gets a chance to apply the sharper,
-        # per-class (and per-zone, via BoundaryEngine.confidence_delta) bar.
+        # Decode down to the lowest bar Pipeline could ever apply: the lower class
+        # threshold, minus how far a fire_roi may lower it. Decoding at the class
+        # threshold alone silently discarded every box a negative fire_roi delta was
+        # meant to accept, so the delta had no effect at all.
+        self.decode_threshold = max(
+            MIN_DECODE_CONF, min(conf_fire, conf_smoke) - max(0.0, max_roi_sensitivity)
+        )
         self.model = YoloxOnnx(
             model_path,
-            conf_threshold=min(conf_fire, conf_smoke),
+            conf_threshold=self.decode_threshold,
             nms_threshold=nms_threshold,
             intra_op_threads=intra_op_threads,
         )

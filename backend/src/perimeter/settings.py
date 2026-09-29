@@ -191,6 +191,11 @@ class FireSmokeSettings:
     gate_k: int = 6
     gate_n: int = 10
     gate_iou: float = 0.3
+    # > 0: alarm on the FIRST detection above the bar, then at most one alarm per class
+    # (fire, smoke) per camera every this-many seconds while it keeps being detected -
+    # the K-of-N gate above then no longer decides when to alert. 0: the K-of-N gate
+    # decides, exactly as before.
+    alert_gap_seconds: float = 30.0
 
 
 @dataclass(frozen=True)
@@ -506,6 +511,7 @@ def load_settings(
         gate_k=int(firesmoke_yaml.get("gate_k", 6)),
         gate_n=int(firesmoke_yaml.get("gate_n", 10)),
         gate_iou=float(firesmoke_yaml.get("gate_iou", 0.3)),
+        alert_gap_seconds=max(0.0, float(firesmoke_yaml.get("alert_gap_seconds", 30.0))),
     )
 
     crowd_yaml = _section(data, "crowd")
