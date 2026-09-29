@@ -32,7 +32,15 @@ firesmoke:
   # validation_status) - it was misreading this office's overhead lighting/hazy ceiling
   # as smoke. This is a stopgap that trades recall for fewer false alarms until real site
   # negatives are collected and the model is retrained/re-evaluated per PLAN.md section 5.2.
-  conf_fire: 0.70
+  #
+  # Fire lowered back to 0.45 (2026-09-29), smoke kept at 0.70 - measured by replaying
+  # footage at the real fire cadence through the real detector + K-of-N gate:
+  #   real fire (WLNE CCTV): first alert at 0:38 at 0.45, vs 2:39 at 0.70
+  #   no false fire alerts at any threshold down to 0.30 on: 3 min of this office's live
+  #   webcam (max fire score 0.31), the Bay 4 welding workshop clip (max 0.10), crowd,
+  #   entry/exit and PPE clips. The office's max SMOKE score was 0.63 - smoke is the
+  #   class the lights nearly trigger, so it stays at 0.70.
+  conf_fire: 0.45
   # Lower than fire: indoors, smoke reaches the camera first (PLAN.md section 5.4).
   # Raised from 0.35 for the same reason as conf_fire above - this was the class actually
   # false-triggering on bright ceiling panels.
@@ -42,6 +50,12 @@ firesmoke:
   gate_k: 6
   gate_n: 10
   gate_iou: 0.3
+  # Alarm on the first fire/smoke detection, then at most one alarm per class per camera
+  # every 30 s while it is still detected (measured in video time for file sources).
+  # Replaces the K-of-N gate above for deciding when to alarm. Trade-off, measured
+  # 2026-09-29: real fire alarms ~20-90 s sooner, but single-frame false detections
+  # (an orange shirt, a bright work lamp) now alarm too. 0 = back to the K-of-N gate.
+  alert_gap_seconds: 30
 
 boundary:
   # Hysteresis in *detection frames*, which run at ~6-8 Hz, not at frame rate.
@@ -67,6 +81,19 @@ crowd:
   # Fallback fixed-pixel radius, used only if a caller never passes frame height.
   eps_px: 80.0
   min_samples: 2
+
+ppe:
+  # helmet_detector: YOLOX head/helmet detector (demo_package final_C_v2, helmet only -
+  #   no vest/gloves/shoes/glasses; zones requiring those stay "indeterminate").
+  # classifier: the original whole-crop multi-label classifier (models/ppe/model.onnx).
+  # Switching back is just this line; --ppe-model on the command line still overrides
+  # the path below for whichever backend is selected.
+  backend: helmet_detector
+  helmet_detector_model: models/ppe/ppe_final_C_v2_320.onnx
+  classifier_model: models/ppe/model.onnx
+  head_threshold: 0.45
+  helmet_threshold: 0.55
+  min_person_height_px: 96
 
 identity:
   # Default OFF. Biometric processing requires a consent story per deployment

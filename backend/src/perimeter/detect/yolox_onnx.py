@@ -86,6 +86,17 @@ def default_intra_op_threads() -> int:
     return max(1, physical - 1)
 
 
+def preferred_providers() -> list[str]:
+    """CUDA when this onnxruntime build has it (onnxruntime-gpu), otherwise CPU.
+
+    ORT falls back to the next provider in the list per node, so CPU is always kept last.
+    """
+    available = ort.get_available_providers()
+    if "CUDAExecutionProvider" in available:
+        return ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    return ["CPUExecutionProvider"]
+
+
 def configure_opencv_threads() -> None:
     """Stop OpenCV and onnxruntime from each claiming every core (PLAN.md section 4).
 
@@ -186,6 +197,7 @@ class YoloxOnnx:
         nms_threshold: float = 0.5,
         intra_op_threads: int | None = None,
         to_rgb: bool | None = None,
+        providers: list[str] | None = None,
     ) -> None:
         self.model_path = Path(model_path)
         if not self.model_path.is_file():
@@ -206,8 +218,9 @@ class YoloxOnnx:
         options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
 
         self.session = ort.InferenceSession(
-            str(self.model_path), options, providers=["CPUExecutionProvider"]
+            str(self.model_path), options, providers=providers or ["CPUExecutionProvider"]
         )
+        self.providers = self.session.get_providers()
 
         model_input = self.session.get_inputs()[0]
         self.input_name = model_input.name

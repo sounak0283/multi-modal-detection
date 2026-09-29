@@ -1,0 +1,14 @@
+{
+  "ppe_model": "models/ppe_final_C_v2_320.onnx",
+  "person_model": "models/person_yolox_nano_416.onnx",
+  "classes": [
+    "head",
+    "helmet"
+  ],
+  "thresholds": {
+    "head": 0.45,
+    "helmet": 0.55
+  },
+  "person_conf": 0.3,
+  "model_id": "final_C_v2 (recipe C, 60 epochs warm-start, val_v2 AP50 96.0)"
+}

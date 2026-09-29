@@ -985,9 +985,19 @@ def _mount_frontend(app: FastAPI) -> None:
     if assets.is_dir():
         app.mount("/assets", StaticFiles(directory=assets), name="assets")
 
+    # index.html references hashed filenames under /assets (index-<hash>.js/css) that
+    # change on every build and get deleted from disk once they do - a cached index.html
+    # left over from before a rebuild/restart would point at assets that no longer
+    # exist, a 404 on the entire JS bundle, which means the app never boots and the page
+    # is simply blank with no error to explain why. index.html itself must never be
+    # cached; the hashed asset files under it are safe to cache indefinitely since a
+    # content change always gets a new filename (StaticFiles' default headers already
+    # do ETag/Last-Modified revalidation for those, which is enough).
+    INDEX_HEADERS = {"Cache-Control": "no-store"}
+
     @app.get("/", include_in_schema=False)
     def spa_root() -> FileResponse:
-        return FileResponse(index)
+        return FileResponse(index, headers=INDEX_HEADERS)
 
     @app.get("/{path:path}", include_in_schema=False)
     def spa_fallback(path: str) -> FileResponse:
@@ -1003,4 +1013,4 @@ def _mount_frontend(app: FastAPI) -> None:
         candidate = (DIST_DIR / path).resolve()
         if candidate.is_file() and DIST_DIR.resolve() in candidate.parents:
             return FileResponse(candidate)
-        return FileResponse(index)
+        return FileResponse(index, headers=INDEX_HEADERS)

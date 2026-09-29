@@ -51,9 +51,36 @@ def classify_state(
     return "indeterminate"
 
 
+@dataclass(frozen=True)
+class PPEResult:
+    """One person's PPE check. `probabilities` feeds `classify_state` exactly as the
+    classifier's output always has; `head_box`/`label` are optional extras for the live
+    overlay, set only by a backend that localises what it saw (the helmet detector)."""
+
+    probabilities: dict[str, float]
+    head_box: tuple[float, float, float, float] | None = None
+    label: str | None = None
+
+
+def person_crop(
+    frame_bgr: np.ndarray, box_xyxy, pad: tuple[float, float, float] = (0.0, 0.0, 0.0)
+) -> tuple[np.ndarray, tuple[int, int]]:
+    """Crop a person box, padded by (x, top, bottom) fractions of its own size and
+    clamped to the frame. Returns the crop and its (x, y) origin in the frame."""
+    fh, fw = frame_bgr.shape[:2]
+    x1, y1, x2, y2 = (float(v) for v in box_xyxy)
+    w, h = x2 - x1, y2 - y1
+    pad_x, pad_top, pad_bottom = pad
+    rx1, ry1 = int(max(0, x1 - pad_x * w)), int(max(0, y1 - pad_top * h))
+    rx2, ry2 = int(min(fw, x2 + pad_x * w)), int(min(fh, y2 + pad_bottom * h))
+    return frame_bgr[ry1:ry2, rx1:rx2], (rx1, ry1)
+
+
 class PPEClassifier:
     """Wraps a multi-label ONNX classifier: one whole-person crop in, one sigmoid
     presence probability per `PPE_ITEMS` entry out."""
+
+    supported_items: frozenset[str] = frozenset(PPE_ITEMS)
 
     def __init__(
         self,
@@ -78,6 +105,10 @@ class PPEClassifier:
         (output,) = self._session.run(None, {self._input_name: blob})
         probabilities = np.asarray(output, dtype=np.float32).reshape(-1)
         return dict(zip(PPE_ITEMS, (float(p) for p in probabilities), strict=False))
+
+    def classify_person(self, frame_bgr: np.ndarray, box_xyxy) -> PPEResult:
+        crop, _origin = person_crop(frame_bgr, box_xyxy)
+        return PPEResult(self.classify(crop))
 
 
 @dataclass
@@ -123,6 +154,10 @@ class PPEMonitor:
             return False
         entry.confirmed = True
         return True
+
+    def is_confirmed(self, zone_id: str, track_id: int, item: str) -> bool:
+        entry = self._states.get((zone_id, track_id, item))
+        return bool(entry and entry.confirmed)
 
     def evict_stale(self, max_age_calls: int = 300) -> None:
         """Drop entries for tracks that stopped being checked a while ago (left the

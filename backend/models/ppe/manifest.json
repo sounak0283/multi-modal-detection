@@ -1,0 +1,39 @@
+{
+  "name": "ppe",
+  "role": "PPE compliance - head (bare head = NO HELMET) / helmet detection inside a padded person crop",
+  "licence": "ours",
+  "licence_note": "Trained outside this repository (demo_package.zip, model_id final_C_v2). Architecture YOLOX-Nano (Apache-2.0). Training data per the package's model_card.md: Hard Hat Workers (CC0), SHEL5K (CC BY 4.0), Roboflow Construction Site Safety v30 (CC BY 4.0) - CC BY 4.0 sources require attribution at distribution (NOTICE.md section 5). Dataset licences are as stated by the package, not independently re-verified here.",
+  "source": "demo_package.zip (model_card.md: 'final_C_v2 (recipe C, 60 epochs warm-start, val_v2 AP50 96.0)')",
+  "datasets": [
+    "Hard Hat Workers (Dataverse, CC0)",
+    "SHEL5K (Mendeley, CC BY 4.0)",
+    "Roboflow Construction Site Safety v30 (CC BY 4.0)"
+  ],
+  "training_commit": "not recorded in demo_package.zip",
+  "trained_at": "not recorded in demo_package.zip (recipe: 60 epochs warm-started from the 20-epoch arm-C ablation; torch 2.6.0+cu124, GTX 1650)",
+  "installed": "2026-09-28 via tools/install_ppe_model.py",
+  "preprocessing": {
+    "crop": "person box padded x 0.10, top 0.12, bottom 0.04 of its own size, clamped to the frame; people shorter than 96 px are not checked",
+    "resize": "letterbox to 320x320, pad value 114, ratio = min(H_in/h, W_in/w), top-left placement",
+    "normalisation": "none - raw 0-255 float32",
+    "layout": "NCHW",
+    "colour": "BGR"
+  },
+  "classes": ["head", "helmet"],
+  "thresholds": {"head": 0.45, "helmet": 0.55, "nms_iou": 0.45},
+  "to_rgb": false,
+  "files": [
+    {
+      "file": "ppe_final_C_v2_320.onnx",
+      "architecture": "YOLOX-Nano",
+      "input": [320, 320],
+      "anchors": 2100,
+      "output": [1, 2100, 7],
+      "precision": "fp32",
+      "to_rgb": false,
+      "bytes": 3653119,
+      "sha256": "4d4155ba528c4e1ae9631976ad820631f9f02c99123bf190eb78df9b3135925a"
+    }
+  ],
+  "validation": "model_card.md val_v2 (4,607 person crops): colour AP50 96.0, head P/R 93.4/90.2, helmet P/R 96.9/93.3. Weak on black/grey helmets (74% recall) and green (n=22). No vest/gloves/shoes/glasses."
+}

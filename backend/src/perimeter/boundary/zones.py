@@ -100,6 +100,10 @@ DETECT_CLASSES = frozenset({"person", "fire", "smoke"})
 # "zone-domain module declares its own copy, kept in sync by convention" precedent
 # DETECT_CLASSES above already sets for person/fire/smoke (Expansion Plan Phase H).
 PPE_ITEMS = frozenset({"helmet", "vest", "gloves", "shoes", "glasses"})
+
+# How far a fire_roi may lower the fire/smoke bar (the dashboard's -0.5 input limit). The
+# fire detector decodes this far below its thresholds, so a delta can actually take effect.
+FIRE_ROI_MAX_SENSITIVITY = 0.5
 AREA_TYPES = {ZoneType.POLYGON, ZoneType.EXCLUSION, ZoneType.FIRE_ROI}
 
 
@@ -116,7 +120,8 @@ class Zone:
     schedule: Schedule = field(default_factory=Schedule)
     severity: Severity = Severity.MEDIUM
     applies_to: frozenset[str] = frozenset()  # exclusion / fire_roi target classes
-    conf_delta: float = 0.0  # fire_roi only; negative = more sensitive
+    # fire_roi only; negative = more sensitive, clamped to >= -FIRE_ROI_MAX_SENSITIVITY
+    conf_delta: float = 0.0
 
     # -- fields reserved for later phases (Expansion Plan §6) -----------------
     # Inert until their owning module ships: a restricted-area allow-list (Phase F.1),

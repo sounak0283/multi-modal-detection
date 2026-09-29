@@ -135,3 +135,34 @@ def test_candidates_do_not_leak_forever_after_fully_aging_out():
     for _ in range(3):
         gate.update([])  # ages fully out of the n=3 window - should be dropped internally
     assert gate._candidates == []
+
+
+# -- k=1: alert on the first detection ------------------------------------------------
+
+
+def test_k1_confirms_on_the_very_first_detection():
+    gate = TemporalGate(k=1, n=10, iou_threshold=0.3)
+    events = gate.update([("fire", BOX)])
+    assert [e.klass for e in events] == ["fire"]
+
+
+def test_k1_a_flickering_fire_does_not_re_alert_within_the_window():
+    gate = TemporalGate(k=1, n=10, iou_threshold=0.3)
+    assert len(gate.update([("fire", BOX)])) == 1
+    # Seen, missed, seen... as a real flickering flame is: still the same fire.
+    for frame in [[], [("fire", BOX)], [], [], [("fire", BOX)]] * 3:
+        assert gate.update(frame) == []
+
+
+def test_k1_re_alerts_once_the_fire_has_been_gone_for_the_whole_window():
+    gate = TemporalGate(k=1, n=4, iou_threshold=0.3)
+    assert len(gate.update([("fire", BOX)])) == 1
+    for _ in range(4):
+        gate.update([])
+    assert len(gate.update([("fire", BOX)])) == 1
+
+
+def test_k2_still_needs_two_detections():
+    gate = TemporalGate(k=2, n=10, iou_threshold=0.3)
+    assert gate.update([("fire", BOX)]) == []
+    assert len(gate.update([("fire", BOX)])) == 1

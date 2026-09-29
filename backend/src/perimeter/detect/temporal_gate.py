@@ -79,17 +79,7 @@ class TemporalGate:
             else:
                 candidate.hits.append(False)
 
-            if not candidate.confirmed and candidate.hit_count >= self.k:
-                candidate.confirmed = True
-                events.append(
-                    ConfirmedEvent(
-                        klass=candidate.klass,
-                        bbox=candidate.last_box,
-                        escalate=_areas_growing(candidate.areas),
-                    )
-                )
-
-        # Anything left unmatched starts a brand new candidate for the next tick.
+        # Anything left unmatched starts a brand new candidate.
         for klass, box in unmatched:
             self._candidates.append(
                 _Candidate(
@@ -102,7 +92,31 @@ class TemporalGate:
         # point carrying them forever and leaking memory on a long-running process.
         self._candidates = [c for c in self._candidates if c.hit_count > 0]
 
+        # Checked after new candidates are added, so k=1 confirms on the very tick a
+        # detection first appears instead of one tick later.
+        for candidate in self._candidates:
+            if not candidate.confirmed and candidate.hit_count >= self.k:
+                candidate.confirmed = True
+                events.append(
+                    ConfirmedEvent(
+                        klass=candidate.klass,
+                        bbox=candidate.last_box,
+                        escalate=_areas_growing(candidate.areas),
+                    )
+                )
+
         return events
+
+    def is_growing(self, klass: str, box: BBox) -> bool:
+        """Whether the tracked blob best overlapping `box` has been growing - lets a
+        caller that decides *when* to alert itself still get the same escalation signal."""
+        best, best_iou = None, self.iou_threshold
+        for candidate in self._candidates:
+            if candidate.klass == klass:
+                iou = _iou(candidate.last_box, box)
+                if iou >= best_iou:
+                    best, best_iou = candidate, iou
+        return best is not None and _areas_growing(best.areas)
 
     def _best_match(self, candidate: _Candidate, unmatched: list[tuple[str, BBox]]) -> int | None:
         best_index, best_iou = None, self.iou_threshold

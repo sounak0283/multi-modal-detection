@@ -45,7 +45,14 @@ from perimeter.alerts.messages import (
 )
 from perimeter.boundary.crowd import CrowdEvent, CrowdMonitor
 from perimeter.boundary.engine import BoundaryEngine, BoundaryEvent
-from perimeter.boundary.zones import EventKind, Severity, Zone, ZoneStore, ZoneType
+from perimeter.boundary.zones import (
+    FIRE_ROI_MAX_SENSITIVITY,
+    EventKind,
+    Severity,
+    Zone,
+    ZoneStore,
+    ZoneType,
+)
 from perimeter.cameras.models import (
     MODULE_BOUNDARY,
     MODULE_CROWD,
@@ -62,7 +69,8 @@ from perimeter.capture.source import CaptureThread, FeedState, Frame
 from perimeter.detect.firesmoke import FireSmokeDetector
 from perimeter.detect.firesmoke import class_name as firesmoke_class_name
 from perimeter.detect.person import MIN_IDENTITY_BOX_HEIGHT_PX, PersonDetector
-from perimeter.detect.ppe import PPEClassifier, PPEMonitor, classify_state
+from perimeter.detect.ppe import PPEClassifier, PPEMonitor, classify_state, person_crop
+from perimeter.detect.ppe_helmet import PPEHelmetDetector
 from perimeter.detect.temporal_gate import ConfirmedEvent, TemporalGate
 from perimeter.detect.welding import SparkDetector, SparkEvent
 from perimeter.detect.yolox_onnx import configure_opencv_threads
@@ -73,6 +81,14 @@ from perimeter.track.tracker import PersonTracker
 log = logging.getLogger("perimeter.pipeline")
 
 MAX_RECENT_EVENTS = 200
+# A PPE overlay mark lives for this many PPE checks after it was measured (checks run
+# every ppe_every_n detection frames), so it does not blink between checks. Aged in
+# detection frames, not wall-clock seconds: the Video test page runs faster than real
+# time, where a seconds-based TTL kept marks alive across several scenes.
+PPE_MARK_MAX_CHECKS = 2
+# Below-threshold fire/smoke boxes within this much of their bar are drawn grey on the
+# overlay ("why didn't that alert?"); anything weaker is not drawn.
+FIRE_NEAR_MISS = 0.10
 ERROR_LOG_INTERVAL_S = 30.0
 JPEG_QUALITY = 75
 
@@ -171,11 +187,17 @@ class Pipeline:
             default_min_frames=settings.boundary.default_min_frames,
         )
         self.firesmoke_detector, self.firesmoke_gate = self._build_firesmoke(camera)
+        # class -> time of that class's last alarm (alert_gap_seconds mode).
+        self._firesmoke_last_alarm: dict[str, float] = {}
         self.crowd_monitor = self._build_crowd_monitor(camera)
         self.ppe_classifier, self.ppe_monitor = self._build_ppe(camera)
         self.spark_detector = SparkDetector() if MODULE_WELDING in camera.enabled_modules else None
         self._spark_box: tuple[tuple[float, ...], float] | None = None
         self._fire_boxes: tuple[list[tuple[str, float, tuple[int, ...], bool]], float] | None = None
+        # track_id -> (head box relative to the person box, label, violation confirmed,
+        # detections_run when measured) for the overlay.
+        self._ppe_marks: dict[int, tuple[tuple[float, ...], str, bool, int]] = {}
+        self._ppe_unsupported_warned: set[tuple[str, str]] = set()
 
         self._slot: LatestSlot[Frame] = LatestSlot(blocking=not capture_realtime)
         self._capture = self._build_capture(camera)
@@ -243,6 +265,7 @@ class Pipeline:
                 conf_fire=self.settings.firesmoke.conf_fire,
                 conf_smoke=self.settings.firesmoke.conf_smoke,
                 intra_op_threads=self.settings.inference.intra_op_threads,
+                max_roi_sensitivity=FIRE_ROI_MAX_SENSITIVITY,
             )
         except Exception as exc:  # noqa: BLE001 - any load failure degrades, never crashes
             log.warning(
@@ -269,24 +292,38 @@ class Pipeline:
             eps_frac=self.settings.crowd.eps_frac,
         )
 
-    def _build_ppe(self, camera: Camera) -> tuple[PPEClassifier | None, PPEMonitor | None]:
+    def _build_ppe(
+        self, camera: Camera
+    ) -> tuple[PPEClassifier | PPEHelmetDetector | None, PPEMonitor | None]:
         """Best-effort, same posture as `_build_firesmoke` (Expansion Plan Phase H):
-        no trained weights ship in this repo, so a missing/unloadable model degrades to
-        a clean, logged no-op rather than a startup failure."""
+        weights are not in git, so a missing/unloadable model degrades to a clean, logged
+        no-op rather than a startup failure. `ppe.backend` picks the model family."""
         if MODULE_PPE not in camera.enabled_modules or not self.ppe_model_path:
             return None, None
+        ppe = self.settings.ppe
+        threads = self.settings.inference.intra_op_threads
         try:
-            classifier = PPEClassifier(
-                self.ppe_model_path,
-                intra_op_threads=self.settings.inference.intra_op_threads,
-            )
+            if ppe.backend == "helmet_detector":
+                classifier = PPEHelmetDetector(
+                    self.ppe_model_path,
+                    head_threshold=ppe.head_threshold,
+                    helmet_threshold=ppe.helmet_threshold,
+                    min_person_height_px=ppe.min_person_height_px,
+                    intra_op_threads=threads,
+                )
+            else:
+                classifier = PPEClassifier(self.ppe_model_path, intra_op_threads=threads)
         except Exception as exc:  # noqa: BLE001 - any load failure degrades, never crashes
             log.warning(
-                "PPE enabled for %s but no usable model at %s (%s) - module inactive",
-                camera.id, self.ppe_model_path, exc,
+                "PPE enabled for %s but the %s model at %s could not be loaded (%s) - "
+                "module inactive",
+                camera.id, ppe.backend, self.ppe_model_path, exc,
             )
             return None, None
-        log.info("PPE compliance checking active for %s", camera.id)
+        log.info(
+            "PPE compliance checking active for %s (%s, items: %s)",
+            camera.id, ppe.backend, ", ".join(sorted(classifier.supported_items)),
+        )
         return classifier, PPEMonitor()
 
     def _build_capture(self, camera: Camera) -> CaptureThread:
@@ -343,6 +380,7 @@ class Pipeline:
             default_min_frames=self.settings.boundary.default_min_frames,
         )
         self.firesmoke_detector, self.firesmoke_gate = self._build_firesmoke(camera)
+        self._firesmoke_last_alarm = {}
         self.crowd_monitor = self._build_crowd_monitor(camera)
         self.ppe_classifier, self.ppe_monitor = self._build_ppe(camera)
         self.spark_detector = SparkDetector() if MODULE_WELDING in camera.enabled_modules else None
@@ -585,10 +623,27 @@ class Pipeline:
         visible_boxes = tracked.xyxy[keep]
         visible_ids = tracked.track_ids[keep]
 
+        classifier = self.ppe_classifier
+        supported = getattr(classifier, "supported_items", None)
         membership = self.engine.ppe_membership(visible_feet, width, height)
+        marks: dict[int, tuple[tuple[float, ...], str, bool, int]] = {}
         for zone_id, mask in membership.items():
             zone = self.engine.zone_by_id(zone_id)
             if zone is None or not zone.ppe_required:
+                continue
+            checked_items = [
+                item for item in zone.ppe_required
+                if supported is None or item in supported
+            ]
+            for item in zone.ppe_required.difference(checked_items):
+                if (zone_id, item) not in self._ppe_unsupported_warned:
+                    self._ppe_unsupported_warned.add((zone_id, item))
+                    log.warning(
+                        "zone %s on %s requires %r, which the active PPE model (%s) cannot "
+                        "detect - that item is never checked", zone.display_name,
+                        self.camera.id, item, self.settings.ppe.backend,
+                    )
+            if not checked_items:
                 continue
             for index in np.nonzero(mask)[0]:
                 track_id = int(visible_ids[index])
@@ -597,12 +652,38 @@ class Pipeline:
                 x2, y2 = min(width, int(box[2])), min(height, int(box[3]))
                 if x2 <= x1 or y2 <= y1:
                     continue
-                probabilities = self.ppe_classifier.classify(frame.image[y1:y2, x1:x2])
-                for item in zone.ppe_required:
+                if hasattr(classifier, "classify_person"):
+                    result = classifier.classify_person(frame.image, (x1, y1, x2, y2))
+                    probabilities, head_box, label = (
+                        result.probabilities, result.head_box, result.label
+                    )
+                else:  # duck-typed classifier exposing only classify(crop)
+                    crop, _origin = person_crop(frame.image, (x1, y1, x2, y2))
+                    probabilities, head_box, label = classifier.classify(crop), None, None
+                for item in checked_items:
                     state = classify_state(probabilities.get(item, 0.0))
                     if self.ppe_monitor.update(zone_id, track_id, item, state):
                         self._publish_ppe(zone, item, track_id, frame.ts, frame.video_pos_s)
+                if head_box is not None and label:
+                    violating = self.ppe_monitor.is_confirmed(zone_id, track_id, "helmet")
+                    pw, ph = max(1, x2 - x1), max(1, y2 - y1)
+                    relative = (
+                        (head_box[0] - x1) / pw, (head_box[1] - y1) / ph,
+                        (head_box[2] - x1) / pw, (head_box[3] - y1) / ph,
+                    )
+                    marks[track_id] = (relative, label, violating, self.stats.detections_run)
         self.ppe_monitor.evict_stale()
+        live = {int(t) for t in tracked.track_ids}
+        oldest = self.stats.detections_run - self._ppe_mark_max_age()
+        with self._lock:
+            self._ppe_marks = {
+                tid: mark for tid, mark in self._ppe_marks.items()
+                if tid in live and mark[3] >= oldest
+            }
+            self._ppe_marks.update(marks)
+
+    def _ppe_mark_max_age(self) -> int:
+        return PPE_MARK_MAX_CHECKS * max(1, self.settings.inference.ppe_every_n)
 
     def _publish_ppe(
         self, zone: Zone, item: str, track_id: int, ts: float,
@@ -786,6 +867,7 @@ class Pipeline:
         height, width = frame.image.shape[:2]
 
         accepted: list[tuple[str, tuple[float, float, float, float]]] = []
+        strongest: dict[str, tuple[float, tuple[float, float, float, float]]] = {}
         seen: list[tuple[str, float, tuple[int, ...], bool]] = []
         for index in range(len(detections)):
             klass = firesmoke_class_name(int(detections.class_ids[index]))
@@ -804,15 +886,38 @@ class Pipeline:
             )
             delta = self.engine.confidence_delta(center, width, height)  # <= 0
             if score < base_conf + delta:
-                seen.append((klass, score, tuple(int(v) for v in box), False))
+                # The detector now decodes well below every bar (so fire_roi deltas can
+                # work); only near misses are worth showing on the overlay.
+                if score >= base_conf + delta - FIRE_NEAR_MISS:
+                    seen.append((klass, score, tuple(int(v) for v in box), False))
                 continue
 
             accepted.append((klass, box))
+            if score > strongest.get(klass, (-1.0, box))[0]:
+                strongest[klass] = (score, box)
             seen.append((klass, score, tuple(int(v) for v in box), True))
         self._fire_boxes = (seen, time.time() + 1.5)
 
-        for confirmed in self.firesmoke_gate.update(accepted):
-            self._publish_firesmoke(confirmed, frame, width, height)
+        confirmed_events = self.firesmoke_gate.update(accepted)
+        gap = self.settings.firesmoke.alert_gap_seconds
+        if gap <= 0:
+            for confirmed in confirmed_events:
+                self._publish_firesmoke(confirmed, frame, width, height)
+            return
+
+        # First detection alarms at once; then one alarm per class per `gap` seconds while
+        # it is still being detected. Video time for file sources, so the Video test page
+        # (which runs faster than real time) spaces alarms like a live camera would.
+        now = frame.video_pos_s if frame.video_pos_s is not None else frame.ts
+        for klass, (_score, box) in strongest.items():
+            last = self._firesmoke_last_alarm.get(klass)
+            if last is not None and now - last < gap:
+                continue
+            self._firesmoke_last_alarm[klass] = now
+            event = ConfirmedEvent(
+                klass=klass, bbox=box, escalate=self.firesmoke_gate.is_growing(klass, box)
+            )
+            self._publish_firesmoke(event, frame, width, height)
 
     def _publish_firesmoke(
         self, event: ConfirmedEvent, frame: Frame, width: int, height: int
@@ -932,6 +1037,31 @@ class Pipeline:
                 cv2.putText(
                     canvas, label, (x1, max(12, y1 - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, colour, 2,
                 )
+        with self._lock:
+            ppe_marks = dict(self._ppe_marks)
+        oldest = self.stats.detections_run - self._ppe_mark_max_age()
+        for index in range(len(tracked) if tracked is not None and ppe_marks else 0):
+            mark = ppe_marks.get(int(tracked.track_ids[index]))
+            if mark is None or mark[3] < oldest:
+                continue
+            relative, label, violating, _measured = mark
+            px1, py1, px2, py2 = (float(v) for v in tracked.xyxy[index])
+            pw, ph = px2 - px1, py2 - py1
+            head_box = (
+                px1 + relative[0] * pw, py1 + relative[1] * ph,
+                px1 + relative[2] * pw, py1 + relative[3] * ph,
+            )
+            if label == "HELMET":
+                colour = (0, 200, 0)
+            elif violating:
+                colour = (0, 0, 255)
+            else:  # bare head seen, not yet confirmed by the hysteresis
+                colour, label = (0, 165, 255), "NO HELMET?"
+            x1, y1, x2, y2 = (int(v) for v in head_box)
+            cv2.rectangle(canvas, (x1, y1), (x2, y2), colour, 2)
+            cv2.putText(
+                canvas, label, (x1, max(12, y1 - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, colour, 2,
+            )
         spark = self._spark_box
         if spark is not None and time.time() < spark[1]:
             x1, y1, x2, y2 = (int(v) for v in spark[0])

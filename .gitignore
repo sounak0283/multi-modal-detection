@@ -1,4 +1,4 @@
-# Python
+    # Python
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -50,3 +50,7 @@ logs/
 # OS
 Thumbs.db
 .DS_Store
+
+# Vendored model packages: keep their docs/scripts for provenance, never the binaries.
+third_party/**/*.onnx
+third_party/**/*.mp4

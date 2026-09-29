@@ -1,6 +1,17 @@
-import { useMemo } from 'react'
 import { Card, CardHead, Dot, EmptyState } from '../components/ui'
-import { streamUrl } from '../api'
+import { useRetryingStream } from '../lib/useRetryingStream'
+
+function StreamTile({ camera }) {
+  const { src, onError } = useRetryingStream(camera.id)
+  return (
+    <img
+      src={src}
+      onError={onError}
+      alt={`${camera.name || camera.id} live view`}
+      className="block aspect-video w-full object-contain"
+    />
+  )
+}
 
 /* All-cameras grid for Live view.
  *
@@ -12,10 +23,6 @@ import { streamUrl } from '../api'
  * zone overlay and stat tiles live.
  */
 export default function LiveGrid({ cameras, onSelect }) {
-  // One shared cache-buster for the whole grid: it only needs to change on mount (a
-  // fresh grid should not reuse a stale stream URL from before), not per camera.
-  const bust = useMemo(() => Date.now(), [])
-
   if (cameras.length === 0) {
     return (
       <Card>
@@ -44,11 +51,7 @@ export default function LiveGrid({ cameras, onSelect }) {
             title={`Open ${camera.name || camera.id} in single view`}
           >
             {camera.running ? (
-              <img
-                src={streamUrl(camera.id, bust)}
-                alt={`${camera.name || camera.id} live view`}
-                className="block aspect-video w-full object-contain"
-              />
+              <StreamTile camera={camera} />
             ) : (
               <div className="flex aspect-video w-full items-center justify-center text-[12.5px] text-ink-500">
                 Not streaming

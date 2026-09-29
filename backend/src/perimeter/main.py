@@ -65,7 +65,6 @@ log = logging.getLogger("perimeter")
 
 DEFAULT_MODEL = Path("models/yolox_person/yolox_nano.onnx")
 DEFAULT_FIRESMOKE_MODEL = Path("models/firesmoke/model.onnx")
-DEFAULT_PPE_MODEL = Path("models/ppe/model.onnx")
 DEFAULT_YUNET_MODEL = Path("models/yunet/face_detection_yunet_2023mar.onnx")
 DEFAULT_SFACE_MODEL = Path("models/sface/face_recognition_sface_2021dec.onnx")
 RETENTION_SWEEP_INTERVAL_S = 24 * 60 * 60  # once a day is enough for a day-granularity policy
@@ -86,8 +85,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--ppe-model",
         type=Path,
-        default=DEFAULT_PPE_MODEL,
-        help="PPE compliance weights (Expansion Plan Phase H). Optional - same posture "
+        default=None,
+        help="PPE compliance weights (Expansion Plan Phase H). Defaults to the path for "
+        "the backend chosen by ppe.backend in config/app.yaml. Optional - same posture "
         "as --firesmoke-model: a missing file does not stop the dashboard from "
         "starting, PPE checking just stays inactive. See backend/models/ppe/README.md.",
     )
@@ -337,12 +337,13 @@ def main(argv: list[str] | None = None) -> int:
 
     # Same posture as fire/smoke above (Expansion Plan Phase H) - no trained weights
     # exist yet for most installs, and PPE is one optional module among several.
-    ppe_model_path = str(args.ppe_model) if args.ppe_model.is_file() else None
+    ppe_model = args.ppe_model or Path(settings.ppe.model_path)
+    ppe_model_path = str(ppe_model) if ppe_model.is_file() else None
     if ppe_model_path is None:
         log.info(
-            "PPE compliance checking unavailable - no model at %s. See "
+            "PPE compliance checking unavailable - no %s model at %s. See "
             "backend/models/ppe/README.md.",
-            args.ppe_model,
+            settings.ppe.backend, ppe_model,
         )
 
     identity_resolver = _build_identity_resolver(
