@@ -21,9 +21,12 @@
   --color-ink-200: #c6cedb;
   --color-ink-100: #e8ecf2;
 
+  --color-brand-100: #cfe2ff; /* text on a brand-900 fill (the active nav item) */
   --color-brand-500: #3d8bfd;
   --color-brand-600: #2f6fd0;
   --color-brand-900: #16304f;
+  --color-on-brand: #04122a; /* text on a brand-500 fill (primary buttons) */
+  --color-on-alarm: #2a0808; /* text on an alarm-400 fill */
 
   --color-ok-400: #34d399;
   --color-ok-900: #10291f;
@@ -41,6 +44,49 @@
 
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Consolas, monospace;
+}
+
+/* Light theme (Settings -> Appearance). Same token names, light values, so every page
+ * follows without per-component styling. The neutral ramp inverts by ROLE: 950-500 are
+ * only ever backgrounds/borders and 100-500 only ever text, so each keeps its job. Status
+ * colours darken to stay readable on white; zone colours stay as they are because they
+ * are drawn over camera video, which is never themed. */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --color-ink-950: #f3f5f9; /* page */
+  --color-ink-900: #ffffff; /* cards, sidebar */
+  --color-ink-850: #f8fafc;
+  --color-ink-800: #f1f4f8; /* inputs, hovers, subtle fills */
+  --color-ink-700: #e2e7ef; /* borders */
+  --color-ink-600: #cbd3de;
+  --color-ink-500: #94a0b2;
+  --color-ink-400: #64748b; /* muted text */
+  --color-ink-300: #475569;
+  --color-ink-200: #334155;
+  --color-ink-100: #0f172a; /* primary text */
+
+  --color-brand-100: #1d4ed8;
+  --color-brand-500: #2563eb;
+  --color-brand-600: #1d4ed8;
+  --color-brand-900: #e8effd;
+  --color-on-brand: #ffffff;
+  --color-on-alarm: #ffffff;
+
+  --color-ok-400: #059669;
+  --color-ok-900: #dcf5e9;
+  --color-warn-400: #b45309;
+  --color-warn-900: #fdf1cf;
+  --color-alarm-400: #dc2626;
+  --color-alarm-900: #fde2e2;
+}
+
+:root[data-theme="light"] select,
+:root[data-theme="light"] input[type="time"],
+:root[data-theme="light"] input[type="number"] { color-scheme: light; }
+
+:root[data-theme="light"] .perimeter-card {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 html, body, #root { height: 100%; }

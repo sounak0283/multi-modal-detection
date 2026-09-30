@@ -56,7 +56,7 @@ export default function Shell({
               aria-current={view === id ? 'page' : undefined}
               className={`flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13.5px] transition-colors ${
                 view === id
-                  ? 'bg-brand-900 font-medium text-[#cfe2ff]'
+                  ? 'bg-brand-900 font-medium text-brand-100'
                   : 'text-ink-300 hover:bg-ink-800 hover:text-ink-100'
               }`}
             >

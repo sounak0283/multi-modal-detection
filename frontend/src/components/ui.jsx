@@ -11,7 +11,7 @@ export function Card({ children, className = '' }) {
   return (
     <section
       className={cx(
-        'rounded-xl border border-ink-700 bg-ink-900 overflow-hidden',
+        'perimeter-card rounded-xl border border-ink-700 bg-ink-900 overflow-hidden',
         className,
       )}
     >
@@ -45,7 +45,7 @@ export function CardFoot({ children, className = '' }) {
 const BUTTON_VARIANTS = {
   default: 'bg-ink-800 border-ink-700 text-ink-100 hover:bg-ink-700 hover:border-ink-600',
   primary:
-    'bg-brand-500 border-brand-500 text-[#04122a] font-semibold hover:bg-brand-600 hover:border-brand-600',
+    'bg-brand-500 border-brand-500 text-on-brand font-semibold hover:bg-brand-600 hover:border-brand-600',
   danger: 'bg-transparent border-alarm-900 text-alarm-400 hover:bg-alarm-900',
   ghost: 'bg-transparent border-transparent text-ink-300 hover:bg-ink-800 hover:text-ink-100',
 }

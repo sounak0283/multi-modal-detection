@@ -217,13 +217,18 @@ class Database:
         return [_doc_to_dict(doc) for doc in cursor]
 
     def event_counts(
-        self, since: datetime | None = None, camera_id: str | None = None
+        self,
+        since: datetime | None = None,
+        camera_id: str | None = None,
+        zone_id: str | None = None,
     ) -> dict[str, int]:
         match: dict[str, Any] = {}
         if since:
             match["ts"] = {"$gte": since}
         if camera_id:
             match["camera_id"] = camera_id
+        if zone_id:
+            match["zone_id"] = zone_id
         pipeline: list[dict[str, Any]] = []
         if match:
             pipeline.append({"$match": match})

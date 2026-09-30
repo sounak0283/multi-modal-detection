@@ -164,7 +164,7 @@ function Dashboard({ user, onLogout }) {
           onClick={() => setLiveGrid(value)}
           className={`px-3 py-1.5 text-[12.5px] transition-colors not-first:border-l not-first:border-ink-700 ${
             liveGrid === value
-              ? 'bg-brand-500 font-semibold text-[#04122a]'
+              ? 'bg-brand-500 font-semibold text-on-brand'
               : 'bg-ink-800 text-ink-200 hover:bg-ink-700'
           }`}
         >

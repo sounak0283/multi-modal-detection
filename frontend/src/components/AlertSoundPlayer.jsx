@@ -19,6 +19,7 @@ const SEEN_CAP = 500
  * whoever already has the dashboard open and interacted with. */
 export default function AlertSoundPlayer() {
   const seen = useRef(new Set())
+  const primed = useRef(false)
   const configRef = useRef({ sound_enabled: true, sound_min_severity: 'high' })
   const audioCtxRef = useRef(null)
 
@@ -57,6 +58,11 @@ export default function AlertSoundPlayer() {
       const { sound_enabled, sound_min_severity } = configRef.current
       const floor = SEVERITY_RANK[sound_min_severity] ?? SEVERITY_RANK.high
 
+      // The first poll after a page load only records what already happened: the server
+      // keeps recent alerts in memory, and a reload must not replay a beep for each one.
+      const priming = !primed.current
+      primed.current = true
+
       for (const event of page.events || []) {
         const key = `${event.ts}|${event.kind}|${event.message}`
         if (seen.current.has(key)) continue
@@ -66,7 +72,7 @@ export default function AlertSoundPlayer() {
         }
 
         const rank = SEVERITY_RANK[event.severity] ?? SEVERITY_RANK.medium
-        if (sound_enabled && rank >= floor) beep()
+        if (!priming && sound_enabled && rank >= floor) beep()
       }
     }
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
+import { acknowledge as rememberAcknowledged, alertKey, isAcknowledged } from '../lib/acknowledged'
 
 const POLL_MS = 2500
 // `seen` only needs to dedupe against what a poll could plausibly re-fetch, not every
@@ -34,8 +35,11 @@ export default function FireAlertOverlay() {
 
       const fresh = (page.events || []).filter((event) => {
         if (event.kind !== 'fire' && event.kind !== 'smoke') return false
-        const key = `${event.ts}|${event.kind}|${event.message}`
-        if (seen.current.has(key)) return false
+        // Video test runs (camera ids "test_...") list their alerts on their own page; a
+        // test must not take over every page with a fire alarm.
+        if (String(event.camera_id || '').startsWith('test_')) return false
+        const key = alertKey(event)
+        if (seen.current.has(key) || isAcknowledged(event)) return false
         seen.current.add(key)
         if (seen.current.size > SEEN_CAP) {
           seen.current.delete(seen.current.values().next().value)
@@ -60,8 +64,14 @@ export default function FireAlertOverlay() {
   if (queue.length === 0) return null
 
   const active = queue[0]
-  const acknowledge = () => setQueue((q) => q.slice(1))
-  const acknowledgeAll = () => setQueue([])
+  const acknowledge = () => {
+    rememberAcknowledged([active])
+    setQueue((q) => q.slice(1))
+  }
+  const acknowledgeAll = () => {
+    rememberAcknowledged(queue)
+    setQueue([])
+  }
 
   return (
     <div
@@ -94,7 +104,7 @@ export default function FireAlertOverlay() {
             type="button"
             autoFocus
             onClick={acknowledge}
-            className="flex-1 rounded-lg bg-alarm-400 px-3 py-2 text-[13px] font-semibold text-[#2a0808] transition-opacity hover:opacity-85"
+            className="flex-1 rounded-lg bg-alarm-400 px-3 py-2 text-[13px] font-semibold text-on-alarm transition-opacity hover:opacity-85"
           >
             Acknowledge
           </button>

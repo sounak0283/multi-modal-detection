@@ -16,9 +16,10 @@ import queue
 import smtplib
 import threading
 from collections.abc import Callable
-from datetime import UTC, datetime
 from email.message import EmailMessage
 from typing import Any
+
+from perimeter.timefmt import local_time
 
 log = logging.getLogger("perimeter.alerts.sinks.smtp")
 
@@ -140,11 +141,7 @@ def _build_message(
     message["To"] = ", ".join(to)
 
     ts = payload.get("ts")
-    when = (
-        datetime.fromtimestamp(ts, tz=UTC).isoformat()
-        if isinstance(ts, int | float)
-        else "unknown time"
-    )
+    when = local_time(ts) if isinstance(ts, int | float) else "unknown time"
     lines = [
         payload.get("message", "(no message)"),
         "",

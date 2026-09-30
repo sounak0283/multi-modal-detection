@@ -2,6 +2,46 @@ import { useState } from 'react'
 import { Card, CardBody, CardHead, Toggle } from '../components/ui'
 import { useToast } from '../components/Toast'
 import { api } from '../api'
+import { THEMES, getTheme, setTheme } from '../lib/theme'
+
+const THEME_LABELS = { dark: 'Dark', light: 'Light' }
+
+function Appearance() {
+  const [theme, setThemeState] = useState(getTheme)
+  return (
+    <Card>
+      <CardHead title="Appearance" />
+      <CardBody className="space-y-3">
+        <div
+          role="radiogroup"
+          aria-label="Theme"
+          className="inline-flex overflow-hidden rounded-lg border border-ink-700"
+        >
+          {THEMES.map((value) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={theme === value}
+              onClick={() => setThemeState(setTheme(value))}
+              className={`px-4 py-1.5 text-[12.5px] transition-colors not-first:border-l not-first:border-ink-700 ${
+                theme === value
+                  ? 'bg-brand-500 font-semibold text-on-brand'
+                  : 'bg-ink-800 text-ink-200 hover:bg-ink-700'
+              }`}
+            >
+              {THEME_LABELS[value]}
+            </button>
+          ))}
+        </div>
+        <p className="text-[12px] text-ink-400">
+          Saved in this browser only. Dark suits a control room next to a video wall; camera
+          video is never recoloured.
+        </p>
+      </CardBody>
+    </Card>
+  )
+}
 
 export default function Settings({ features, onChanged }) {
   const toast = useToast()
@@ -23,6 +63,7 @@ export default function Settings({ features, onChanged }) {
 
   return (
     <div className="max-w-2xl space-y-4">
+      <Appearance />
       <Card>
         <CardHead title="Video test" />
         <CardBody className="space-y-3">

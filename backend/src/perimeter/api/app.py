@@ -84,6 +84,21 @@ DIST_DIR = WEB_DIR / "dist"
 STREAM_BOUNDARY = "frame"
 
 
+def _parse_since(since: str | None) -> datetime | None:
+    """An ISO-8601 `since` query value as an aware UTC datetime. The dashboard computes it
+    in the viewer's own timezone ("today" starts at their midnight, not UTC's) and sends it
+    with an offset or a Z suffix; a value with no offset is taken as UTC."""
+    if not since:
+        return None
+    try:
+        parsed = datetime.fromisoformat(since.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise HTTPException(400, f"since must be an ISO-8601 timestamp: {exc}") from exc
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
 def _database_health(database: Any | None) -> dict[str, Any]:
     """Storage status, reported separately from pipeline status.
 
@@ -593,9 +608,13 @@ def create_app(
         zone_id: str | None = None,
         camera_id: str | None = None,
         identity_status: str | None = None,
+        since: str | None = None,
         _user: User = Depends(require_any_role),
     ) -> dict[str, Any]:
         """Alert history from MongoDB.
+
+        `since` is an ISO-8601 timestamp; the dashboard computes it in the viewer's own
+        timezone ("today" starts at their midnight, not UTC's) and sends it with an offset.
 
         Unlike the single-camera version there is no in-memory fallback here: with many
         cameras and no per-camera in-process ring guaranteed to still exist (a camera can
@@ -606,6 +625,7 @@ def create_app(
         `identity_status=known` is what the People > Recognition log view filters on -
         every other consumer (AlertHistory) leaves it unset and sees everything.
         """
+        since_dt = _parse_since(since)
         if database is None:
             raise HTTPException(503, "event storage is not configured")
         _require_storage()
@@ -616,6 +636,7 @@ def create_app(
                     kind=kind,
                     zone_id=zone_id,
                     camera_id=camera_id,
+                    since=since_dt,
                     identity_status=identity_status,
                 ),
                 "source": "mongodb",
@@ -644,10 +665,18 @@ def create_app(
 
     @router.get("/events/summary")
     def events_summary(
-        camera_id: str | None = None, _user: User = Depends(require_any_role)
+        camera_id: str | None = None,
+        zone_id: str | None = None,
+        since: str | None = None,
+        _user: User = Depends(require_any_role),
     ) -> dict[str, Any]:
+        """Counts per alert kind. `window` applies exactly the filters Alert history's list
+        uses (period, camera, boundary) so its cards always agree with the list; `counts`,
+        `today` and `entries_by_zone_today` are unchanged for Live view."""
+        since_dt = _parse_since(since)
+        empty = {"counts": {}, "today": {}, "entries_by_zone_today": {}, "window": {}}
         if database is None or not _storage_up():
-            return {"available": False, "counts": {}, "today": {}, "entries_by_zone_today": {}}
+            return {"available": False, **empty}
         try:
             midnight = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
             return {
@@ -657,15 +686,12 @@ def create_app(
                 "entries_by_zone_today": database.zone_entry_counts(
                     since=midnight, camera_id=camera_id
                 ),
+                "window": database.event_counts(
+                    since=since_dt, camera_id=camera_id, zone_id=zone_id
+                ),
             }
         except Exception as exc:  # noqa: BLE001
-            return {
-                "available": False,
-                "error": str(exc),
-                "counts": {},
-                "today": {},
-                "entries_by_zone_today": {},
-            }
+            return {"available": False, "error": str(exc), **empty}
 
     # open_writer() (record.py) falls through mp4v -> XVID if the platform's OpenCV
     # build lacks an MP4 encoder, so the file actually on disk may be .avi - the

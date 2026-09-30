@@ -351,7 +351,7 @@ export default function Cameras({ devTools, onChanged, readOnly = false }) {
                         onClick={() => set({ source_type: value })}
                         className={`flex-1 px-3 py-2 text-[12.5px] transition-colors not-first:border-l not-first:border-ink-700 ${
                           form.source_type === value
-                            ? 'bg-brand-500 font-semibold text-[#04122a]'
+                            ? 'bg-brand-500 font-semibold text-on-brand'
                             : 'bg-ink-800 text-ink-200 hover:bg-ink-700'
                         }`}
                       >

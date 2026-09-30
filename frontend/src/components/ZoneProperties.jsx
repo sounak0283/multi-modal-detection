@@ -308,7 +308,7 @@ export default function ZoneProperties({ zone, onChange, onDelete }) {
                       }
                       className={`rounded-md border px-2 py-1 text-[11.5px] capitalize transition-colors ${
                         on
-                          ? 'border-brand-500 bg-brand-500 font-semibold text-[#04122a]'
+                          ? 'border-brand-500 bg-brand-500 font-semibold text-on-brand'
                           : 'border-ink-700 bg-ink-800 text-ink-300 hover:border-ink-600'
                       }`}
                     >

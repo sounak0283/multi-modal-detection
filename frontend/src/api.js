@@ -123,7 +123,14 @@ export const api = {
   // -- events (across cameras, optionally filtered) ----------------------------
   // /events is what has been RECORDED; /events/live is what is HAPPENING. They diverge
   // exactly when storage is broken, which is when the difference matters most.
-  events: ({ limit = 200, kind = '', zoneId = '', cameraId = '', identityStatus = '' } = {}) =>
+  events: ({
+    limit = 200,
+    kind = '',
+    zoneId = '',
+    cameraId = '',
+    identityStatus = '',
+    since = '',
+  } = {}) =>
     request(
       withParams('/api/events', {
         limit,
@@ -131,11 +138,13 @@ export const api = {
         zone_id: zoneId,
         camera_id: cameraId,
         identity_status: identityStatus,
+        since,
       }),
     ),
   liveEvents: (limit = 20, cameraId = '') =>
     request(withParams('/api/events/live', { limit, camera_id: cameraId })),
-  eventsSummary: (cameraId = '') => request(withParams('/api/events/summary', { camera_id: cameraId })),
+  eventsSummary: (cameraId = '', { zoneId = '', since = '' } = {}) =>
+    request(withParams('/api/events/summary', { camera_id: cameraId, zone_id: zoneId, since })),
 
   // Dev-only: 404s unless the server has PERIMETER_DEV_TOOLS=true. Injects a fake fire/smoke
   // event so the popup can be exercised before a real detector produces one.

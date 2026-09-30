@@ -45,6 +45,7 @@ from perimeter.capture.ring_buffer import JpegRingBuffer
 from perimeter.evidence.policy import ClipPolicy
 from perimeter.evidence.store import LocalEvidenceStore, S3EvidenceStore
 from perimeter.record import open_writer
+from perimeter.timefmt import local_time
 
 log = logging.getLogger("perimeter.evidence.writer")
 
@@ -66,6 +67,15 @@ NO_VIDEO_SCOPE = "novideo"
 # reach `min_clip_seconds`. Past it the clip is saved as-is rather than delaying the email
 # indefinitely (a camera that just dropped may never fill the buffer).
 MAX_EXTRA_WAIT_S = 15.0
+# A ring buffer bounded to N seconds never spans a full N (its oldest frame is dropped the
+# moment it is N seconds old), so "full" means within this of its capacity - otherwise, with
+# ring_buffer_seconds == min_clip_seconds (the shipped config), every clip waited the whole
+# MAX_EXTRA_WAIT_S for a length it could never reach, delaying every alert email by it.
+# 1 s is above the gap between frames down to 1 fps.
+BUFFER_FULL_SLACK_S = 1.0
+# Normal (non-urgent) clips are muxed and uploaded in parallel, so a burst of alerts - several
+# people entering at once - does not queue each email behind every clip before it.
+NORMAL_WORKERS = 3
 
 
 @dataclass
@@ -219,19 +229,22 @@ class EvidenceWriter:
         # "no clip needed" jobs, which just send the email.
         self._queue: queue.Queue[_Job] = queue.Queue()
         self._urgent_queue: queue.Queue[_Job] = queue.Queue()
-        self._thread: threading.Thread | None = None
+        self._threads: list[threading.Thread] = []
         self._urgent_thread: threading.Thread | None = None
         self._stop = threading.Event()
 
     # -- lifecycle -----------------------------------------------------------
 
     def start(self) -> None:
-        if self._thread is not None:
+        if self._threads:
             return
-        self._thread = threading.Thread(
-            target=self._run, args=(self._queue,), name="evidence-writer", daemon=True
-        )
-        self._thread.start()
+        for index in range(NORMAL_WORKERS):
+            thread = threading.Thread(
+                target=self._run, args=(self._queue,), name=f"evidence-writer-{index}",
+                daemon=True,
+            )
+            thread.start()
+            self._threads.append(thread)
         self._urgent_thread = threading.Thread(
             target=self._run, args=(self._urgent_queue,), name="evidence-urgent", daemon=True
         )
@@ -244,9 +257,9 @@ class EvidenceWriter:
 
     def stop(self, timeout: float = 5.0) -> None:
         self._stop.set()
-        if self._thread is not None:
-            self._thread.join(timeout)
-            self._thread = None
+        for thread in self._threads:
+            thread.join(timeout)
+        self._threads = []
         if self._urgent_thread is not None:
             self._urgent_thread.join(timeout)
             self._urgent_thread = None
@@ -407,10 +420,14 @@ class EvidenceWriter:
         lands right after a start or a camera reconnect, before the buffer has filled."""
         frames = ring_buffer.snapshot()
         waited = 0.0
+        target = self.min_clip_seconds
+        capacity = getattr(ring_buffer, "seconds", None)
+        if capacity is not None:
+            target = min(target, capacity - BUFFER_FULL_SLACK_S)
         while (
             self.min_clip_seconds > 0
             and len(frames) >= 2
-            and frames[-1][0] - frames[0][0] < self.min_clip_seconds
+            and frames[-1][0] - frames[0][0] < target
             and not urgent  # urgent alerts never wait for a fuller buffer
             and waited < self.max_extra_wait_s
             and not self._stop.is_set()
@@ -467,7 +484,7 @@ class EvidenceWriter:
         return {
             **payload,
             "clip_url": url,
-            "clip_link_expires_at": expires.strftime("%Y-%m-%d %H:%M UTC"),
+            "clip_link_expires_at": local_time(expires, seconds=False),
         }
 
     def _notify(

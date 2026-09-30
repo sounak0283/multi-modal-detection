@@ -7,6 +7,7 @@ real, not mocked out.
 
 from __future__ import annotations
 
+import re
 import threading
 import time
 from datetime import UTC, datetime
@@ -211,7 +212,8 @@ def test_first_email_carries_the_video_link_and_mongo_gets_the_uri():
     assert call["followup"] is False
     assert call["payload"]["clip_url"].startswith("https://signed.example/evid/clips/cam_01/")
     assert "exp=7200" in call["payload"]["clip_url"]
-    assert call["payload"]["clip_link_expires_at"].endswith("UTC")
+    # Local time with the offset spelled out, e.g. "02 Oct 2026, 13:30 (UTC+05:30)".
+    assert re.search(r"\(UTC[+-]\d\d:\d\d\)$", call["payload"]["clip_link_expires_at"])
     db = writer.database
     assert db.last("clip_status") == "saved"
     assert db.last("clip_uri").startswith("s3://evid/clips/cam_01/")
@@ -523,6 +525,52 @@ def test_a_full_buffer_is_not_delayed_at_all():
     assert time.time() - started < 2.0
 
 
+def test_a_full_buffer_the_same_size_as_the_minimum_clip_is_not_delayed():
+    """Regression: with ring_buffer_seconds == min_clip_seconds (the shipped config, 10/10)
+    the buffer's span tops out just under its size (9.917s at 12 fps), so every clip waited
+    the whole max_extra_wait_s for a length it could never reach - ~15s added to every
+    boundary/PPE/welding alert email, and a growing backlog behind it."""
+    buf = JpegRingBuffer(seconds=10.0)
+    for i in range(12 * 30):  # 30s of a 12 fps camera: completely full
+        buf.append(1000.0 + i / 12.0, jpeg())
+    writer, spans = _writer_with_span_recorder(buf, min_clip_seconds=10.0, max_extra_wait_s=15.0)
+
+    started = time.time()
+    writer.start()
+    writer.on_alert(dict(ALERT))
+    assert wait_for(lambda: spans, timeout=20.0)
+    writer.stop()
+
+    assert time.time() - started < 2.0
+    assert spans[0] > 9.0
+
+
+def test_a_burst_of_alerts_is_processed_in_parallel_not_queued():
+    started_at, lock = [], threading.Lock()
+
+    def slow_mux(frames, event_id, tmp_dir):
+        with lock:
+            started_at.append(time.time())
+        time.sleep(1.0)  # a clip that takes a second to encode and upload
+        return fake_mux(frames, event_id, tmp_dir)
+
+    notifier = Notifier()
+    writer = EvidenceWriter(
+        database=FakeDb(), store=s3_store(), ring_buffer_lookup=lambda cam: ring(),
+        post_roll_seconds=0.0, mux=slow_mux, notify=notifier,
+    )
+    writer.start()
+    t0 = time.time()
+    for n in range(3):
+        writer.on_alert({**ALERT, "id": f"evt{n}"})
+    assert wait_for(lambda: len(notifier.calls) >= 3, timeout=10.0)
+    elapsed = time.time() - t0
+    writer.stop()
+
+    assert max(started_at) - min(started_at) < 0.5  # all three started together
+    assert elapsed < 2.5  # one at a time would take 3s+
+
+
 def test_the_ring_buffer_is_never_smaller_than_the_minimum_clip(tmp_path):
     from perimeter.settings import load_settings
 
@@ -596,3 +644,35 @@ def test_falls_back_when_h264_cannot_even_be_opened(monkeypatch, tmp_path):
 def test_odd_frame_sizes_are_trimmed_for_h264(monkeypatch, tmp_path):
     wm, _asked = _stub_codecs(monkeypatch, {"avc1": "h264"})
     assert wm.mux_clip(_frames(size=(359, 641)), "e1", tmp_path) is not None  # writer asserts even
+
+
+def test_email_time_is_local_with_the_offset_not_bare_utc(monkeypatch):
+    """Regression: the email printed a bare UTC ISO time (06:18:30+00:00 for an alert at
+    11:48:30 IST), which read as 5.5 h wrong to anyone in India."""
+    import os
+    import time as time_mod
+
+    if not hasattr(time_mod, "tzset"):
+        pytest.skip("per-test timezone switching needs time.tzset (not on Windows)")
+    monkeypatch.setenv("TZ", "Asia/Kolkata")
+    time_mod.tzset()
+    try:
+        ts = datetime(2026, 9, 30, 6, 18, 30, tzinfo=UTC).timestamp()
+        body = _build_message({**EVENT, "ts": ts, "message": "m"}, "f@x.com", ("t@x.com",))
+        assert "30 Sep 2026, 11:48:30 (UTC+05:30)" in body.get_content()
+    finally:
+        monkeypatch.delenv("TZ")
+        os.environ.pop("TZ", None)
+        time_mod.tzset()
+
+
+def test_local_time_formats_the_machines_own_zone_with_its_offset():
+    from perimeter.timefmt import local_time
+
+    ts = datetime(2026, 9, 30, 6, 18, 30, tzinfo=UTC)
+    expected_local = ts.astimezone()
+    offset = expected_local.strftime("%z")
+    assert local_time(ts.timestamp()) == (
+        f"{expected_local:%d %b %Y, %H:%M:%S} (UTC{offset[:3]}:{offset[3:]})"
+    )
+    assert local_time(ts, seconds=False).endswith(f"(UTC{offset[:3]}:{offset[3:]})")
