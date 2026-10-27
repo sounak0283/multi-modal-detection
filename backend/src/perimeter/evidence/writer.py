@@ -84,6 +84,9 @@ class _Job:
     deadline: float
     skip: bool = False  # policy says no clip: just send the email
     urgent: bool = False  # email now, video follows
+    # Rules the alert email already went to, when it was sent on arrival (urgent alerts).
+    # None: the email has not been sent yet and the worker sends it.
+    pre_sent: set[str] | None = None
 
 
 @dataclass
@@ -280,12 +283,19 @@ class EvidenceWriter:
             return  # persistence failed - nothing to attach evidence to yet
         now = time.time()
         decision = self.policy.decide(payload) if self.policy else None
+        # Urgent alerts (fire, smoke, crowd, access) are emailed right here, as they arrive.
+        # Sending from the urgent worker made each one wait behind every earlier urgent
+        # alert's clip being built and uploaded (5-8s+ each) - measured: a fire email held
+        # back 17s+ in a run of nothing but fire alerts. Routing only enqueues the send, so
+        # this stays fast (at most one throttled config read).
         if decision is not None and not decision.record:
             log.debug("no clip for event %s: %s", payload["id"], decision.reason)
-            self._urgent_queue.put(_Job(payload, now, skip=True))
+            pre_sent = self._notify(payload, scope=NO_VIDEO_SCOPE) if decision.urgent else None
+            self._urgent_queue.put(_Job(payload, now, skip=True, pre_sent=pre_sent))
         elif decision is not None and decision.urgent:
+            pre_sent = self._notify(payload)
             self._urgent_queue.put(
-                _Job(payload, now + self.urgent_post_roll_seconds, urgent=True)
+                _Job(payload, now + self.urgent_post_roll_seconds, urgent=True, pre_sent=pre_sent)
             )
         else:
             self._queue.put(_Job(payload, now + self.post_roll_seconds))
@@ -308,14 +318,13 @@ class EvidenceWriter:
         payload = job.payload
         if job.skip:
             self.database.update_evidence_paths(payload["id"], clip_status="skipped")
-            # Own cooldown scope: this email has no video and must not use up the cooldown
-            # of a video-carrying alert for the same camera and zone.
-            self._notify(payload, scope=NO_VIDEO_SCOPE)
+            if job.pre_sent is None:  # urgent alerts were already emailed on arrival
+                # Own cooldown scope: this email has no video and must not use up the
+                # cooldown of a video-carrying alert for the same camera and zone.
+                self._notify(payload, scope=NO_VIDEO_SCOPE)
             return
-        pre_sent: set[str] | None = None
-        if job.urgent:
-            # Email first, at once: the video is a follow-up, not something fire waits for.
-            pre_sent = self._notify(payload)
+        # Urgent: the alert email already went out in on_alert(); the video follows.
+        pre_sent = job.pre_sent if job.urgent else None
         remaining = job.deadline - time.time()
         if remaining > 0:
             # Interruptible: stop() should not have to wait out a post-roll.

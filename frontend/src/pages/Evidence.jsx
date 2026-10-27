@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Card, CardHead, Dot, EmptyState, Select } from '../components/ui'
 import { api, eventClipUrl, eventSnapshotUrl } from '../api'
 import { useToast } from '../components/Toast'
+import AlertAI from '../components/ai/AlertAI'
 
 /* Evidence viewer: pick an alert, watch its video, read every detail about it.
  *
@@ -219,6 +220,8 @@ function Detail({ event, cameraName }) {
           . Clips saved before the H.264 fix use a format browsers cannot play inline.
         </p>
       )}
+
+      <AlertAI event={event} />
 
       <Card>
         <CardHead title="Alert details">

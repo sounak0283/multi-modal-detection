@@ -18,6 +18,7 @@ import { ToastProvider, useToast } from './components/Toast'
 import ErrorBoundary from './components/ErrorBoundary'
 import FireAlertOverlay from './components/FireAlertOverlay'
 import AlertSoundPlayer from './components/AlertSoundPlayer'
+import AssistantDrawer from './components/ai/AssistantDrawer'
 import { api, setUnauthorizedHandler } from './api'
 import { usePolling } from './lib/usePolling'
 
@@ -252,6 +253,7 @@ function Dashboard({ user, onLogout }) {
           page is open - not just when History or Live view happens to be on screen. */}
       <FireAlertOverlay />
       <AlertSoundPlayer />
+      <AssistantDrawer view={view} user={user} />
     </>
   )
 }

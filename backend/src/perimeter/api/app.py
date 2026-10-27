@@ -39,6 +39,7 @@ from fastapi.staticfiles import StaticFiles
 from pymongo.errors import PyMongoError, ServerSelectionTimeoutError
 
 from perimeter.alerts.cooldown import alert_config_from_dict
+from perimeter.api.ai_routes import add_ai_routes
 from perimeter.api.testvideo_routes import add_test_video_routes
 from perimeter.appsettings import AppSettings, AppSettingsStore
 from perimeter.auth.models import Role, User, normalise_email, user_from_dict, validate_password
@@ -153,6 +154,7 @@ def create_app(
     app_settings_store: Any | None = None,
     test_video_store: Any | None = None,
     test_sessions: Any | None = None,
+    ai_services: Any | None = None,
 ) -> FastAPI:
     app = FastAPI(title="Fire, Smoke & Boundary Detection", docs_url="/api/docs")
 
@@ -979,6 +981,12 @@ def create_app(
         store=test_video_store,
         sessions=test_sessions,
         list_cameras=_cameras_with_zones,
+    )
+    add_ai_routes(
+        router,
+        require_any_role=require_any_role,
+        services=ai_services,
+        parse_since=_parse_since,
     )
 
     app.include_router(router)

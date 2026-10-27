@@ -211,3 +211,95 @@ def test_several_emails_are_sent_at_once_not_one_after_another():
 
     assert peak[0] == 3  # all three in flight together
     assert time.time() - started < 1.5  # ~0.3s of work, not 0.9s serial
+
+
+# -- the [VIDEO READY] email is retried ------------------------------------------------
+
+
+class FlakySender:
+    """Fails the first `failures` sends, then succeeds."""
+
+    def __init__(self, failures):
+        self.failures, self.attempts, self.sent = failures, 0, []
+        self.lock = threading.Lock()
+
+    def __call__(self, message):
+        with self.lock:
+            self.attempts += 1
+            if self.attempts <= self.failures:
+                raise OSError("421 try again later")
+            self.sent.append(message)
+
+
+def retry_sink(sender, backoff=(0.05, 0.05, 0.05), results=None):
+    return EmailSink(
+        "h", 25, "u", "p", "from@x.com", send=sender, video_retry_backoff_s=backoff,
+        on_result=(lambda eid, err: results.append(err)) if results is not None else None,
+    )
+
+
+def test_a_failed_video_email_is_retried_until_it_goes_out():
+    sender, results = FlakySender(failures=2), []
+    sink = retry_sink(sender, results=results)
+    sink.start()
+    sink.on_alert(event(), to=("ops@example.com",), followup=True)
+    assert wait_for(lambda: sender.sent)
+    sink.stop()
+
+    assert sender.attempts == 3
+    assert sender.sent[0]["Subject"].startswith("[VIDEO READY]")
+    assert results[-1] is None  # the event ends up recorded as delivered
+
+
+def test_the_video_email_gives_up_after_the_last_retry():
+    sender = FlakySender(failures=99)
+    sink = retry_sink(sender)
+    sink.start()
+    sink.on_alert(event(), to=("ops@example.com",), followup=True)
+    time.sleep(0.6)  # far longer than all three short retries
+    sink.stop()
+    assert sender.attempts == 4  # the first try + 3 retries, then nothing more
+    assert sender.sent == []
+
+
+def test_the_first_alert_email_is_not_retried():
+    sender = FlakySender(failures=1)
+    sink = retry_sink(sender)
+    sink.start()
+    sink.on_alert(event(), to=("ops@example.com",))
+    time.sleep(0.4)
+    sink.stop()
+    assert sender.attempts == 1 and sender.sent == []
+
+
+def test_a_waiting_retry_does_not_hold_up_other_emails():
+    sent_order, lock = [], threading.Lock()
+
+    def sender(message):
+        with lock:
+            if message["Subject"].startswith("[VIDEO READY]") and not sent_order:
+                sent_order.append("video failed")
+                raise OSError("421 try again later")
+            sent_order.append(message["Subject"])
+
+    sink = retry_sink(sender, backoff=(0.5,))
+    sink.start()
+    sink.on_alert(event(id="v"), to=("ops@example.com",), followup=True)
+    time.sleep(0.1)
+    sink.on_alert(event(id="next", kind="fire"), to=("ops@example.com",))
+    assert wait_for(lambda: len(sent_order) == 3, 3.0)
+    sink.stop()
+    assert sent_order[0] == "video failed"
+    assert "fire" in sent_order[1]  # the next alert went out while the retry waited
+    assert sent_order[2].startswith("[VIDEO READY]")
+
+
+def test_stop_cancels_pending_video_retries():
+    sender = FlakySender(failures=99)
+    sink = retry_sink(sender, backoff=(0.3, 0.3, 0.3))
+    sink.start()
+    sink.on_alert(event(), to=("ops@example.com",), followup=True)
+    assert wait_for(lambda: sender.attempts == 1)
+    sink.stop()
+    time.sleep(0.6)
+    assert sender.attempts == 1  # no retry fired after stop()

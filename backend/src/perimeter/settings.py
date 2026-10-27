@@ -244,6 +244,69 @@ class PPESettings:
         )
 
 
+VIDEO_INPUT_MODES = ("auto", "s3", "inline")
+EMBED_DIMS = (256, 512, 1024)  # what Titan Text Embeddings v2 offers
+
+
+@dataclass(frozen=True)
+class AISettings:
+    """AI video analysis + chat via Amazon Bedrock (Phase J). Policy lives in app.yaml; the
+    Bedrock API key (`BEDROCK_API_KEY`) and the bucket owner are deployment facts in .env.
+
+    `video_input`: `s3` lets Bedrock read the clip straight from the evidence bucket (needs
+    the key's identity to have read access to it); `inline` sends the clip bytes, re-encoded
+    smaller when over `inline_max_mb`; `auto` tries s3 and falls back to inline.
+    """
+
+    enabled: bool = False
+    region: str = "ap-south-1"
+    chat_model: str = "in.anthropic.claude-haiku-4-5-20251001-v1:0"
+    video_model: str = "global.twelvelabs.pegasus-1-5-v1:0"
+    embed_model: str = "amazon.titan-embed-text-v2:0"
+    embed_dims: int = 512
+    video_input: str = "auto"
+    # Verified 2026-10-27: 5.6 MB inline works, 43 MB is rejected ("Input is too long").
+    inline_max_mb: float = 10.0
+    # A re-encoded copy for analysis only (the stored evidence clip is never touched).
+    # Measured on a 43 MB fire clip: 720p @ 6 fps = 1.4 MB, answered fastest and was the
+    # only setting that noticed the fire growing; 480p missed the smoke.
+    inline_height: int = 720
+    inline_fps: float = 6.0
+    auto_analyze_kinds: tuple[str, ...] = ("fire", "smoke", "crowd", "access", "ppe")
+    # Auto analyses per rolling 24 h (a manual "Analyse" from the dashboard is not capped).
+    daily_cap: int = 200
+    skip_test_video: bool = True
+    # How often the worker looks for newly saved clips to analyse.
+    poll_seconds: float = 10.0
+    # Frame RAG (Phase J step 2b): keyframes of each analysed clip are captioned by
+    # `chat_model` and the captions embedded by `embed_model`, so footage can be searched by
+    # meaning across clips. India route, from frames this machine extracts - Bedrock never
+    # needs S3 access for it. (Measured: Titan Multimodal's image vectors never won against a
+    # typed question, and its text side missed "without a helmet"; Titan Text v2 found it.)
+    frame_rag: bool = True
+    frames_per_clip: int = 6
+    frame_height: int = 360
+    frame_index_dir: str = "data/ai_frames"
+    # Chat + memory (steps 3-5): the last `chat_history_messages` of a conversation go back
+    # to the model each turn; long-term memories are searched from `memory_dir`.
+    chat_history_messages: int = 20
+    memory_dir: str = "data/ai_memory"
+    # Camera online/offline changes are sampled this often, so the chat can answer
+    # "which camera goes missing, and when".
+    camera_log_seconds: float = 30.0
+    # Daily digest (step 6): yesterday's alerts summarised and emailed at `digest_time`
+    # (server local time). No recipients listed = every active admin account.
+    digest_enabled: bool = True
+    digest_time: str = "08:00"
+    digest_recipients: tuple[str, ...] = ()
+    api_key: str = ""
+    s3_bucket_owner: str = ""
+
+    @property
+    def configured(self) -> bool:
+        return self.enabled and bool(self.api_key)
+
+
 @dataclass(frozen=True)
 class IdentitySettings:
     """Identity/face recognition tuning (Expansion Plan Phase F; PLAN.md section 7).
@@ -386,6 +449,7 @@ class Settings:
     firesmoke: FireSmokeSettings = field(default_factory=FireSmokeSettings)
     crowd: CrowdSettings = field(default_factory=CrowdSettings)
     ppe: PPESettings = field(default_factory=PPESettings)
+    ai: AISettings = field(default_factory=AISettings)
     identity: IdentitySettings = field(default_factory=IdentitySettings)
     api: ApiSettings = field(default_factory=ApiSettings)
     storage: StorageSettings = field(default_factory=StorageSettings)
@@ -540,6 +604,53 @@ def load_settings(
         ),
     )
 
+    ai_yaml = _section(data, "ai")
+    ai_defaults = AISettings()
+    video_input = str(ai_yaml.get("video_input", ai_defaults.video_input)).strip().lower()
+    if video_input not in VIDEO_INPUT_MODES:
+        raise ValueError(f"ai.video_input must be one of {VIDEO_INPUT_MODES}, got {video_input!r}")
+    embed_dims = int(ai_yaml.get("embed_dims", ai_defaults.embed_dims))
+    if embed_dims not in EMBED_DIMS:
+        raise ValueError(f"ai.embed_dims must be one of {EMBED_DIMS}, got {embed_dims}")
+    digest_time = str(ai_yaml.get("digest_time", ai_defaults.digest_time)).strip()
+    if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", digest_time):
+        raise ValueError(f"ai.digest_time must be HH:MM (24-hour), got {digest_time!r}")
+    ai = AISettings(
+        enabled=bool(ai_yaml.get("enabled", ai_defaults.enabled)),
+        region=str(ai_yaml.get("region", ai_defaults.region)),
+        chat_model=str(ai_yaml.get("chat_model", ai_defaults.chat_model)),
+        video_model=str(ai_yaml.get("video_model", ai_defaults.video_model)),
+        embed_model=str(ai_yaml.get("embed_model", ai_defaults.embed_model)),
+        embed_dims=embed_dims,
+        video_input=video_input,
+        inline_max_mb=float(ai_yaml.get("inline_max_mb", ai_defaults.inline_max_mb)),
+        inline_height=int(ai_yaml.get("inline_height", ai_defaults.inline_height)),
+        inline_fps=float(ai_yaml.get("inline_fps", ai_defaults.inline_fps)),
+        auto_analyze_kinds=tuple(
+            str(k).strip().lower()
+            for k in ai_yaml.get("auto_analyze_kinds", ai_defaults.auto_analyze_kinds)
+        ),
+        daily_cap=max(0, int(ai_yaml.get("daily_cap", ai_defaults.daily_cap))),
+        skip_test_video=bool(ai_yaml.get("skip_test_video", ai_defaults.skip_test_video)),
+        poll_seconds=max(1.0, float(ai_yaml.get("poll_seconds", ai_defaults.poll_seconds))),
+        frame_rag=bool(ai_yaml.get("frame_rag", ai_defaults.frame_rag)),
+        frames_per_clip=max(1, int(ai_yaml.get("frames_per_clip", ai_defaults.frames_per_clip))),
+        frame_height=int(ai_yaml.get("frame_height", ai_defaults.frame_height)),
+        frame_index_dir=str(ai_yaml.get("frame_index_dir", ai_defaults.frame_index_dir)),
+        chat_history_messages=max(2, int(
+            ai_yaml.get("chat_history_messages", ai_defaults.chat_history_messages))),
+        memory_dir=str(ai_yaml.get("memory_dir", ai_defaults.memory_dir)),
+        camera_log_seconds=max(5.0, float(
+            ai_yaml.get("camera_log_seconds", ai_defaults.camera_log_seconds))),
+        digest_enabled=bool(ai_yaml.get("digest_enabled", ai_defaults.digest_enabled)),
+        digest_time=digest_time,
+        digest_recipients=tuple(
+            str(r).strip() for r in ai_yaml.get("digest_recipients") or () if str(r).strip()
+        ),
+        api_key=os.getenv("BEDROCK_API_KEY", "").strip(),
+        s3_bucket_owner=os.getenv("PERIMETER_S3_BUCKET_OWNER", "").strip(),
+    )
+
     identity_yaml = _section(data, "identity")
     identity = IdentitySettings(
         enabled=bool(identity_yaml.get("enabled", False)),
@@ -618,6 +729,7 @@ def load_settings(
         firesmoke=firesmoke,
         crowd=crowd,
         ppe=ppe,
+        ai=ai,
         identity=identity,
         api=api,
         storage=storage,

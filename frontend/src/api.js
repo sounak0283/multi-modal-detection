@@ -153,6 +153,76 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ kind, camera_id: cameraId }),
     }),
+
+  // -- AI (Phase J) ---------------------------------------------------------------
+  aiStatus: () => request('/api/ai/status'),
+  aiSuggestions: ({ view = '', eventId = '' } = {}) =>
+    request(withParams('/api/ai/suggestions', { view, event_id: eventId })),
+  analyzeEvent: (eventId) =>
+    request(`/api/ai/events/${encodeURIComponent(eventId)}/analyze`, { method: 'POST' }),
+  eventAnalysis: (eventId) => request(`/api/ai/events/${encodeURIComponent(eventId)}/analysis`),
+  conversations: (eventId = '') =>
+    request(withParams('/api/ai/conversations', { event_id: eventId })),
+  conversation: (id) => request(`/api/ai/conversations/${encodeURIComponent(id)}`),
+  deleteConversation: (id) =>
+    request(`/api/ai/conversations/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  memories: () => request('/api/ai/memories'),
+  addMemory: (payload) =>
+    request('/api/ai/memories', { method: 'POST', body: JSON.stringify(payload) }),
+  deleteMemory: (id) => request(`/api/ai/memories/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  digests: () => request('/api/ai/digests'),
+  runDigest: (payload = {}) =>
+    request('/api/ai/digests/run', { method: 'POST', body: JSON.stringify(payload) }),
+  alertSearch: (q) => request(withParams('/api/ai/alert-search', { q })),
+}
+
+/** One assistant reply, streamed. Calls `onEvent` with each server event as it arrives:
+ * {type: 'conversation' | 'text' | 'tool' | 'done' | 'error', ...}. `signal` aborts it.
+ * fetch + a reader rather than EventSource, because the question goes in a POST body. */
+export async function streamChat({ message, conversationId, eventId }, onEvent, signal) {
+  let response
+  try {
+    response = await fetch('/api/ai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        conversation_id: conversationId || null,
+        event_id: eventId || null,
+      }),
+      signal,
+    })
+  } catch (err) {
+    if (err.name === 'AbortError') return
+    throw new Error('Cannot reach the server.')
+  }
+  if (response.status === 401) onUnauthorized?.()
+  if (!response.ok) {
+    const problem = await response.json().catch(() => ({}))
+    throw new Error(problem.detail || `Request failed (${response.status})`)
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  for (;;) {
+    let chunk
+    try {
+      chunk = await reader.read()
+    } catch (err) {
+      if (err.name === 'AbortError') return
+      throw err
+    }
+    if (chunk.done) break
+    buffer += decoder.decode(chunk.value, { stream: true })
+    let end
+    while ((end = buffer.indexOf('\n\n')) !== -1) {
+      const block = buffer.slice(0, end)
+      buffer = buffer.slice(end + 2)
+      const line = block.split('\n').find((l) => l.startsWith('data: '))
+      if (line) onEvent(JSON.parse(line.slice(6)))
+    }
+  }
 }
 
 export const streamUrl = (cameraId, bust) => `/api/cameras/${cameraId}/stream?t=${bust}`

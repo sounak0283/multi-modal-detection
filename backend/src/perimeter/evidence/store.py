@@ -73,6 +73,13 @@ class LocalEvidenceStore:
             return None
         return candidate if candidate.is_file() else None
 
+    def read(self, key: str) -> bytes:
+        """The stored bytes for `key` (AI video analysis reads clips this way)."""
+        path = self.resolve(key)
+        if path is None:
+            raise FileNotFoundError(f"evidence {key!r} not found")
+        return path.read_bytes()
+
 
 class S3EvidenceStore:
     """Evidence in a private S3 bucket. Objects are encrypted at rest (SSE-S3) and are
@@ -170,6 +177,10 @@ class S3EvidenceStore:
 
     def resolve(self, key: str) -> Path | None:  # noqa: ARG002
         return None  # nothing on local disk; callers use presigned_url()
+
+    def read(self, key: str) -> bytes:
+        """The stored bytes for `key` (AI video analysis reads clips this way)."""
+        return self._client.get_object(Bucket=self.bucket, Key=self._object_key(key))["Body"].read()
 
 
 def build_evidence_store(settings: Any, backend_root: Path, client: Any = None) -> Any:

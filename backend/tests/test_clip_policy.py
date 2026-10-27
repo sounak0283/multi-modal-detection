@@ -106,7 +106,7 @@ def test_urgent_kinds_are_configurable():
 # -- the writer ---------------------------------------------------------------------------
 
 
-def make_writer(buffers=None, mux=fake_mux, **kw):
+def make_writer(buffers=None, mux=fake_mux, policy=None, **kw):
     notifier = Notifier()
     writer = EvidenceWriter(
         database=FakeDb(),
@@ -117,7 +117,7 @@ def make_writer(buffers=None, mux=fake_mux, **kw):
         post_roll_seconds=0.0,
         mux=mux,
         notify=notifier,
-        policy=ClipPolicy(),
+        policy=policy or ClipPolicy(),
         urgent_post_roll_seconds=0.0,
         retry_backoff_s=(0.0,),
         **kw,
@@ -200,6 +200,43 @@ def test_fire_is_not_held_up_by_a_slow_clip_already_in_progress():
     assert not any(c["payload"]["id"] == "slow" for c in notifier.calls)  # still stuck
     release.set()
     writer.stop()
+
+
+def test_a_fire_email_is_not_held_up_by_an_earlier_fires_clip():
+    """Regression (measured live: a fire email held back 17s+ in a run of only fire alerts):
+    the urgent worker builds and uploads each urgent alert's clip in turn, so the alert email
+    must be sent when the alert arrives - not when that worker gets round to it."""
+    release = threading.Event()
+
+    def slow_mux(frames, event_id, tmp_dir):
+        if event_id == "fire1":
+            release.wait(10)  # fire1's clip is being built/uploaded
+        return fake_mux(frames, event_id, tmp_dir)
+
+    writer, notifier = make_writer(mux=slow_mux)
+    writer.start()
+    writer.on_alert(alert(kind="fire", subtype=None, event_id="fire1"))
+    time.sleep(0.4)  # the urgent worker is now stuck inside fire1's clip
+    arrived = time.time()
+    writer.on_alert(alert(kind="fire", subtype=None, event_id="fire2"))
+
+    fire2 = [c for c in notifier.calls if c["payload"]["id"] == "fire2"]
+    assert fire2 and fire2[0]["followup"] is False  # sent during on_alert itself
+    assert time.time() - arrived < 0.5
+    release.set()
+    # Both videos still follow, to the rules each alert email went to.
+    assert wait_for(lambda: sum(c["followup"] for c in notifier.calls) == 2, 5.0)
+    writer.stop()
+
+
+def test_an_urgent_alert_without_a_clip_is_emailed_on_arrival_too():
+    writer, notifier = make_writer(policy=ClipPolicy(triggers={"fire": "off"}))
+    writer.on_alert(alert(kind="fire", subtype=None, event_id="fire1"))  # worker not started
+    assert [c["payload"]["id"] for c in notifier.calls] == ["fire1"]
+    writer.start()
+    assert wait_for(lambda: writer.database.last("clip_status") == "skipped")
+    writer.stop()
+    assert len(notifier.calls) == 1  # not emailed a second time by the worker
 
 
 def test_urgent_alert_does_not_wait_for_a_fuller_buffer():

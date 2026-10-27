@@ -235,6 +235,45 @@ def _build_identity_resolver(
     )
 
 
+def _build_ai_services(
+    settings, database: Database, evidence_store, registry, zones, manager, users
+):
+    """Phase J: video analysis, footage search, the assistant, its memory, the camera
+    status log and the daily digest - or None when AI is off. Any setup failure leaves the
+    rest of the system running without AI rather than stopping it."""
+    if not settings.ai.configured:
+        log.info("AI features off (ai.enabled is false or BEDROCK_API_KEY is not set)")
+        return None
+    try:
+        from perimeter.ai.camera_log import states_from
+        from perimeter.ai.services import build_ai_services
+        from perimeter.ai.tools import cameras_from
+        from perimeter.alerts.sinks.smtp import _default_send
+
+        alerts = settings.alerts
+        send = None
+        if alerts.smtp_enabled:
+            send = _default_send(alerts.smtp_host, alerts.smtp_port, alerts.smtp_user,
+                                 alerts.smtp_password, alerts.smtp_use_tls)
+        return build_ai_services(
+            settings.ai,
+            database.db,
+            evidence_store,
+            BACKEND_ROOT,
+            cameras=cameras_from(registry, zones, manager),
+            camera_states=states_from(manager, registry),
+            retention_days=settings.storage.retention_days,
+            send_email=send,
+            from_addr=alerts.smtp_from or alerts.smtp_user,
+            digest_recipients=lambda: [
+                u.email for u in users.list() if u.active and u.role == Role.ADMIN
+            ],
+        )
+    except Exception:  # noqa: BLE001 - AI is optional; never block the server starting
+        log.exception("could not set up the AI features - continuing without AI")
+        return None
+
+
 def _start_retention_sweeper(
     database: Database, evidence_store, retention_days: int
 ) -> threading.Thread:
@@ -412,6 +451,15 @@ def main(argv: list[str] | None = None) -> int:
     else:
         log.info("--no-pipeline: serving the API/dashboard without starting any cameras")
 
+    # Own threads that read saved clips and alerts from the database; the alert/email path
+    # above does not call them or wait for them. Started after the cameras, so the camera
+    # status log does not record every restart as the cameras being "stopped".
+    ai_services = _build_ai_services(
+        settings, database, evidence_store, registry, store, manager, users
+    )
+    if ai_services is not None:
+        ai_services.start()
+
     app = create_app(
         settings,
         store,
@@ -426,6 +474,7 @@ def main(argv: list[str] | None = None) -> int:
         app_settings_store=app_settings_store,
         test_video_store=test_video_store,
         test_sessions=test_sessions,
+        ai_services=ai_services,
     )
     host = args.host or settings.api.host
     port = args.port or settings.api.port
@@ -437,6 +486,8 @@ def main(argv: list[str] | None = None) -> int:
         manager.stop()
         alerts.stop()
         evidence_writer.stop()
+        if ai_services is not None:
+            ai_services.stop()
         if email_sink is not None:
             email_sink.stop()
         database.close()

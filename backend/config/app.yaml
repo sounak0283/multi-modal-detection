@@ -82,6 +82,45 @@ crowd:
   eps_px: 80.0
   min_samples: 2
 
+ai:
+  # AI video analysis + chat via Amazon Bedrock (Phase J). The key is BEDROCK_API_KEY in
+  # .env (never here). A background worker analyses new clips of auto_analyze_kinds; nothing
+  # in detection, alerting or email waits on it.
+  enabled: true
+  region: ap-south-1
+  chat_model: in.anthropic.claude-haiku-4-5-20251001-v1:0   # India-only route
+  # Pegasus is offered only through a GLOBAL route: clips may be processed outside India.
+  video_model: global.twelvelabs.pegasus-1-5-v1:0
+  embed_model: amazon.titan-embed-text-v2:0   # India route
+  embed_dims: 512                             # 256 | 512 | 1024
+  # s3: Bedrock reads the clip from the evidence bucket (needs the key's identity to have
+  # s3:GetObject on clips/*); inline: send a copy; auto: try s3, fall back to inline.
+  video_input: auto
+  inline_max_mb: 10        # larger clips are re-encoded for analysis (the stored clip is untouched)
+  inline_height: 720
+  inline_fps: 6
+  auto_analyze_kinds: [fire, smoke, crowd, access, ppe]
+  daily_cap: 200            # auto analyses per rolling 24 h; a manual "Analyse" is not capped
+  skip_test_video: true     # auto mode ignores Video test clips (manual analysis still works)
+  poll_seconds: 10
+  # Frame RAG: keyframes of each analysed clip are captioned (chat_model) and the captions
+  # embedded (embed_model), so footage can be searched by meaning. India route; frames are
+  # sent from this machine.
+  frame_rag: true
+  frames_per_clip: 6
+  frame_height: 360
+  frame_index_dir: data/ai_frames
+  # Chat + memory: recent messages sent back to the model each turn; long-term memories
+  # (system-wide, per user, per alert) are kept in MongoDB and searched from memory_dir.
+  chat_history_messages: 20
+  memory_dir: data/ai_memory
+  camera_log_seconds: 30    # how often camera online/offline changes are sampled
+  # Daily digest of yesterday's alerts, emailed at digest_time (server local time).
+  # Empty digest_recipients = every active admin account.
+  digest_enabled: true
+  digest_time: "08:00"
+  digest_recipients: []
+
 ppe:
   # helmet_detector: YOLOX head/helmet detector (demo_package final_C_v2, helmet only -
   #   no vest/gloves/shoes/glasses; zones requiring those stay "indeterminate").

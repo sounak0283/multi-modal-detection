@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Badge, Button, Card, CardFoot, CardHead, EmptyState, Select, Stat } from '../components/ui'
 import { api, eventClipUrl, eventSnapshotUrl } from '../api'
 import { emitsEvents } from '../lib/zones'
+import { useAIAvailable } from '../lib/useAIAvailable'
+import AlertAI from '../components/ai/AlertAI'
 
 const KIND_LABEL = {
   boundary: 'Boundary',
@@ -48,6 +50,9 @@ export default function AlertHistory({ cameras, zones }) {
   const [window_, setWindow] = useState(null) // counts per kind for period + camera + boundary
   const [error, setError] = useState(null)
   const [viewing, setViewing] = useState(null) // null | an event with evidence to show
+  // Plain-English search (AI): while set, the list AND the cards show its results.
+  const [aiResult, setAiResult] = useState(null)
+  const aiAvailable = useAIAvailable()
 
   const load = useCallback(async () => {
     // One `since` for both requests, so the cards and the list count the same window.
@@ -75,10 +80,15 @@ export default function AlertHistory({ cameras, zones }) {
   const active = Object.keys(DEFAULT_FILTERS).some(
     (key) => key !== 'limit' && filters[key] !== DEFAULT_FILTERS[key],
   )
-  const stats = deriveStats(window_, filters, events.length)
+  const shown = aiResult ? aiResult.events : events
+  const stats = aiResult
+    ? deriveStats(tally(aiResult.events), filters, shown.length, 'AI search')
+    : deriveStats(window_, filters, events.length)
 
   return (
     <div className="space-y-4">
+      {aiAvailable && <AiSearch result={aiResult} onResult={setAiResult} />}
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map(({ label, value, tone }) => (
           <Stat key={label} label={label} value={value} tone={tone} />
@@ -147,7 +157,7 @@ export default function AlertHistory({ cameras, zones }) {
               </tr>
             </thead>
             <tbody>
-              {events.map((event) => (
+              {shown.map((event) => (
                 <tr key={event.id ?? event.ts} className="border-t border-ink-800 hover:bg-ink-800">
                   <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-ink-300">
                     {formatWhen(event.ts)}
@@ -196,9 +206,13 @@ export default function AlertHistory({ cameras, zones }) {
           </table>
         </div>
 
-        {events.length === 0 && (
+        {shown.length === 0 && (
           <EmptyState>
-            {active ? 'No alerts match these filters.' : 'No alerts recorded yet.'}
+            {aiResult
+              ? 'No alerts match that search.'
+              : active
+                ? 'No alerts match these filters.'
+                : 'No alerts recorded yet.'}
           </EmptyState>
         )}
 
@@ -228,7 +242,10 @@ function EvidenceLightbox({ event, onClose }) {
       {/* Card itself does not spread onClick, so the stop-propagation guard lives on a
           plain wrapper - clicking anywhere inside the card must not bubble up to the
           overlay's own onClick and close the lightbox. */}
-      <div className="w-full max-w-xl" onClick={(event_) => event_.stopPropagation()}>
+      <div
+        className="max-h-[92vh] w-full max-w-2xl space-y-3 overflow-y-auto"
+        onClick={(event_) => event_.stopPropagation()}
+      >
         <Card>
           <CardHead
             title={event.message || 'Alert evidence'}
@@ -272,6 +289,7 @@ function EvidenceLightbox({ event, onClose }) {
             )}
           </div>
         </Card>
+        <AlertAI event={event} chatHeight="h-[320px]" />
       </div>
     </div>
   )
@@ -301,8 +319,7 @@ function toneFor(event) {
 /** The cards count exactly what the list is filtered to: same period, camera and boundary
  * (the server applies one shared `since`). "Listed" makes the Show cap visible - the list
  * holds the newest N of the matching alerts, never silently fewer. */
-function deriveStats(counts, filters, listed) {
-  const period = PERIOD_LABEL[filters.period]
+function deriveStats(counts, filters, listed, period = PERIOD_LABEL[filters.period]) {
   if (!counts) {
     return [
       { label: `Alerts · ${period}`, value: '—' },
@@ -324,6 +341,70 @@ function deriveStats(counts, filters, listed) {
     },
     { label: 'Listed below', value: matching > listed ? `${listed} of ${matching}` : listed },
   ]
+}
+
+const tally = (list) =>
+  list.reduce((counts, e) => ({ ...counts, [e.kind]: (counts[e.kind] || 0) + 1 }), {})
+
+/* "fire alerts at gate 2 last night" -> the server has the AI pick filters, runs them, and
+ * says in one line what it searched; that line is always shown so a wrong reading is
+ * obvious. Clear goes back to the normal filters. */
+function AiSearch({ result, onResult }) {
+  const [query, setQuery] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  const run = async (e) => {
+    e.preventDefault()
+    if (!query.trim()) return
+    setBusy(true)
+    setError(null)
+    try {
+      onResult(await api.alertSearch(query))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card>
+      <form onSubmit={run} className="flex flex-wrap items-center gap-2 p-3">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder='Search in plain English, e.g. "fire alerts on cam_01 last night"'
+          aria-label="Search alerts in plain English"
+          className="min-w-55 flex-1 rounded-lg border border-ink-700 bg-ink-800 px-3 py-2 text-[13px] text-ink-100 placeholder:text-ink-500 focus:border-brand-500 focus:outline-none"
+        />
+        <Button type="submit" variant="primary" disabled={busy || !query.trim()}>
+          {busy ? 'Searching…' : 'Search'}
+        </Button>
+        {result && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              onResult(null)
+              setQuery('')
+            }}
+          >
+            Clear search
+          </Button>
+        )}
+      </form>
+      {(result || error) && (
+        <p
+          className={`border-t border-ink-800 px-4 py-2 text-[12px] ${error ? 'text-alarm-400' : 'text-ink-300'}`}
+        >
+          {error ||
+            `Showing: ${result.explanation || 'search results'} — ${result.events.length} alert${
+              result.events.length === 1 ? '' : 's'
+            }${result.events.length >= 200 ? ' (newest 200)' : ''}. The filters below are not applied.`}
+        </p>
+      )}
+    </Card>
+  )
 }
 
 function PeriodPills({ value, onChange }) {
