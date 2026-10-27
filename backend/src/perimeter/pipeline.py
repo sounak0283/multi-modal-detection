@@ -663,7 +663,9 @@ class Pipeline:
                 for item in checked_items:
                     state = classify_state(probabilities.get(item, 0.0))
                     if self.ppe_monitor.update(zone_id, track_id, item, state):
-                        self._publish_ppe(zone, item, track_id, frame.ts, frame.video_pos_s)
+                        self._publish_ppe(zone, item, track_id, frame.ts, frame.video_pos_s,
+                                          bbox=(x1 / width, y1 / height,
+                                                x2 / width, y2 / height))
                 if head_box is not None and label:
                     violating = self.ppe_monitor.is_confirmed(zone_id, track_id, "helmet")
                     pw, ph = max(1, x2 - x1), max(1, y2 - y1)
@@ -688,7 +690,11 @@ class Pipeline:
     def _publish_ppe(
         self, zone: Zone, item: str, track_id: int, ts: float,
         video_pos_s: float | None = None,
+        bbox: tuple[float, float, float, float] | None = None,
     ) -> None:
+        """`bbox` is the flagged person's box, normalised 0-1 like a boundary alert's, on the
+        same frame the evidence snapshot is cut from - so the AI can tell which person the
+        alert is about."""
         if self.alerts is None:
             return
         self.alerts.publish(
@@ -702,7 +708,7 @@ class Pipeline:
                 "track_id": track_id,
                 "message": ppe_message(zone.display_name, item),
                 "severity": zone.severity.value,
-                "bbox": None,
+                "bbox": [round(float(v), 4) for v in bbox] if bbox is not None else None,
                 "foot_point": None,
                 "identity_status": None,
                 "identity_name": None,

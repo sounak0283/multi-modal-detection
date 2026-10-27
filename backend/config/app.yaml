@@ -110,6 +110,12 @@ ai:
   frames_per_clip: 6
   frame_height: 360
   frame_index_dir: data/ai_frames
+  # Looking at snapshots/frames (who wears what): people are detected and cropped, then
+  # judged by vision_model. GLOBAL route - these images may be processed outside India
+  # (chat text stays on chat_model). Haiku could not recognise a hard hat in tests; Sonnet
+  # 4.6 got every one right. Empty vision_model = the chat model looks itself.
+  vision_model: global.anthropic.claude-sonnet-4-6
+  vision_person_model: models/yolox_person/object_detection_yolox_2022nov.onnx
   # Chat + memory: recent messages sent back to the model each turn; long-term memories
   # (system-wide, per user, per alert) are kept in MongoDB and searched from memory_dir.
   chat_history_messages: 20

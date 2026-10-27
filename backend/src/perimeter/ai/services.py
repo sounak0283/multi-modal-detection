@@ -17,6 +17,7 @@ from perimeter.ai.camera_log import CameraStatusLog
 from perimeter.ai.chat import ChatService
 from perimeter.ai.digest import DigestService
 from perimeter.ai.frames import FrameIndex, FrameRAG
+from perimeter.ai.inspect_people import PeopleInspector
 from perimeter.ai.memory import MemoryStore
 from perimeter.ai.tools import ToolBox
 from perimeter.ai.video import PegasusAnalyzer
@@ -99,8 +100,10 @@ def build_ai_services(
     except Exception:  # noqa: BLE001 - chat still works without long-term memory
         log.exception("could not open the memory index - chat runs without memory")
 
+    inspector = PeopleInspector(ai, lazy, root) if ai.vision_model else None
     tools = ToolBox(db, store, cameras, analyzer=analyzer, rag=rag, memory=services.memory,
-                    camera_log=services.camera_log, frame_height=ai.frame_height)
+                    camera_log=services.camera_log, frame_height=ai.frame_height,
+                    inspector=inspector)
     services.chat = ChatService(ai, db, lazy, tools, services.memory, services.background)
     services.search = AlertSearch(ai, db, lazy, cameras)
     services.digest = DigestService(ai, db, lazy, send=send_email, from_addr=from_addr,

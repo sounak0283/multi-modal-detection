@@ -289,6 +289,13 @@ class AISettings:
     frame_index_dir: str = "data/ai_frames"
     # Chat + memory (steps 3-5): the last `chat_history_messages` of a conversation go back
     # to the model each turn; long-term memories are searched from `memory_dir`.
+    # Looking at a snapshot/frames (who wears what) - measured 2026-10-27 on 7 person crops:
+    # Haiku called a blue hard hat "a blue balloon" and never once said "yes"; Sonnet 4.6
+    # got all 7 right. Only these images take the global route; the chat stays on
+    # `chat_model`. Empty = the chat model looks at the images itself.
+    vision_model: str = "global.anthropic.claude-sonnet-4-6"
+    # People are detected and cropped first, so the vision model sees each one close up.
+    vision_person_model: str = "models/yolox_person/object_detection_yolox_2022nov.onnx"
     chat_history_messages: int = 20
     memory_dir: str = "data/ai_memory"
     # Camera online/offline changes are sampled this often, so the chat can answer
@@ -637,6 +644,9 @@ def load_settings(
         frames_per_clip=max(1, int(ai_yaml.get("frames_per_clip", ai_defaults.frames_per_clip))),
         frame_height=int(ai_yaml.get("frame_height", ai_defaults.frame_height)),
         frame_index_dir=str(ai_yaml.get("frame_index_dir", ai_defaults.frame_index_dir)),
+        vision_model=str(ai_yaml.get("vision_model", ai_defaults.vision_model) or "").strip(),
+        vision_person_model=str(
+            ai_yaml.get("vision_person_model", ai_defaults.vision_person_model)),
         chat_history_messages=max(2, int(
             ai_yaml.get("chat_history_messages", ai_defaults.chat_history_messages))),
         memory_dir=str(ai_yaml.get("memory_dir", ai_defaults.memory_dir)),

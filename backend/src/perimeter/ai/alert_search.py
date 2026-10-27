@@ -12,7 +12,14 @@ from typing import Any
 
 from perimeter.ai.bedrock import LazyClient
 from perimeter.ai.catalog import known_kinds
-from perimeter.ai.queries import SOURCES, event_query, in_hours, now_local, to_local
+from perimeter.ai.queries import (
+    SEVERITIES,
+    SOURCES,
+    event_query,
+    in_hours,
+    now_local,
+    to_local,
+)
 from perimeter.settings import AISettings
 from perimeter.timefmt import local_time
 
@@ -37,6 +44,9 @@ FILTER_TOOL = {"toolSpec": {
             "text": {"type": "string", "description": "words that must be in the alert "
                      "message, only if no other filter covers them"},
             "source": {"type": "string", "enum": list(SOURCES)},
+            "severity": {"type": "array", "items": {"type": "string", "enum": list(SEVERITIES)},
+                         "description": "only these levels; 'high severity' usually means "
+                                        "['high', 'critical']"},
             "explanation": {"type": "string", "description": "one short sentence saying "
                             "what is being shown, e.g. 'Fire alerts on cam_01, 22:00-06:00 "
                             "last night'"},
@@ -89,6 +99,7 @@ class AlertSearch:
             kind=filters.get("kind"), camera_id=filters.get("camera_id"),
             zone=filters.get("zone"), since=filters.get("since"), until=filters.get("until"),
             source=filters.get("source") or "all", text=filters.get("text"),
+            severity=filters.get("severity"),
         )
         hour_from, hour_to = filters.get("hour_from"), filters.get("hour_to")
         hourly = hour_from is not None or hour_to is not None

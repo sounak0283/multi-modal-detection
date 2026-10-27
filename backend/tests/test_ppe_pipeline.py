@@ -156,6 +156,9 @@ def test_fires_once_absence_is_confirmed():
     assert payload["zone_id"] == "z1"
     assert payload["track_id"] == 7
     assert "helmet" in payload["message"]
+    # Which person was flagged, normalised 0-1 like a boundary alert's box (the 640x480
+    # frame's person at 100,100-150,300), so the AI can find them in the snapshot.
+    assert payload["bbox"] == [0.1562, 0.2083, 0.2344, 0.625]
 
 
 def test_no_violation_while_the_item_reads_present():

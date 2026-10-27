@@ -15,8 +15,9 @@ from typing import Any
 
 from perimeter.testvideo.sessions import TEST_PREFIX
 
-GROUP_FIELDS = ("kind", "subtype", "camera", "zone", "day", "hour", "weekday")
+GROUP_FIELDS = ("kind", "subtype", "severity", "camera", "zone", "day", "hour", "weekday")
 SOURCES = ("all", "real", "test")
+SEVERITIES = ("low", "medium", "high", "critical")  # every alert carries one of these
 STATS_SCAN_LIMIT = 20_000
 MAX_FILLED_DAYS = 400
 WEEKDAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -74,12 +75,22 @@ def event_query(
     until: Any = None,
     source: str = "all",
     text: str | None = None,
+    severity: Any = None,
 ) -> dict[str, Any]:
-    """A MongoDB filter on the events collection."""
+    """A MongoDB filter on the events collection. `severity` is one level or a list of
+    levels (e.g. ["high", "critical"])."""
     query: dict[str, Any] = {}
     conditions: list[dict[str, Any]] = []
     if kind:
         query["kind"] = str(kind).strip().lower()
+    if severity:
+        levels = [severity] if isinstance(severity, str) else list(severity)
+        levels = [str(level).strip().lower() for level in levels if str(level).strip()]
+        unknown = [level for level in levels if level not in SEVERITIES]
+        if unknown:
+            raise ValueError(f"severity must be among {SEVERITIES}, got {unknown}")
+        if levels:
+            query["severity"] = {"$in": levels}
     if camera_id:
         query["camera_id"] = str(camera_id).strip()
     if zone:
@@ -125,6 +136,8 @@ def group_key(event: dict[str, Any], field: str) -> str:
         return str(event.get("kind") or "?")
     if field == "subtype":
         return str(event.get("subtype") or "-")
+    if field == "severity":
+        return str(event.get("severity") or "-")
     if field == "camera":
         return str(event.get("camera_id") or "?")
     if field == "zone":
@@ -155,8 +168,8 @@ def alert_stats(
             raise ValueError(f"cannot group by {field!r}; use one of {GROUP_FIELDS}")
     query = event_query(since=since, until=until, **filters)
     cursor = events_collection.find(
-        query, {"ts": 1, "kind": 1, "subtype": 1, "camera_id": 1, "zone_name": 1,
-                "zone_id": 1, "message": 1},
+        query, {"ts": 1, "kind": 1, "subtype": 1, "severity": 1, "camera_id": 1,
+                "zone_name": 1, "zone_id": 1, "message": 1},
     ).sort("ts", 1).limit(STATS_SCAN_LIMIT)
     events = list(cursor)
     counts = Counter(tuple(group_key(e, f) for f in fields) for e in events)

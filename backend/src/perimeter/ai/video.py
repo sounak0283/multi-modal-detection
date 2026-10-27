@@ -51,12 +51,15 @@ FOCUS = {
     "smoke": "findings: where the smoke is, its source if visible, and whether it is spreading.",
     "crowd": "findings: how many people are grouped, what they are doing, and whether it looks "
              "like a normal gathering or a problem (argument, fight, panic).",
-    "ppe": "findings: which people are missing protective equipment (helmet, vest) and what "
-           "they are doing.",
+    "ppe": "findings: go through each visible person separately - what they wear (shirt "
+           "colour), whether THEY wear a helmet and a vest, and what they do. Say 'not "
+           "visible' when a head is hidden or unclear.",
     "access": "findings: who entered the restricted area, what they did there, and whether "
               "they left.",
     "boundary": "findings: who crossed the boundary, in which direction, and what they did.",
-    "welding": "findings: whether the bright light is welding work or something else (fire).",
+    "welding": "findings: whether the bright light is welding work or something else (fire); "
+               "whether the welder is visible, and if so what THEY wear on the head and face; "
+               "then each other person separately with their own helmet status.",
 }
 GENERIC_FOCUS = "findings: anything in the clip relevant to why this alert was raised."
 
@@ -93,6 +96,8 @@ def analysis_prompt(event: dict[str, Any]) -> str:
         "people_count: how many people are visible. activities: short phrases. "
         "verdict: likely_real if the clip shows what the alert claims, likely_false if it "
         "clearly does not, unsure otherwise. "
+        "Describe each person by what they wear; never attribute one person's equipment to "
+        "another, and say 'not visible' rather than guess. "
         f"{FOCUS.get(kind, GENERIC_FOCUS)}"
     )
 

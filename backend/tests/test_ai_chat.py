@@ -11,7 +11,9 @@ import math
 import re
 from datetime import UTC, date, datetime, timedelta
 
+import cv2
 import mongomock
+import numpy as np
 import pytest
 from conftest import authed_client, seed_admin
 
@@ -20,6 +22,7 @@ from perimeter.ai.bedrock import LazyClient
 from perimeter.ai.camera_log import CameraStatusLog
 from perimeter.ai.chat import ChatService, _history
 from perimeter.ai.digest import DigestService
+from perimeter.ai.inspect_people import PeopleInspector
 from perimeter.ai.memory import MemoryStore
 from perimeter.ai.queries import alert_stats, event_query, in_hours, local_tz
 from perimeter.ai.services import AIServices
@@ -157,6 +160,37 @@ def test_event_query_filters_by_type_zone_time_and_source():
     assert count(event_query(zone="bay")) == 1
     with pytest.raises(ValueError, match="source"):
         event_query(source="bogus")
+
+
+def test_alerts_can_be_filtered_and_counted_by_severity():
+    db = fresh_db()
+    add_event(db, "fire", severity="critical")
+    add_event(db, "ppe", severity="high")
+    add_event(db, "ppe", severity="medium")
+    add_event(db, "crowd", severity="low")
+    count = db["events"].count_documents
+    assert count(event_query(severity="high")) == 1
+    assert count(event_query(severity=["high", "critical"])) == 2
+    assert count(event_query(severity=["High"], kind="ppe")) == 1  # case-insensitive
+    with pytest.raises(ValueError, match="severity"):
+        event_query(severity=["urgent"])
+    rows = alert_stats(db["events"], ["severity"])["rows"]
+    assert {r["severity"]: r["count"] for r in rows} == {
+        "critical": 1, "high": 1, "medium": 1, "low": 1}
+
+
+def test_the_chat_tools_take_a_severity_filter():
+    db = fresh_db()
+    add_event(db, "fire", severity="critical")
+    add_event(db, "ppe", severity="medium")
+    tools = ToolBox(db, FakeStore(), cameras)
+    listed = tools.run("list_alerts", ToolContext("a@x"), {"severity": ["high", "critical"]})
+    assert [a["kind"] for a in listed.data["alerts"]] == ["fire"]
+    counted = tools.run("alert_stats", ToolContext("a@x"),
+                        {"group_by": ["kind"], "severity": ["medium"]})
+    assert counted.data["total"] == 1
+    spec = next(t for t in tools.specs() if t["toolSpec"]["name"] == "alert_stats")
+    assert "severity" in spec["toolSpec"]["inputSchema"]["json"]["properties"]
 
 
 def test_hours_filter_wraps_past_midnight():
@@ -309,6 +343,63 @@ def test_alert_tools_default_to_the_chats_own_alert():
         tools.run("alert_details", ToolContext("a@x"), {"event_id": "nope"})
 
 
+class FakeDetector:
+    def __init__(self, boxes):
+        self.boxes = boxes
+
+    def detect(self, image):
+        return type("D", (), {"xyxy": np.array(self.boxes, dtype=np.float32)})()
+
+
+def scene_jpeg(w=640, h=480):
+    return cv2.imencode(".jpg", np.full((h, w, 3), 90, np.uint8))[1].tobytes()
+
+
+class JpegStore(FakeStore):
+    def read(self, key):
+        return scene_jpeg()
+
+
+def test_people_are_boxed_cropped_and_judged_by_the_vision_model(tmp_path):
+    bedrock = FakeBedrock(replies=["1: pink shirt, helmet no. 2: white shirt, helmet yes."])
+    inspector = PeopleInspector(ai(), LazyClient(ai(), bedrock), tmp_path,
+                                detector=FakeDetector([[400, 100, 480, 400], [50, 100, 150, 420]]))
+    result = inspector.inspect([("Snapshot", scene_jpeg())], "who has no helmet?",
+                               flagged_bbox=[0.62, 0.2, 0.76, 0.84])
+    call = bedrock.converse_calls[0]
+    assert call["modelId"] == "global.anthropic.claude-sonnet-4-6"  # not the chat model
+    content = call["messages"][0]["content"]
+    assert sum(1 for part in content if "image" in part) == 3  # scene + 2 close-ups
+    texts = " ".join(part.get("text", "") for part in content)
+    assert "RED box (person 2)" in texts  # numbered left to right; the flagged one matched
+    assert "cannot tell" in texts and "who has no helmet?" in texts
+    assert result["images"] == [{"image": "Snapshot", "people_detected": 2, "flagged_person": 2}]
+    assert result["report"].startswith("1: pink shirt")
+
+
+def test_the_chat_gets_the_people_report_not_the_picture(tmp_path):
+    db = fresh_db()
+    event_id = add_event(db, "ppe", bbox=[0.62, 0.2, 0.76, 0.84])
+    bedrock = FakeBedrock(replies=["1: white shirt, helmet yes."])
+    inspector = PeopleInspector(ai(), LazyClient(ai(), bedrock), tmp_path,
+                                detector=FakeDetector([[400, 100, 480, 400]]))
+    tools = ToolBox(db, JpegStore(), cameras, inspector=inspector)
+    result = tools.run("look_at_snapshot", ToolContext("a@x", event_id=event_id),
+                       {"question": "helmet?"})
+    assert result.images == []
+    assert result.data["people_report"] == "1: white shirt, helmet yes."
+    assert result.data["checked"][0]["flagged_person"] == 1
+
+
+def test_without_a_vision_model_the_chat_model_looks_itself(tmp_path):
+    db = fresh_db()
+    event_id = add_event(db, "ppe")
+    inspector = PeopleInspector(ai(vision_model=""), LazyClient(ai(), FakeBedrock()), tmp_path)
+    tools = ToolBox(db, JpegStore(), cameras, inspector=inspector)
+    result = tools.run("look_at_snapshot", ToolContext("a@x", event_id=event_id), {})
+    assert len(result.images) == 1
+
+
 def test_camera_outages_tool_counts_start_hours():
     db = fresh_db()
     states = {"cam_01": "live"}
@@ -459,6 +550,17 @@ def test_alert_search_turns_words_into_filters_then_queries():
     assert len(result["events"]) == 1 and result["events"][0]["kind"] == "fire"
     sent = bedrock.converse_calls[0]
     assert sent["toolConfig"]["toolChoice"] == {"tool": {"name": "set_filters"}}
+
+
+def test_alert_search_understands_severity():
+    db = fresh_db()
+    add_event(db, "fire", severity="critical")
+    add_event(db, "ppe", severity="medium")
+    bedrock = FakeBedrock(replies=[{"severity": ["high", "critical"],
+                                    "explanation": "High-severity alerts"}])
+    search = AlertSearch(ai(), db, LazyClient(ai(), bedrock), cameras)
+    result = search.search("high severity alerts")
+    assert [e["kind"] for e in result["events"]] == ["fire"]
 
 
 # -- daily digest ------------------------------------------------------------------------------

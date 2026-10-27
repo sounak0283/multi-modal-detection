@@ -26,6 +26,7 @@ from perimeter.ai.catalog import known_kinds
 from perimeter.ai.frames import extract_keyframes
 from perimeter.ai.queries import (
     GROUP_FIELDS,
+    SEVERITIES,
     SOURCES,
     alert_stats,
     event_query,
@@ -39,6 +40,11 @@ from perimeter.timefmt import local_time
 log = logging.getLogger("perimeter.ai.tools")
 
 MAX_LIST = 50
+# Frames the assistant looks at itself. At 360 px a hard hat is a few pixels and the model
+# guessed (measured on a welding clip); 720 px shows it.
+LOOK_FRAME_HEIGHT = 720
+# Frames for the people inspection keep more detail: each person is cropped out of them.
+INSPECT_FRAME_HEIGHT = 1440
 MAX_TOOL_TEXT = 12_000
 HIDDEN_ANALYSIS_FIELDS = ("verdict",)
 
@@ -92,6 +98,9 @@ FILTERS = {
     "until": {"type": "string", "description": f"to (exclusive). {TIME_HELP}"},
     "source": {"type": "string", "enum": list(SOURCES),
                "description": "real cameras only, Video test only, or all (default)"},
+    "severity": {"type": "array", "items": {"type": "string", "enum": list(SEVERITIES)},
+                 "description": "only these severity levels, e.g. ['high', 'critical'] for "
+                                "'high severity or worse'"},
 }
 
 
@@ -136,7 +145,9 @@ class ToolBox:
         memory: Any = None,
         camera_log: Any = None,
         frame_height: int = 360,
+        inspector: Any = None,
     ) -> None:
+        self.inspector = inspector
         self.events = db["events"]
         self.analyses = db["video_analyses"]
         self.store = store
@@ -179,8 +190,9 @@ class ToolBox:
                 "alert_stats", "Counting alerts",
                 "Count alerts grouped by one or two of: " + ", ".join(GROUP_FIELDS)
                 + " (day/hour/weekday in local time; grouping by day lists days with zero "
-                "alerts too). Use this for patterns: busiest hour, alerts every day or "
-                "every other day, which camera or zone has the most.",
+                "alerts too). Use this for counts and patterns: how many (of a severity), "
+                "busiest hour, alerts every day or every other day, which camera or zone "
+                "has the most.",
                 {**FILTERS, "group_by": {"type": "array", "items": {"type": "string",
                                          "enum": list(GROUP_FIELDS)}, "maxItems": 2}},
                 self._alert_stats, required=("group_by",),
@@ -224,18 +236,27 @@ class ToolBox:
                  "limit": {"type": "integer"}},
                 self._search_footage, required=("query",),
             ))
+        if self.inspector is not None and self.inspector.available:
+            how = ("A specialist vision check boxes every person and reports, person by "
+                   "person, clothing and whether a helmet/vest is ON them (yes / no / cannot "
+                   "tell), marking the person the alert flagged. Use its report as the facts "
+                   "about who wears what - do not contradict it.")
+        else:
+            how = "You see the image yourself."
+        question = {"type": "string", "description": "what you want to know about the people"}
         tools += [
             Tool(
                 "look_at_snapshot", "Looking at the snapshot",
-                "See the alert's snapshot image yourself.",
-                {"event_id": {"type": "string"}}, self._look_at_snapshot,
+                f"Look at the alert's snapshot (the moment of the alert). {how}",
+                {"event_id": {"type": "string"}, "question": question},
+                self._look_at_snapshot,
             ),
             Tool(
                 "look_at_frames", "Looking at the video",
-                "See a few frames spread across the alert's video clip yourself (still "
-                "images - quick). Prefer ask_video for motion or what happens over time.",
-                {"event_id": {"type": "string"},
-                 "count": {"type": "integer", "description": "1-6 frames (default 4)"}},
+                "Look at a few frames spread across the alert's video clip (still images). "
+                f"{how} Prefer ask_video for motion or what happens over time.",
+                {"event_id": {"type": "string"}, "question": question,
+                 "count": {"type": "integer", "description": "1-4 frames (default 3)"}},
                 self._look_at_frames,
             ),
         ]
@@ -243,7 +264,9 @@ class ToolBox:
             tools.append(Tool(
                 "ask_video", "Watching the video",
                 "Ask the video-understanding model one question about an alert's clip; it "
-                "watches the whole clip, motion included. Slower (~10-20 s).",
+                "watches the whole clip, motion included. Good for what happens over time; "
+                "unreliable for who wears what (it mixes people up) - check that yourself "
+                "with look_at_snapshot / look_at_frames. Slower (~10-20 s).",
                 {"event_id": {"type": "string"}, "question": {"type": "string"}},
                 self._ask_video, required=("question",),
             ))
@@ -360,19 +383,39 @@ class ToolBox:
         )
         return ToolResult({"results": [h.to_dict() for h in hits]})
 
+    def _inspect(self, doc: dict[str, Any], images: list[tuple[str, bytes]],
+                 question: str) -> ToolResult:
+        """The specialist per-person report on `images` (see inspect_people.py)."""
+        result = self.inspector.inspect(
+            images, question, flagged_bbox=doc.get("bbox") if doc.get("kind") == "ppe" else None,
+            about=f"Alert: {doc.get('message')} (type {doc.get('kind')}).",
+        )
+        return ToolResult({"event_id": str(doc["_id"]), "checked": result["images"],
+                           "people_report": result["report"]})
+
     def _look_at_snapshot(self, ctx: ToolContext, args: dict[str, Any]) -> ToolResult:
         doc = self._event(ctx, args)
         if not doc.get("snapshot_path"):
             return ToolResult({"error": "this alert has no snapshot"})
+        jpeg = self.store.read(doc["snapshot_path"])
+        if self.inspector is not None and self.inspector.available:
+            return self._inspect(doc, [("Snapshot", jpeg)], str(args.get("question") or ""))
         return ToolResult({"event_id": str(doc["_id"]), "image": "snapshot attached"},
-                          images=[self.store.read(doc["snapshot_path"])])
+                          images=[jpeg])
 
     def _look_at_frames(self, ctx: ToolContext, args: dict[str, Any]) -> ToolResult:
         doc = self._event(ctx, args)
         if not doc.get("clip_path"):
             return ToolResult({"error": "this alert has no saved video"})
-        count = max(1, min(int(args.get("count") or 4), 6))
-        frames = extract_keyframes(self.store.read(doc["clip_path"]), count, self.frame_height)
+        count = max(1, min(int(args.get("count") or 3), 4))
+        inspecting = self.inspector is not None and self.inspector.available
+        frames = extract_keyframes(self.store.read(doc["clip_path"]), count,
+                                   INSPECT_FRAME_HEIGHT if inspecting else LOOK_FRAME_HEIGHT)
+        if inspecting:
+            # The flagged box belongs to the alert's moment, not to these other frames.
+            return self._inspect({**doc, "bbox": None},
+                                 [(f"Frame at {offset:.1f} s", jpeg) for offset, jpeg in frames],
+                                 str(args.get("question") or ""))
         return ToolResult(
             {"event_id": str(doc["_id"]),
              "frames_at_seconds": [offset for offset, _jpeg in frames]},
