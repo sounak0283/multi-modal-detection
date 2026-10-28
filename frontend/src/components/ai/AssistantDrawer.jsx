@@ -49,7 +49,7 @@ export default function AssistantDrawer({ view, user }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="fixed right-5 bottom-5 z-90 flex items-center gap-2 rounded-full border border-brand-600 bg-brand-500 px-4 py-2.5 text-[13px] font-semibold text-on-brand shadow-2xl transition-colors hover:bg-brand-600"
+          className="fixed right-5 bottom-5 z-90 flex items-center gap-2 rounded-full border border-brand-600 bg-brand-500 px-4 py-2.5 text-[13px] font-semibold text-on-brand shadow-2xl transition-colors hover:bg-brand-600 light:border-transparent light:bg-[image:var(--aura)] light:shadow-lg light:hover:opacity-95"
         >
           <SparkIcon />
           Assistant

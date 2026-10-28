@@ -111,10 +111,10 @@ export default function Users({ currentUser }) {
   return (
     <div className="space-y-4">
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <Stat label="Accounts" value={users.length} />
-      <Stat label="Admins" value={admins} />
-      <Stat label="Operators" value={users.length - admins} />
-      <Stat label="Deactivated" value={users.filter((u) => !u.active).length} tone="warn" />
+      <Stat label="Accounts" value={users.length} icon="group" iconTone="blue" />
+      <Stat label="Admins" value={admins} icon="admin_panel_settings" iconTone="violet" />
+      <Stat label="Operators" value={users.length - admins} icon="person" iconTone="emerald" />
+      <Stat label="Deactivated" value={users.filter((u) => !u.active).length} tone="warn" icon="block" iconTone="amber" />
     </div>
     <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
       <Card>

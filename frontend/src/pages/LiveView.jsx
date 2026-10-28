@@ -1,5 +1,5 @@
 import BoundaryCanvas from '../components/BoundaryCanvas'
-import { Card, CardHead, Dot, EmptyState, EventPill, SeverityChip, TelemetryChip } from '../components/ui'
+import { Card, CardHead, Dot, EmptyState, EventPill, SeverityChip, Stat, TelemetryChip } from '../components/ui'
 import { api } from '../api'
 import { usePolling } from '../lib/usePolling'
 import { useRetryingStream } from '../lib/useRetryingStream'
@@ -44,6 +44,18 @@ export default function LiveView({ cameraId, zones }) {
         <TelemetryChip label="Tracked">{stats.people_tracked ?? 0}</TelemetryChip>
         <TelemetryChip label="Inside">{inside}</TelemetryChip>
         <TelemetryChip label="Events">{stats.events_fired ?? 0}</TelemetryChip>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="People on camera" value={stats.people_tracked ?? 0} icon="groups" iconTone="indigo" />
+        <Stat label="Inside boundaries" value={inside} icon="polyline" iconTone="purple" />
+        <Stat
+          label="Events fired"
+          value={stats.events_fired ?? 0}
+          icon="notifications_active"
+          iconTone="rose"
+        />
+        <Stat label="Inference ms" value={num(stats.inference_ms)} icon="speed" iconTone="sky" />
       </div>
 
       <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">

@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="web_dashboard" name="shell-type"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+    @layer base {
+      html, body { margin: 0; padding: 0; }
+      body { overscroll-behavior: none; }
+      main > :first-child { margin-top: 0 !important; }
+      main > :last-child { margin-bottom: 0 !important; }
+    }
+    ::-webkit-scrollbar { display: none; }
+  </style>
+<script src="https://cdn.tailwindcss.com"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "on-tertiary-container": "#fffbff",
+          "outline": "#767586",
+          "on-secondary-fixed": "#23005c",
+          "on-surface-variant": "#464554",
+          "primary-container": "#6063ee",
+          "on-secondary": "#ffffff",
+          "surface-container-highest": "#dae2fd",
+          "primary-fixed": "#e1e0ff",
+          "inverse-on-surface": "#eef0ff",
+          "tertiary-fixed": "#ffd9e4",
+          "on-surface": "#131b2e",
+          "on-tertiary": "#ffffff",
+          "on-secondary-container": "#fffbff",
+          "surface-tint": "#494bd6",
+          "error": "#ba1a1a",
+          "surface-variant": "#dae2fd",
+          "surface-dim": "#d2d9f4",
+          "on-background": "#131b2e",
+          "surface-container-low": "#f2f3ff",
+          "background": "#faf8ff",
+          "on-tertiary-fixed-variant": "#8c0053",
+          "surface-container-high": "#e2e7ff",
+          "secondary-fixed-dim": "#d0bcff",
+          "tertiary-container": "#d23284",
+          "primary-fixed-dim": "#c0c1ff",
+          "inverse-primary": "#c0c1ff",
+          "primary": "#4648d4",
+          "error-container": "#ffdad6",
+          "inverse-surface": "#283044",
+          "on-primary": "#ffffff",
+          "secondary": "#6b38d4",
+          "on-error-container": "#93000a",
+          "outline-variant": "#c7c4d7",
+          "on-error": "#ffffff",
+          "surface": "#faf8ff",
+          "on-tertiary-fixed": "#3e0022",
+          "tertiary-fixed-dim": "#ffb0cd",
+          "surface-container": "#eaedff",
+          "surface-bright": "#faf8ff",
+          "on-primary-container": "#fffbff",
+          "tertiary": "#b10e6b",
+          "secondary-fixed": "#e9ddff",
+          "on-primary-fixed": "#07006c",
+          "on-primary-fixed-variant": "#2f2ebe",
+          "on-secondary-fixed-variant": "#5516be",
+          "surface-container-lowest": "#ffffff",
+          "secondary-container": "#8455ef"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "gutter": "1rem",
+          "gutter-lg": "1.5rem",
+          "margin-sm": "1rem",
+          "space-xs": "0.25rem",
+          "space-md": "0.75rem",
+          "space-lg": "1rem",
+          "space-sm": "0.5rem",
+          "margin": "1.5rem",
+          "space-xl": "1.5rem"
+        },
+        "fontFamily": {
+          "body-md": ["Inter"],
+          "headline-md": ["Inter"],
+          "telemetry-lg": ["JetBrains Mono"],
+          "body-sm": ["Inter"],
+          "display-lg": ["Inter"],
+          "display-sm": ["Inter"],
+          "telemetry-md": ["JetBrains Mono"],
+          "body-lg": ["Inter"],
+          "headline-sm": ["Inter"],
+          "label-md": ["Inter"],
+          "telemetry-sm": ["JetBrains Mono"]
+        },
+        "fontSize": {
+          "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+          "headline-md": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+          "telemetry-lg": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+          "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+          "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+          "display-sm": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600"}],
+          "telemetry-md": ["13px", {"lineHeight": "18px", "fontWeight": "500"}],
+          "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+          "headline-sm": ["16px", {"lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600"}],
+          "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600"}],
+          "telemetry-sm": ["11px", {"lineHeight": "14px", "fontWeight": "500"}]
+        }
+      }
+    }
+  };
+  </script>
+</head>
+<body class="bg-surface text-on-surface font-body-md text-body-md">
+<aside class="fixed left-0 top-0 h-full w-72 bg-surface-container-lowest border-r border-[#E6E8F0] z-50 flex flex-col justify-between overflow-y-auto">
+<div class="flex flex-col">
+<div class="px-space-xl py-space-lg border-b border-[#E6E8F0] flex items-center gap-space-md">
+<div class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-on-primary text-[22px]">shield_locked</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold tracking-tight">PERIMETER</span>
+<span class="px-space-xs py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-telemetry-sm text-telemetry-sm font-semibold">v4.2</span>
+</div>
+<p class="font-telemetry-sm text-telemetry-sm text-outline tracking-wider uppercase font-medium">AI Safety Console</p>
+</div>
+</div>
+<nav class="px-space-md py-space-lg flex flex-col gap-space-xl" data-active-classes="bg-surface-container text-primary font-semibold ring-1 ring-primary/20">
+<div class="flex flex-col gap-space-xs">
+<span class="px-space-md font-label-md text-label-md uppercase tracking-wider text-outline font-semibold mb-space-xs">Monitor</span>
+<a class="flex items-center gap-space-md px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all group" data-path="live-view" href="#">
+<span class="w-8 h-8 rounded-lg bg-[#E0F2FE] text-[#0284C7] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px]">videocam</span>
+</span>
+<span class="font-body-md text-body-md">Live view</span>
+</a>
+<a class="flex items-center gap-space-md px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all group" data-path="boundaries" href="#">
+<span class="w-8 h-8 rounded-lg bg-[#EDE9FE] text-[#7C3AED] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px]">polyline</span>
+</span>
+<span class="font-body-md text-body-md">Boundaries</span>
+</a>
+<a class="flex items-center gap-space-md px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all group" data-path="cameras" href="#">
+<span class="w-8 h-8 rounded-lg bg-[#FEF3C7] text-[#D97706] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px]">nest_cam_floodlight</span>
+</span>
+<span class="font-body-md text-body-md">Cameras</span>
+</a>
+</div>
+<div class="flex flex-col gap-space-xs">
+<span class="px-space-md font-label-md text-label-md uppercase tracking-wider text-outline font-semibold mb-space-xs">Review</span>
+<a class="flex items-center gap-space-md px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all group" data-path="alert-history" href="#">
+<span class="w-8 h-8 rounded-lg bg-[#FFE4E6] text-[#E11D48] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px]">history</span>
+</span>
+<span class="font-body-md text-body-md">Alert history</span>
+</a>
+<a class="flex items-center gap-space-md px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all group" data-path="evidence" href="#">
+<span class="w-8 h-8 rounded-lg bg-primary-fixed text-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px]">folder_supervised</span>
+</span>
+<span class="font-body-md text-body-md">Evidence</span>
+</a>
+<a class="flex items-center gap-space-md px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all group" data-path="recognition-log" href="#">
+<span class="w-8 h-8 rounded-lg bg-[#CCFBF1] text-[#0F766E] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px]">face</span>
+</span>
+<span class="font-body-md text-body-md">Recognition log</span>
+</a>
+</div>
+<div class="flex flex-col gap-space-xs">
+<span class="px-space-md font-label-md text-label-md uppercase tracking-wider text-outline font-semibold mb-space-xs">Configure</span>
+<a class="flex items-center gap-space-md px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all group" data-path="video-test" href="#">
+<span class="w-8 h-8 rounded-lg bg-[#E0E7FF] text-[#4338CA] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+</span>
+<span class="font-body-md text-body-md">Video test</span>
+</a>
+<a class="flex items-center gap-space-md px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all group" data-path="alert-rules" href="#">
+<span class="w-8 h-8 rounded-lg bg-[#FCE7F3] text-[#BE185D] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px]">rule</span>
+</span>
+<span class="font-body-md text-body-md">Alert rules</span>
+</a>
+<a class="flex items-center gap-space-md px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all group" data-path="people" href="#">
+<span class="w-8 h-8 rounded-lg bg-[#DCFCE7] text-[#15803D] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px]">group</span>
+</span>
+<span class="font-body-md text-body-md">People</span>
+</a>
+<a class="flex items-center gap-space-md px-space-md py-space-sm rounded-xl bg-surface-container text-primary font-semibold ring-1 ring-primary/20 transition-all group" data-path="accounts" href="#">
+<span class="w-8 h-8 rounded-lg bg-primary-fixed text-primary flex items-center justify-center shrink-0 shadow-sm">
+<span class="material-symbols-outlined text-[18px]">manage_accounts</span>
+</span>
+<span class="font-body-md text-body-md">Accounts</span>
+<span class="ml-auto w-2 h-2 rounded-full bg-primary"></span>
+</a>
+<a class="flex items-center gap-space-md px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all group" data-path="settings" href="#">
+<span class="w-8 h-8 rounded-lg bg-[#FFEDD5] text-[#C2410C] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px]">settings</span>
+</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+</div>
+</nav>
+</div>
+<div class="p-space-md border-t border-[#E6E8F0] m-space-md bg-surface-container-low rounded-xl">
+<div class="flex items-center gap-space-md">
+<div class="relative">
+<div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-on-primary text-[20px]">person</span>
+</div>
+<span class="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-surface-container-lowest"></span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="font-headline-sm text-body-md text-on-surface font-semibold truncate">Marcus Vance</p>
+<p class="font-telemetry-sm text-telemetry-sm text-outline truncate">Safety Lead</p>
+</div>
+<button class="p-1 text-outline hover:text-on-surface transition-colors" title="User menu" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+<div class="mt-space-sm pt-space-xs border-t border-[#E6E8F0] flex items-center justify-between text-outline">
+<span class="font-telemetry-sm text-telemetry-sm flex items-center gap-1 font-semibold text-emerald-700">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>ONLINE
+        </span>
+<span class="font-telemetry-sm text-telemetry-sm font-medium">ID #9412-SEC</span>
+</div>
+</div>
+</aside>
+<div class="pl-72">
+<header class="fixed top-0 left-72 right-0 h-16 bg-surface-container-lowest border-b border-[#E6E8F0] z-40 px-space-xl flex items-center justify-between shadow-[0_1px_3px_rgba(16,24,40,0.04)]">
+<div class="flex items-center gap-space-lg flex-1 max-w-2xl">
+<div class="flex items-center gap-space-xs px-space-md py-1.5 bg-surface rounded-lg border border-[#E6E8F0] text-on-surface shadow-xs">
+<span class="material-symbols-outlined text-primary text-[18px]">videocam</span>
+<select class="bg-transparent font-body-sm text-body-sm outline-none cursor-pointer pr-space-xs text-on-surface font-medium">
+<option>Sector 4A - North Perimeter Gate</option>
+<option>Sector 1B - Logistics Loading Bay</option>
+<option>Sector 2 - Main Lobby Portal</option>
+<option>Sector 3C - Chemical Tank Yard</option>
+</select>
+</div>
+<div class="relative flex-1">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+<input class="w-full h-9 pl-9 pr-space-md rounded-lg bg-surface border border-[#E6E8F0] font-body-sm text-body-sm placeholder:text-outline focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" placeholder="Search incidents, tag IDs, cameras, or operators (⌘K)..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-space-md">
+<div class="flex items-center gap-space-xs px-space-sm py-1 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]">
+<span class="material-symbols-outlined text-[16px]">warning</span>
+<span class="font-telemetry-sm text-telemetry-sm font-semibold uppercase tracking-wide">Hazard: Guarded</span>
+</div>
+<div class="flex items-center gap-1 px-space-sm py-1 rounded-full bg-surface border border-[#E6E8F0] text-on-surface">
+<span class="material-symbols-outlined text-emerald-600 text-[14px]">wifi</span>
+<span class="font-telemetry-sm text-telemetry-sm text-outline font-medium">24ms</span>
+</div>
+<button class="flex items-center gap-space-xs px-space-md py-1.5 rounded-lg bg-gradient-to-r from-primary to-secondary text-on-primary hover:opacity-92 transition-opacity shadow-sm" type="button">
+<span class="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px]">auto_awesome</span>
+</span>
+<span class="font-label-md text-label-md font-semibold">AI Assistant</span>
+</button>
+<div class="h-5 w-px bg-[#E6E8F0]"></div>
+<button class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary hover:ring-2 hover:ring-primary/20 transition-all shrink-0" title="Marcus Vance Profile" type="button">
+<span class="material-symbols-outlined text-[18px]">person</span>
+</button>
+</div>
+</header>
+<main class="relative pt-16 bg-[#F7F8FC] min-h-screen w-full px-8 py-space-lg">
+<div class="flex flex-col w-full gap-space-xl pb-16">
+<!-- Header & Actions -->
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-lg">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-space-sm flex-wrap">
+<h1 class="font-headline-md text-headline-md text-on-surface tracking-tight font-bold">Accounts &amp; Operator Access Control</h1>
+<span class="px-2.5 py-0.5 rounded-full bg-[#E0F2FE] text-[#0369A1] font-telemetry-sm text-telemetry-sm font-semibold tracking-wide">
+          12 TOTAL ACCOUNTS
+        </span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-telemetry-sm text-telemetry-sm flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Okta SCIM v2 Synced
+        </span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">
+        Enterprise Identity Management, role-based boundary authorization, and cryptographically signed session tokens.
+      </p>
+</div>
+<div class="flex items-center gap-space-md shrink-0">
+<button class="flex items-center gap-space-xs px-space-md py-2 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-low transition-colors shadow-sm font-headline-sm text-body-md font-medium" type="button">
+<span class="material-symbols-outlined text-[18px] text-outline">file_download</span>
+<span>Export Audit Log (CSV)</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-lg py-2 rounded-lg bg-gradient-to-r from-primary to-tertiary-container text-on-primary hover:opacity-95 transition-all shadow-md font-headline-sm text-body-md font-semibold" id="open-invite-modal" type="button">
+<span class="material-symbols-outlined text-[18px]">person_add</span>
+<span>+ Invite User</span>
+</button>
+</div>
+</div>
+<!-- KPI / Diagnostic Tiles Row (4 cards) -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter-lg">
+<!-- KPI 1 -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col justify-between gap-space-md">
+<div class="flex items-center justify-between">
+<div class="w-10 h-10 rounded-xl bg-[#EDE9FE] text-[#7C3AED] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">badge</span>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#15803D] font-telemetry-sm text-telemetry-sm font-semibold">
+          +2 this month
+        </span>
+</div>
+<div>
+<div class="font-display-lg text-display-lg text-on-surface font-bold tracking-tight">12</div>
+<div class="font-headline-sm text-body-md text-on-surface font-semibold">Total Operators</div>
+<div class="font-body-sm text-body-sm text-outline mt-0.5 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 8 Active console sessions now
+        </div>
+</div>
+</div>
+<!-- KPI 2 -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col justify-between gap-space-md">
+<div class="flex items-center justify-between">
+<div class="w-10 h-10 rounded-xl bg-[#E0E7FF] text-[#4338CA] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">admin_panel_settings</span>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-telemetry-sm text-telemetry-sm">
+          Tier 0
+        </span>
+</div>
+<div>
+<div class="font-display-lg text-display-lg text-on-surface font-bold tracking-tight">3</div>
+<div class="font-headline-sm text-body-md text-on-surface font-semibold">Security Admins</div>
+<div class="font-body-sm text-body-sm text-outline mt-0.5">
+          Full cluster, inference &amp; token authority
+        </div>
+</div>
+</div>
+<!-- KPI 3 -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col justify-between gap-space-md">
+<div class="flex items-center justify-between">
+<div class="w-10 h-10 rounded-xl bg-[#E0F2FE] text-[#0284C7] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">videocam</span>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] font-telemetry-sm text-telemetry-sm font-semibold">
+          Shift Alpha
+        </span>
+</div>
+<div>
+<div class="font-display-lg text-display-lg text-on-surface font-bold tracking-tight">6</div>
+<div class="font-headline-sm text-body-md text-on-surface font-semibold">Active Shift Operators</div>
+<div class="font-body-sm text-body-sm text-outline mt-0.5">
+          Incident triage &amp; PTZ camera control
+        </div>
+</div>
+</div>
+<!-- KPI 4 -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col justify-between gap-space-md">
+<div class="flex items-center justify-between">
+<div class="w-10 h-10 rounded-xl bg-[#CCFBF1] text-[#0F766E] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">policy</span>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-low text-outline font-telemetry-sm text-telemetry-sm">
+          Read-Only
+        </span>
+</div>
+<div>
+<div class="font-display-lg text-display-lg text-on-surface font-bold tracking-tight">3</div>
+<div class="font-headline-sm text-body-md text-on-surface font-semibold">Audit &amp; Compliance</div>
+<div class="font-body-sm text-body-sm text-outline mt-0.5">
+          External auditors &amp; forensic vault viewers
+        </div>
+</div>
+</div>
+</div>
+<!-- Main Content Grid -->
+<div class="flex flex-col gap-space-xl">
+<!-- Users Table Card -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden flex flex-col">
+<!-- Toolbar -->
+<div class="p-space-lg flex flex-col md:flex-row items-stretch md:items-center justify-between gap-space-md bg-surface-container-lowest">
+<div class="flex items-center gap-space-sm flex-1 max-w-md">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+<input class="w-full h-10 pl-9 pr-12 rounded-lg bg-surface-container-low text-on-surface font-body-sm text-body-sm placeholder:text-outline focus:outline-none focus:bg-surface-container-lowest transition-all" placeholder="Search name, email, clearance role..." type="text"/>
+<span class="absolute right-3 top-1/2 -translate-y-1/2 font-telemetry-sm text-telemetry-sm text-outline bg-surface-container px-1.5 py-0.5 rounded">⌘K</span>
+</div>
+</div>
+<!-- Filter Chips -->
+<div class="flex items-center gap-1.5 flex-wrap">
+<button class="px-3 py-1.5 rounded-lg bg-primary-fixed text-on-primary-fixed font-headline-sm text-body-sm font-semibold transition-all" type="button">
+            All (12)
+          </button>
+<button class="px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface-variant font-body-sm text-body-sm transition-all" type="button">
+            Admins (3)
+          </button>
+<button class="px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface-variant font-body-sm text-body-sm transition-all" type="button">
+            Operators (6)
+          </button>
+<button class="px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface-variant font-body-sm text-body-sm transition-all" type="button">
+            Viewers (3)
+          </button>
+<button class="px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface-variant font-body-sm text-body-sm flex items-center gap-1 transition-all" type="button">
+<span class="material-symbols-outlined text-emerald-600 text-[14px]">verified_user</span>
+            2FA Enforced (12)
+          </button>
+</div>
+</div>
+<!-- Table Container -->
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low text-outline font-telemetry-sm text-telemetry-sm uppercase tracking-wider">
+<th class="py-3 px-space-lg font-semibold">User / Operator</th>
+<th class="py-3 px-space-md font-semibold">Clearance Role</th>
+<th class="py-3 px-space-md font-semibold">Camera Access Scope</th>
+<th class="py-3 px-space-md font-semibold text-center">Alerts &amp; Dispatch</th>
+<th class="py-3 px-space-md font-semibold">2FA &amp; Security</th>
+<th class="py-3 px-space-md font-semibold">Last Active</th>
+<th class="py-3 px-space-lg text-right font-semibold">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container">
+<!-- Row 1: Marcus Vance -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="py-space-md px-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="relative w-9 h-9 rounded-full bg-primary flex items-center justify-center text-on-primary font-headline-sm text-headline-sm font-semibold shrink-0 shadow-xs">
+                    MV
+                    <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+</div>
+<div class="min-w-0">
+<p class="font-headline-sm text-body-md text-on-surface font-semibold truncate flex items-center gap-1.5">
+                      Marcus Vance
+                      <span class="px-1.5 py-0.2 bg-primary-fixed text-on-primary-fixed font-telemetry-sm text-telemetry-sm rounded">Lead</span>
+</p>
+<p class="font-telemetry-sm text-telemetry-sm text-outline truncate">marcus.vance@site-alpha.internal</p>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="px-2.5 py-1 rounded-full bg-[#E0E7FF] text-[#4338CA] font-telemetry-sm text-telemetry-sm font-semibold">
+                  Admin
+                </span>
+</td>
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary">videocam</span>
+<span class="font-telemetry-md text-telemetry-md text-on-surface font-medium">All Cameras (24)</span>
+</div>
+</td>
+<td class="py-space-md px-space-md text-center">
+<label class="inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="relative w-9 h-5 bg-surface-container peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+</label>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#D1FAE5] text-[#065F46] font-telemetry-sm text-telemetry-sm font-medium">
+<span class="material-symbols-outlined text-[13px]">key</span>
+                  FIDO2 / Hardware Key
+                </span>
+</td>
+<td class="py-space-md px-space-md">
+<span class="font-telemetry-sm text-telemetry-sm font-semibold text-emerald-700 flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Active Now
+                </span>
+</td>
+<td class="py-space-md px-space-lg text-right">
+<button class="p-1.5 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 2: Elena Rostova -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="py-space-md px-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="relative w-9 h-9 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary font-headline-sm text-headline-sm font-semibold shrink-0 shadow-xs">
+                    ER
+                    <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+</div>
+<div class="min-w-0">
+<p class="font-headline-sm text-body-md text-on-surface font-semibold truncate">Elena Rostova</p>
+<p class="font-telemetry-sm text-telemetry-sm text-outline truncate">elena.rostova@site-alpha.internal</p>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="px-2.5 py-1 rounded-full bg-[#E0F2FE] text-[#0369A1] font-telemetry-sm text-telemetry-sm font-semibold">
+                  Operator
+                </span>
+</td>
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-outline">nest_cam_floodlight</span>
+<span class="font-body-md text-body-md text-on-surface">Sectors 1, 2, 4 (16 Cams)</span>
+</div>
+</td>
+<td class="py-space-md px-space-md text-center">
+<label class="inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="relative w-9 h-5 bg-surface-container peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+</label>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant font-telemetry-sm text-telemetry-sm">
+<span class="material-symbols-outlined text-[13px]">phone_android</span>
+                  Authenticator App
+                </span>
+</td>
+<td class="py-space-md px-space-md font-telemetry-sm text-telemetry-sm text-on-surface-variant">
+                12m ago
+              </td>
+<td class="py-space-md px-space-lg text-right">
+<button class="p-1.5 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 3: David Chen -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="py-space-md px-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="relative w-9 h-9 rounded-full bg-primary-container flex items-center justify-center text-on-primary font-headline-sm text-headline-sm font-semibold shrink-0 shadow-xs">
+                    DC
+                    <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+</div>
+<div class="min-w-0">
+<p class="font-headline-sm text-body-md text-on-surface font-semibold truncate">David Chen</p>
+<p class="font-telemetry-sm text-telemetry-sm text-outline truncate">david.chen@site-alpha.internal</p>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="px-2.5 py-1 rounded-full bg-[#E0F2FE] text-[#0369A1] font-telemetry-sm text-telemetry-sm font-semibold">
+                  Operator
+                </span>
+</td>
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-outline">nest_cam_floodlight</span>
+<span class="font-body-md text-body-md text-on-surface">Foundry &amp; Rail Bay (6 Cams)</span>
+</div>
+</td>
+<td class="py-space-md px-space-md text-center">
+<label class="inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="relative w-9 h-5 bg-surface-container peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+</label>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant font-telemetry-sm text-telemetry-sm">
+<span class="material-symbols-outlined text-[13px]">phone_android</span>
+                  Authenticator App
+                </span>
+</td>
+<td class="py-space-md px-space-md font-telemetry-sm text-telemetry-sm text-on-surface-variant">
+                1h ago
+              </td>
+<td class="py-space-md px-space-lg text-right">
+<button class="p-1.5 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 4: Sarah Jenkins -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="py-space-md px-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="relative w-9 h-9 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center font-headline-sm text-headline-sm font-semibold shrink-0 shadow-xs">
+                    SJ
+                  </div>
+<div class="min-w-0">
+<p class="font-headline-sm text-body-md text-on-surface font-semibold truncate">Sarah Jenkins</p>
+<p class="font-telemetry-sm text-telemetry-sm text-outline truncate">sarah.jenkins@site-alpha.internal</p>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="px-2.5 py-1 rounded-full bg-[#E0F2FE] text-[#0369A1] font-telemetry-sm text-telemetry-sm font-semibold">
+                  Operator
+                </span>
+</td>
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-outline">nest_cam_floodlight</span>
+<span class="font-body-md text-body-md text-on-surface">Gantry Cranes &amp; Dock (4 Cams)</span>
+</div>
+</td>
+<td class="py-space-md px-space-md text-center">
+<label class="inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="relative w-9 h-5 bg-surface-container peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+</label>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant font-telemetry-sm text-telemetry-sm">
+<span class="material-symbols-outlined text-[13px]">phone_android</span>
+                  Authenticator App
+                </span>
+</td>
+<td class="py-space-md px-space-md font-telemetry-sm text-telemetry-sm text-outline">
+                Yesterday
+              </td>
+<td class="py-space-md px-space-lg text-right">
+<button class="p-1.5 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 5: Dr. Aris Thorne -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="py-space-md px-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="relative w-9 h-9 rounded-full bg-[#F1F5F9] text-[#475569] flex items-center justify-center font-headline-sm text-headline-sm font-semibold shrink-0 shadow-xs">
+                    AT
+                  </div>
+<div class="min-w-0">
+<p class="font-headline-sm text-body-md text-on-surface font-semibold truncate flex items-center gap-1">
+                      Dr. Aris Thorne
+                      <span class="px-1.5 py-0.2 bg-[#F1F5F9] text-[#475569] font-telemetry-sm text-telemetry-sm rounded">OSHA</span>
+</p>
+<p class="font-telemetry-sm text-telemetry-sm text-outline truncate">compliance@auditors.external</p>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="px-2.5 py-1 rounded-full bg-[#F1F5F9] text-[#475569] font-telemetry-sm text-telemetry-sm font-semibold">
+                  Viewer
+                </span>
+</td>
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-outline">folder_supervised</span>
+<span class="font-body-md text-body-md text-on-surface-variant">Forensic Vault Only</span>
+</div>
+</td>
+<td class="py-space-md px-space-md text-center">
+<label class="inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="relative w-9 h-5 bg-surface-container peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+</label>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#D1FAE5] text-[#065F46] font-telemetry-sm text-telemetry-sm font-medium">
+<span class="material-symbols-outlined text-[13px]">fingerprint</span>
+                  FIDO2 / WebAuthn
+                </span>
+</td>
+<td class="py-space-md px-space-md font-telemetry-sm text-telemetry-sm text-outline">
+                3d ago
+              </td>
+<td class="py-space-md px-space-lg text-right">
+<button class="p-1.5 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer / Pagination -->
+<div class="p-space-lg bg-surface-container-lowest flex flex-col sm:flex-row items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-md text-outline font-body-sm text-body-sm">
+<span>Showing <strong class="text-on-surface font-semibold">1-5</strong> of <strong class="text-on-surface font-semibold">12</strong> operators</span>
+<span class="hidden sm:inline">•</span>
+<span class="font-telemetry-sm text-telemetry-sm flex items-center gap-1 text-emerald-700">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            SCIM sync: Up to date (last sync 2m ago)
+          </span>
+</div>
+<div class="flex items-center gap-1">
+<button class="px-2.5 py-1.5 rounded-lg bg-surface-container-low text-outline hover:text-on-surface hover:bg-surface-container transition-colors text-body-sm" type="button">
+            Previous
+          </button>
+<button class="w-8 h-8 rounded-lg bg-primary text-on-primary font-telemetry-sm text-telemetry-sm font-bold flex items-center justify-center shadow-xs" type="button">
+            1
+          </button>
+<button class="w-8 h-8 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-telemetry-sm text-telemetry-sm flex items-center justify-center transition-colors" type="button">
+            2
+          </button>
+<button class="w-8 h-8 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-telemetry-sm text-telemetry-sm flex items-center justify-center transition-colors" type="button">
+            3
+          </button>
+<button class="px-2.5 py-1.5 rounded-lg bg-surface-container-low text-outline hover:text-on-surface hover:bg-surface-container transition-colors text-body-sm" type="button">
+            Next
+          </button>
+</div>
+</div>
+</div>
+<!-- Roles & Permissions Matrix Card -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden flex flex-col">
+<div class="p-space-lg flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm bg-surface-container-lowest">
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">Role-Based Access Control (RBAC) Matrix</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Global perimeter privilege distribution mapped to Okta security groups.</p>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-telemetry-sm text-telemetry-sm px-2.5 py-1 rounded-full bg-surface-container text-outline font-semibold">
+            POLICY VERSION: v4.2.8
+          </span>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low text-outline font-telemetry-sm text-telemetry-sm uppercase tracking-wider">
+<th class="py-3 px-space-lg font-semibold w-1/2">Console Capability &amp; Privilege</th>
+<th class="py-3 px-space-md text-center font-semibold w-1/6">
+<span class="px-2.5 py-1 rounded-full bg-[#E0E7FF] text-[#4338CA]">Admin</span>
+</th>
+<th class="py-3 px-space-md text-center font-semibold w-1/6">
+<span class="px-2.5 py-1 rounded-full bg-[#E0F2FE] text-[#0369A1]">Operator</span>
+</th>
+<th class="py-3 px-space-md text-center font-semibold w-1/6">
+<span class="px-2.5 py-1 rounded-full bg-[#F1F5F9] text-[#475569]">Viewer</span>
+</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container font-body-md text-body-md text-on-surface">
+<!-- Cap 1 -->
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-3 px-space-lg font-medium">Live CCTV Streaming &amp; Real-Time Telemetry</td>
+<td class="py-3 px-space-md text-center">
+<span class="w-6 h-6 rounded-full bg-[#DCFCE7] text-[#15803D] inline-flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</span>
+</td>
+<td class="py-3 px-space-md text-center">
+<span class="w-6 h-6 rounded-full bg-[#DCFCE7] text-[#15803D] inline-flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</span>
+</td>
+<td class="py-3 px-space-md text-center">
+<span class="w-6 h-6 rounded-full bg-[#DCFCE7] text-[#15803D] inline-flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</span>
+</td>
+</tr>
+<!-- Cap 2 -->
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-3 px-space-lg font-medium">PTZ Camera Pan/Tilt/Zoom Control &amp; RSTP Reconnect</td>
+<td class="py-3 px-space-md text-center">
+<span class="w-6 h-6 rounded-full bg-[#DCFCE7] text-[#15803D] inline-flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</span>
+</td>
+<td class="py-3 px-space-md text-center">
+<span class="w-6 h-6 rounded-full bg-[#DCFCE7] text-[#15803D] inline-flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</span>
+</td>
+<td class="py-3 px-space-md text-center">
+<span class="text-outline-variant font-bold">—</span>
+</td>
+</tr>
+<!-- Cap 3 -->
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-3 px-space-lg font-medium">Acknowledge &amp; Triage Perimeter Threat Alerts</td>
+<td class="py-3 px-space-md text-center">
+<span class="w-6 h-6 rounded-full bg-[#DCFCE7] text-[#15803D] inline-flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</span>
+</td>
+<td class="py-3 px-space-md text-center">
+<span class="w-6 h-6 rounded-full bg-[#DCFCE7] text-[#15803D] inline-flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</span>
+</td>
+<td class="py-3 px-space-md text-center">
+<span class="text-outline-variant font-bold">—</span>
+</td>
+</tr>
+<!-- Cap 4 -->
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-3 px-space-lg font-medium">Manage Boundary Exclusion Polygons &amp; Hazard Geofences</td>
+<td class="py-3 px-space-md text-center">
+<span class="w-6 h-6 rounded-full bg-[#DCFCE7] text-[#15803D] inline-flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</span>
+</td>
+<td class="py-3 px-space-md text-center">
+<span class="text-outline-variant font-bold">—</span>
+</td>
+<td class="py-3 px-space-md text-center">
+<span class="text-outline-variant font-bold">—</span>
+</td>
+</tr>
+<!-- Cap 5 -->
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-3 px-space-lg font-medium">Manage Personnel &amp; Facial Recognition Vector Enrolments</td>
+<td class="py-3 px-space-md text-center">
+<span class="w-6 h-6 rounded-full bg-[#DCFCE7] text-[#15803D] inline-flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</span>
+</td>
+<td class="py-3 px-space-md text-center">
+<span class="text-outline-variant font-bold">—</span>
+</td>
+<td class="py-3 px-space-md text-center">
+<span class="text-outline-variant font-bold">—</span>
+</td>
+</tr>
+<!-- Cap 6 -->
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-3 px-space-lg font-medium">Manage Accounts, Grant Roles &amp; Dispatch Invites</td>
+<td class="py-3 px-space-md text-center">
+<span class="w-6 h-6 rounded-full bg-[#DCFCE7] text-[#15803D] inline-flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</span>
+</td>
+<td class="py-3 px-space-md text-center">
+<span class="text-outline-variant font-bold">—</span>
+</td>
+<td class="py-3 px-space-md text-center">
+<span class="text-outline-variant font-bold">—</span>
+</td>
+</tr>
+<!-- Cap 7 -->
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-3 px-space-lg font-medium">Change Global Inference Engines, Thresholds &amp; Edge Hardware</td>
+<td class="py-3 px-space-md text-center">
+<span class="w-6 h-6 rounded-full bg-[#DCFCE7] text-[#15803D] inline-flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</span>
+</td>
+<td class="py-3 px-space-md text-center">
+<span class="text-outline-variant font-bold">—</span>
+</td>
+<td class="py-3 px-space-md text-center">
+<span class="text-outline-variant font-bold">—</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Invite User Modal Dialog Backdrop -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto" id="invite-modal">
+<!-- Modal Card (max-w ~580px) -->
+<div class="relative w-full max-w-[580px] bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden my-8">
+<!-- Top Accent Bar -->
+<div class="h-1.5 w-full bg-gradient-to-r from-primary via-secondary to-tertiary-container"></div>
+<!-- Modal Body -->
+<div class="p-space-xl flex flex-col gap-space-lg">
+<!-- Modal Header -->
+<div class="flex items-start justify-between">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded-full bg-[#E0E7FF] text-[#4338CA] font-telemetry-sm text-telemetry-sm font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">key</span>
+                TOKEN DISPATCH SEC-ID
+              </span>
+<span class="font-telemetry-sm text-telemetry-sm text-outline">v2.4-OIDC</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface font-bold mt-1">Invite User to Perimeter Console</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">New user will receive a cryptographic enrollment link valid for 24 hours.</p>
+</div>
+<button class="w-8 h-8 rounded-lg bg-surface-container-low hover:bg-surface-container text-outline hover:text-on-surface flex items-center justify-center transition-colors" id="close-invite-modal" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Form Elements -->
+<div class="flex flex-col gap-space-lg">
+<!-- Field 1: Email Address -->
+<div class="flex flex-col gap-1.5">
+<label class="font-telemetry-sm text-telemetry-sm uppercase tracking-wider text-outline font-semibold">
+              Corporate Email Address
+            </label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">mail</span>
+<input class="w-full h-10 pl-9 pr-space-md rounded-lg bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-all font-medium" type="email" value="operator@site-alpha.internal"/>
+</div>
+<p class="font-body-sm text-body-sm text-outline flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-primary">verified</span>
+              Must match authorized enterprise identity domain (@site-alpha.internal)
+            </p>
+</div>
+<!-- Field 2: Assign Clearance Role (3 side-by-side cards) -->
+<div class="flex flex-col gap-1.5">
+<label class="font-telemetry-sm text-telemetry-sm uppercase tracking-wider text-outline font-semibold">
+              Assign Clearance Role
+            </label>
+<div class="grid grid-cols-3 gap-space-sm" id="role-selector">
+<!-- Admin Card -->
+<div class="cursor-pointer p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all flex flex-col gap-1 text-left" data-role="admin">
+<span class="font-headline-sm text-body-md text-on-surface font-semibold">Admin</span>
+<span class="font-body-sm text-body-sm text-outline">Full console &amp; cluster access</span>
+</div>
+<!-- Operator Card (Selected) -->
+<div class="cursor-pointer p-space-md rounded-xl bg-primary-fixed text-on-primary-fixed shadow-xs transition-all flex flex-col gap-1 text-left relative" data-role="operator">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-body-md text-on-primary-fixed font-bold">Operator</span>
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-primary-fixed-variant">Triage, feeds &amp; zone setup</span>
+</div>
+<!-- Viewer Card -->
+<div class="cursor-pointer p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all flex flex-col gap-1 text-left" data-role="viewer">
+<span class="font-headline-sm text-body-md text-on-surface font-semibold">Viewer</span>
+<span class="font-body-sm text-body-sm text-outline">Read-only live monitoring</span>
+</div>
+</div>
+</div>
+<!-- Field 3: Camera Access Scope -->
+<div class="flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<label class="font-telemetry-sm text-telemetry-sm uppercase tracking-wider text-outline font-semibold">
+                Camera Access Scope
+              </label>
+<div class="flex items-center gap-2">
+<button class="font-body-sm text-body-sm text-primary hover:underline font-medium" type="button">Select All (4)</button>
+<span class="text-outline-variant font-body-sm text-body-sm">•</span>
+<button class="font-body-sm text-body-sm text-outline hover:text-on-surface" type="button">Clear</button>
+</div>
+</div>
+<!-- Checkbox 2x2 Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
+<label class="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container cursor-pointer transition-colors">
+<div class="flex items-center gap-2">
+<input checked="" class="w-4 h-4 rounded text-primary accent-primary" type="checkbox"/>
+<span class="font-telemetry-sm text-telemetry-sm font-semibold text-on-surface">CAM-01 [Rail Bay North]</span>
+</div>
+<span class="px-1.5 py-0.5 rounded bg-[#D1FAE5] text-[#065F46] font-telemetry-sm text-telemetry-sm font-bold">ONLINE</span>
+</label>
+<label class="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container cursor-pointer transition-colors">
+<div class="flex items-center gap-2">
+<input checked="" class="w-4 h-4 rounded text-primary accent-primary" type="checkbox"/>
+<span class="font-telemetry-sm text-telemetry-sm font-semibold text-on-surface">CAM-02 [Desk / USB]</span>
+</div>
+<span class="px-1.5 py-0.5 rounded bg-[#D1FAE5] text-[#065F46] font-telemetry-sm text-telemetry-sm font-bold">ONLINE</span>
+</label>
+<label class="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container cursor-pointer transition-colors">
+<div class="flex items-center gap-2">
+<input class="w-4 h-4 rounded text-primary accent-primary" type="checkbox"/>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface">CAM-03 [Foundry Gate]</span>
+</div>
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-outline font-telemetry-sm text-telemetry-sm font-medium">STANDBY</span>
+</label>
+<label class="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container cursor-pointer transition-colors">
+<div class="flex items-center gap-2">
+<input class="w-4 h-4 rounded text-primary accent-primary" type="checkbox"/>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface">CAM-04 [Robotic Cell]</span>
+</div>
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-outline font-telemetry-sm text-telemetry-sm font-medium">STANDBY</span>
+</label>
+</div>
+</div>
+<!-- Notification Checkbox -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex items-start gap-space-sm">
+<input checked="" class="w-4 h-4 rounded text-primary accent-primary mt-0.5 shrink-0" id="sub-alerts" type="checkbox"/>
+<label class="cursor-pointer" for="sub-alerts">
+<span class="font-headline-sm text-body-md text-on-surface font-semibold block">Subscribe to critical boundary breach alerts</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant block mt-0.5">Dispatches instant real-time telemetry webhook &amp; incident SMS to registered operator device.</span>
+</label>
+</div>
+<!-- Security Badge Footer inside Card -->
+<div class="p-2.5 rounded-lg bg-surface-container flex items-center justify-between font-telemetry-sm text-telemetry-sm text-outline">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-emerald-600">lock</span>
+<span>TOKEN_TTL: 24h</span>
+</div>
+<span>ENCRYPTION: AES-GCM-256 + SHA-256 HMAC</span>
+</div>
+</div>
+<!-- Modal Footer Actions -->
+<div class="flex items-center justify-end gap-space-md pt-space-xs">
+<button class="px-space-lg py-2 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-headline-sm text-body-md font-medium transition-colors" id="cancel-invite-modal" type="button">
+            Cancel
+          </button>
+<button class="flex items-center gap-space-xs px-space-lg py-2 rounded-lg bg-gradient-to-r from-primary via-secondary to-tertiary-container text-on-primary hover:opacity-95 transition-all shadow-md font-headline-sm text-body-md font-semibold" id="confirm-invite-btn" type="button">
+<span>Send Invite Link</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<script>
+    // Micro-interactions for Invite User Modal
+    const modal = document.getElementById('invite-modal');
+    const openBtn = document.getElementById('open-invite-modal');
+    const closeBtn = document.getElementById('close-invite-modal');
+    const cancelBtn = document.getElementById('cancel-invite-modal');
+    const confirmBtn = document.getElementById('confirm-invite-btn');
+
+    function toggleModal(show) {
+      if (show) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      } else {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    if (openBtn) openBtn.addEventListener('click', () => toggleModal(true));
+    if (closeBtn) closeBtn.addEventListener('click', () => toggleModal(false));
+    if (cancelBtn) cancelBtn.addEventListener('click', () => toggleModal(false));
+    
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', () => {
+        confirmBtn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">refresh</span> Dispatching...';
+        setTimeout(() => {
+          toggleModal(false);
+          confirmBtn.innerHTML = '<span>Send Invite Link</span><span class="material-symbols-outlined text-[18px]">arrow_forward</span>';
+        }, 600);
+      });
+    }
+
+    // Role selector highlight interactivity
+    const roleCards = document.querySelectorAll('#role-selector > div');
+    roleCards.forEach(card => {
+      card.addEventListener('click', () => {
+        roleCards.forEach(c => {
+          c.className = 'cursor-pointer p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all flex flex-col gap-1 text-left';
+          const icon = c.querySelector('.material-symbols-outlined');
+          if (icon) icon.remove();
+        });
+        card.className = 'cursor-pointer p-space-md rounded-xl bg-primary-fixed text-on-primary-fixed shadow-xs transition-all flex flex-col gap-1 text-left relative';
+        const titleSpan = card.querySelector('span:first-child');
+        if (titleSpan) {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'flex items-center justify-between';
+          titleSpan.parentNode.insertBefore(wrapper, titleSpan);
+          wrapper.appendChild(titleSpan);
+          const icon = document.createElement('span');
+          icon.className = 'material-symbols-outlined text-primary text-[18px]';
+          icon.innerText = 'check_circle';
+          wrapper.appendChild(icon);
+        }
+      });
+    });
+  </script>
+</div>
+</main>
+</div>
+</body></html>

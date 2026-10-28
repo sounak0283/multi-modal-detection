@@ -12,6 +12,99 @@ import { severityOf, eventTone } from '../lib/status'
 
 export const cx = (...parts) => parts.filter(Boolean).join(' ')
 
+/** Material Symbols glyph (the icon set used by the Stitch designs). `size` in px. */
+export function Icon({ name, size = 18, fill = false, className = '' }) {
+  return (
+    <span
+      aria-hidden
+      className={cx('msym', fill && 'msym-fill', className)}
+      style={{ fontSize: size, width: size, height: size }}
+    >
+      {name}
+    </span>
+  )
+}
+
+/* Coloured icon tiles (light theme): one palette used by the sidebar, page headers and KPI
+ * tiles so a section is the same colour wherever it appears. Full class strings, because
+ * Tailwind only emits classes it can see written out. In dark these tiles are flat. */
+export const TONES = {
+  indigo: {
+    tile: 'light:border-indigo-100 light:bg-indigo-50 light:text-indigo-600',
+    solid: 'light:border-transparent light:bg-indigo-500 light:text-white',
+    row: 'light:border-indigo-100 light:bg-indigo-50 light:text-indigo-900',
+  },
+  purple: {
+    tile: 'light:border-purple-100 light:bg-purple-50 light:text-purple-600',
+    solid: 'light:border-transparent light:bg-purple-500 light:text-white',
+    row: 'light:border-purple-100 light:bg-purple-50 light:text-purple-900',
+  },
+  sky: {
+    tile: 'light:border-sky-100 light:bg-sky-50 light:text-sky-600',
+    solid: 'light:border-transparent light:bg-sky-500 light:text-white',
+    row: 'light:border-sky-100 light:bg-sky-50 light:text-sky-900',
+  },
+  rose: {
+    tile: 'light:border-rose-100 light:bg-rose-50 light:text-rose-500',
+    solid: 'light:border-transparent light:bg-rose-500 light:text-white',
+    row: 'light:border-rose-100 light:bg-rose-50 light:text-rose-900',
+  },
+  amber: {
+    tile: 'light:border-amber-100 light:bg-amber-50 light:text-amber-600',
+    solid: 'light:border-transparent light:bg-amber-500 light:text-white',
+    row: 'light:border-amber-100 light:bg-amber-50 light:text-amber-900',
+  },
+  teal: {
+    tile: 'light:border-teal-100 light:bg-teal-50 light:text-teal-600',
+    solid: 'light:border-transparent light:bg-teal-500 light:text-white',
+    row: 'light:border-teal-100 light:bg-teal-50 light:text-teal-900',
+  },
+  pink: {
+    tile: 'light:border-pink-100 light:bg-pink-50 light:text-pink-500',
+    solid: 'light:border-transparent light:bg-pink-500 light:text-white',
+    row: 'light:border-pink-100 light:bg-pink-50 light:text-pink-900',
+  },
+  violet: {
+    tile: 'light:border-violet-100 light:bg-violet-50 light:text-violet-600',
+    solid: 'light:border-transparent light:bg-violet-500 light:text-white',
+    row: 'light:border-violet-100 light:bg-violet-50 light:text-violet-900',
+  },
+  emerald: {
+    tile: 'light:border-emerald-100 light:bg-emerald-50 light:text-emerald-600',
+    solid: 'light:border-transparent light:bg-emerald-500 light:text-white',
+    row: 'light:border-emerald-100 light:bg-emerald-50 light:text-emerald-900',
+  },
+  blue: {
+    tile: 'light:border-blue-100 light:bg-blue-50 light:text-blue-600',
+    solid: 'light:border-transparent light:bg-blue-500 light:text-white',
+    row: 'light:border-blue-100 light:bg-blue-50 light:text-blue-900',
+  },
+  slate: {
+    tile: 'light:border-slate-200 light:bg-slate-100 light:text-slate-600',
+    solid: 'light:border-transparent light:bg-slate-600 light:text-white',
+    row: 'light:border-slate-200 light:bg-slate-100 light:text-slate-900',
+  },
+}
+
+/** Square icon tile. Flat/muted in dark, pastel (or solid, when `active`) in light. */
+export function IconTile({ icon, tone = 'indigo', size = 'md', active = false, className = '' }) {
+  const t = TONES[tone] ?? TONES.indigo
+  const box = size === 'lg' ? 'h-10 w-10 rounded-xl' : size === 'sm' ? 'h-6 w-6 rounded-md' : 'h-8 w-8 rounded-lg'
+  const glyph = size === 'lg' ? 22 : size === 'sm' ? 15 : 18
+  return (
+    <span
+      className={cx(
+        'grid shrink-0 place-items-center border border-transparent text-ink-300',
+        box,
+        active ? t.solid : t.tile,
+        className,
+      )}
+    >
+      <Icon name={icon} size={glyph} />
+    </span>
+  )
+}
+
 export function Card({ children, className = '' }) {
   return (
     <section
@@ -26,9 +119,10 @@ export function Card({ children, className = '' }) {
 }
 
 /** Card header. `title` renders as the uppercase section label. */
-export function CardHead({ title, aside, children }) {
+export function CardHead({ title, aside, children, icon, iconTone = 'indigo' }) {
   return (
     <header className="flex min-h-11 items-center gap-3 border-b border-ink-700 px-4 py-2.5">
+      {icon && <IconTile icon={icon} tone={iconTone} size="sm" />}
       <h2 className="flex-1 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-400">
         {title}
       </h2>
@@ -55,7 +149,8 @@ const BUTTON_VARIANTS = {
   default:
     'bg-ink-900 border-ink-700 text-ink-300 hover:bg-ink-800 hover:border-ink-hover hover:text-ink-100',
   primary:
-    'bg-brand-500 border-brand-500 text-on-brand font-semibold hover:bg-brand-600 hover:border-brand-600',
+    'bg-brand-500 border-brand-500 text-on-brand font-semibold hover:bg-brand-600 hover:border-brand-600 ' +
+    'light:border-transparent light:bg-[image:var(--aura)] light:shadow-sm light:hover:opacity-95 light:hover:bg-[image:var(--aura)] light:hover:border-transparent',
   danger: 'bg-transparent border-alarm-400/50 text-alarm-400 hover:bg-alarm-900',
   ghost: 'bg-transparent border-transparent text-ink-300 hover:bg-ink-800 hover:text-ink-100',
 }
@@ -175,9 +270,9 @@ export function Field({ label, hint, children, className = '' }) {
 }
 
 const CONTROL =
-  'h-8 w-full rounded-lg border border-ink-700 bg-ink-950 px-3 text-[13px] text-ink-100 '
+  'h-8 w-full rounded-lg border border-ink-700 bg-ink-950 px-3 text-[13px] text-ink-100 light:bg-slate-50 light:focus:bg-white '
   + 'placeholder:text-ink-500 transition-colors hover:border-ink-hover '
-  + 'focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 '
+  + 'focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 light:focus:ring-indigo-100 '
   + 'disabled:cursor-not-allowed disabled:opacity-60'
 
 export function Input({ className = '', ...rest }) {
@@ -312,7 +407,7 @@ export function Toggle({ checked, onChange, label }) {
 }
 
 /** KPI tile. `aside` (e.g. a hint or sparkline) renders top-right. */
-export function Stat({ value, label, tone, aside }) {
+export function Stat({ value, label, tone, aside, icon, iconTone = 'indigo' }) {
   const tones = {
     alarm: 'text-alarm-400',
     warn: 'text-warn-400',
@@ -322,8 +417,11 @@ export function Stat({ value, label, tone, aside }) {
   return (
     <Card className="px-4 py-3">
       <div className="flex items-start justify-between gap-2">
-        <div className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-400">
-          {label}
+        <div className="flex items-center gap-2.5">
+          {icon && <IconTile icon={icon} tone={iconTone} />}
+          <div className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-400">
+            {label}
+          </div>
         </div>
         {aside}
       </div>

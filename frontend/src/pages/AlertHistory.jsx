@@ -107,8 +107,8 @@ export default function AlertHistory({ cameras, zones }) {
       {aiAvailable && <AiSearch result={aiResult} onResult={setAiResult} />}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {stats.map(({ label, value, tone }) => (
-          <Stat key={label} label={label} value={value} tone={tone} />
+        {stats.map(({ label, value, tone, icon, iconTone }) => (
+          <Stat key={label} label={label} value={value} tone={tone} icon={icon} iconTone={iconTone} />
         ))}
       </div>
 
@@ -314,24 +314,31 @@ function formatWhen(iso) {
 function deriveStats(counts, filters, listed, period = PERIOD_LABEL[filters.period]) {
   if (!counts) {
     return [
-      { label: `Alerts · ${period}`, value: '—' },
-      { label: 'Boundary', value: '—' },
-      { label: 'Fire / smoke', value: '—' },
-      { label: 'Listed below', value: listed },
+      { label: `Alerts · ${period}`, value: '—', icon: 'notifications_active', iconTone: 'rose' },
+      { label: 'Boundary', value: '—', icon: 'polyline', iconTone: 'purple' },
+      { label: 'Fire / smoke', value: '—', icon: 'local_fire_department', iconTone: 'amber' },
+      { label: 'Listed below', value: listed, icon: 'list', iconTone: 'sky' },
     ]
   }
   const total = Object.values(counts).reduce((a, b) => a + b, 0)
   const fireSmoke = (counts.fire || 0) + (counts.smoke || 0)
   const matching = filters.kind ? counts[filters.kind] || 0 : total
   return [
-    { label: `Alerts · ${period}`, value: total },
-    { label: `Boundary · ${period}`, value: counts.boundary || 0 },
+    { label: `Alerts · ${period}`, value: total, icon: 'notifications_active', iconTone: 'rose' },
+    { label: `Boundary · ${period}`, value: counts.boundary || 0, icon: 'polyline', iconTone: 'purple' },
     {
       label: `Fire / smoke · ${period}`,
       value: fireSmoke,
       tone: fireSmoke > 0 ? 'alarm' : undefined,
+      icon: 'local_fire_department',
+      iconTone: 'amber',
     },
-    { label: 'Listed below', value: matching > listed ? `${listed} of ${matching}` : listed },
+    {
+      label: 'Listed below',
+      value: matching > listed ? `${listed} of ${matching}` : listed,
+      icon: 'list',
+      iconTone: 'sky',
+    },
   ]
 }
 

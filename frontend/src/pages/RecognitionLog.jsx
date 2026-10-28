@@ -55,14 +55,22 @@ export default function RecognitionLog({ cameras, onEnroll }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Recognised" value={knownCount} tone="ok" />
-        <Stat label="Unrecognised" value={unknownCount} tone={unknownCount > 0 ? 'warn' : undefined} />
+        <Stat label="Recognised" value={knownCount} tone="ok" icon="how_to_reg" iconTone="emerald" />
+        <Stat
+          label="Unrecognised"
+          value={unknownCount}
+          tone={unknownCount > 0 ? 'warn' : undefined}
+          icon="error"
+          iconTone="amber"
+        />
         <Stat
           label="Recognition rate"
           value={events.length ? `${Math.round((knownCount / events.length) * 100)}%` : '—'}
           tone="info"
+          icon="verified_user"
+          iconTone="teal"
         />
-        <Stat label="Listed below" value={events.length} />
+        <Stat label="Listed below" value={events.length} icon="list" iconTone="sky" />
       </div>
 
       <Card>

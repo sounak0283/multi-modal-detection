@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
+@import "@fontsource-variable/material-symbols-outlined/fill.css";
+
+/* `light:` applies a utility only in the light theme (the dark design is the default, so
+ * dark needs no prefix). Used for the light design's colour tiles, gradients and shadows. */
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
 
 /* Design tokens (Stitch redesign - see design/DESIGN.md prose, not its YAML palette).
  *
@@ -74,18 +79,18 @@
 :root[data-theme="light"] {
   color-scheme: light;
 
-  --color-ink-950: #f4f6fa; /* page */
-  --color-ink-900: #ffffff; /* cards, sidebar */
+  --color-ink-950: #f7f8fc; /* app canvas */
+  --color-ink-900: #ffffff; /* cards, sidebar, top bar */
   --color-ink-850: #f8fafc;
-  --color-ink-800: #f1f5f9; /* inputs, hovers, subtle fills */
-  --color-ink-700: #e2e8f0; /* borders */
-  --color-ink-600: #cbd5e1;
+  --color-ink-800: #eef2f6; /* subtle surface tint: inputs, hovers */
+  --color-ink-700: #e6e8f0; /* hairline border */
+  --color-ink-600: #cfd5e3;
   --color-ink-500: #94a3b8;
   --color-ink-400: #64748b; /* muted text */
-  --color-ink-300: #475569;
+  --color-ink-300: #475569; /* secondary text */
   --color-ink-200: #334155;
   --color-ink-100: #0f172a; /* primary text */
-  --color-ink-hover: #b6c2d2;
+  --color-ink-hover: #c5cce0;
 
   --color-brand-100: #4338ca;
   --color-brand-400: #4f46e5;
@@ -95,19 +100,71 @@
   --color-on-brand: #ffffff;
   --color-on-alarm: #ffffff;
 
-  --color-ok-400: #047857;
+  --color-ok-400: #059669;
   --color-ok-900: #d1fae5;
-  --color-warn-400: #b45309;
+  --color-warn-400: #d97706;
   --color-warn-900: #fef3c7;
-  --color-alarm-400: #dc2626;
-  --color-alarm-900: #fee2e2;
-  --color-info-400: #0e7490;
-  --color-info-900: #cffafe;
+  --color-alarm-400: #e11d48;
+  --color-alarm-900: #ffe4e6;
+  --color-info-400: #0284c7;
+  --color-info-900: #e0f2fe;
+
+  --radius-xl: 0.75rem; /* light cards are 12px; dark cards stay 8px */
 }
+
+/* Brand gradient ("Perimeter Aura"): reserved for primary actions and orientation marks. */
+:root { --aura: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%); }
+
+/* The dark brand panels (sign-in) stay dark in both themes. */
+.force-dark {
+  color-scheme: dark;
+  --color-ink-950: #0b0f14;
+  --color-ink-900: #121821;
+  --color-ink-850: #151d29;
+  --color-ink-800: #182230;
+  --color-ink-700: #1f2833;
+  --color-ink-600: #2a3749;
+  --color-ink-500: #475569;
+  --color-ink-400: #64748b;
+  --color-ink-300: #94a3b8;
+  --color-ink-200: #cbd5e1;
+  --color-ink-100: #f1f5f9;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-900: #1c2048;
+  --color-ok-400: #10b981;
+  --color-warn-400: #f59e0b;
+  --color-alarm-400: #ef4444;
+  --color-info-400: #06b6d4;
+  background: #0b0f14;
+  color: #f1f5f9;
+}
+
+/* Material Symbols (the icon font the Stitch designs use), bundled locally. */
+.msym {
+  font-family: "Material Symbols Outlined Variable";
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: "FILL" 0, "wght" 400;
+  user-select: none;
+}
+.msym-fill { font-variation-settings: "FILL" 1, "wght" 400; }
+
+/* Whisper-soft card shadow from the light design (Level 1). */
+:root[data-theme="light"] .perimeter-card { box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06); }
 
 /* Native video-wall controls always sit on a dark tile, in both themes. */
 :root { --level2-shadow: 0 4px 12px rgba(0, 0, 0, 0.45); }
-:root[data-theme="light"] { --level2-shadow: 0 4px 12px rgba(15, 23, 42, 0.12); }
+:root[data-theme="light"] { --level2-shadow: 0 12px 24px -4px rgba(16, 24, 40, 0.12); }
 
 :root[data-theme="light"] select,
 :root[data-theme="light"] input[type="time"],

@@ -187,8 +187,9 @@ so they are recorded here.
 | `tailwindcss`, `@tailwindcss/vite` | MIT | Generates the shipped stylesheet. |
 | `@fontsource-variable/geist` | OFL-1.1 | Geist typeface (UI text). Font files are bundled and served locally, so the console needs no internet. OFL permits embedding in software. |
 | `@fontsource-variable/geist-mono` | OFL-1.1 | Geist Mono typeface (telemetry values). Same terms as above. |
+| `@fontsource-variable/material-symbols-outlined` | OFL-1.1 | Material Symbols icon font (the icon set used by the Stitch designs), bundled and served locally. |
 
-No icon or component library is used — the handful of navigation glyphs are inline SVG.
+No icon library is used beyond the bundled Material Symbols font above (the icons the Stitch designs specify).
 That is a deliberate call: six icons are not worth a dependency, a licence row here, or
 the bundle weight, and icon packs are a common source of unexpected non-commercial or
 attribution-required terms.

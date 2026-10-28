@@ -35,15 +35,19 @@ export default function Login({ onSuccess }) {
     <div className="grid min-h-full bg-ink-950 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
       <BrandPanel />
 
-      <div className="flex min-h-full flex-col px-6 py-8 sm:px-12 lg:border-l lg:border-ink-700">
+      <div className="flex min-h-full flex-col px-6 py-8 sm:px-12 lg:border-l lg:border-ink-700 light:bg-gradient-to-br light:from-[#f7f8fc] light:to-[#eceeff]">
         <div className="flex items-center gap-2 lg:hidden">
           <Logo />
           <strong className="text-[15px] font-semibold tracking-tight">PERIMETER</strong>
         </div>
 
         <div className="flex flex-1 items-center justify-center py-10">
-          <div className="w-full max-w-[400px] rounded-xl border border-ink-700 bg-ink-900 p-7 shadow-[var(--level2-shadow)]">
-            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-brand-400">
+          <div className="relative w-full max-w-[400px] overflow-hidden rounded-xl border border-ink-700 bg-ink-900 p-7 shadow-[var(--level2-shadow)] light:rounded-2xl">
+            <span
+              aria-hidden
+              className="absolute inset-x-0 top-0 hidden h-1 bg-[image:var(--aura)] light:block"
+            />
+            <p className="inline-block rounded-md font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-brand-400 light:bg-indigo-50 light:px-2 light:py-0.5 light:text-indigo-600">
               Sign in
             </p>
             <h1 className="mt-2 text-[22px] font-semibold tracking-tight">Sign in to Perimeter</h1>
@@ -147,7 +151,7 @@ function EyeIcon({ off }) {
  * them. No cameras, counts or readings - nothing here claims to be live. */
 function BrandPanel() {
   return (
-    <div className="relative hidden overflow-hidden lg:block">
+    <div className="force-dark relative hidden overflow-hidden lg:block">
       <div
         aria-hidden
         className="absolute inset-0 opacity-40"
@@ -165,7 +169,10 @@ function BrandPanel() {
           <strong className="text-[18px] font-semibold tracking-tight">PERIMETER</strong>
         </div>
         <h2 className="mt-8 text-[34px] font-semibold leading-tight tracking-tight">
-          Every boundary, watched.
+          Every boundary,{' '}
+          <span className="light:bg-[image:var(--aura)] light:bg-clip-text light:text-transparent">
+            watched.
+          </span>
         </h2>
         <p className="mt-2 font-mono text-[12px] uppercase tracking-[0.08em] text-ink-400">
           Fire · smoke · boundary · PPE · crowd

@@ -1,37 +1,41 @@
 import { useState } from 'react'
-import { Dot, cx } from './ui'
+import { Dot, Icon, IconTile, TONES, cx } from './ui'
+import { getTheme, setTheme } from '../lib/theme'
 
 /* Application shell: grouped sidebar navigation (240px, collapsible to 56px), top bar,
  * and a persistent system-health + signed-in-user footer. */
 
+// Icons and section colours are the ones used by the Stitch light design.
 const GROUPS = [
   {
     label: 'Monitor',
     items: [
-      { id: 'live', label: 'Live view', icon: PlayIcon },
-      { id: 'boundaries', label: 'Boundaries', icon: ShapeIcon },
-      { id: 'cameras', label: 'Cameras', icon: CameraIcon },
+      { id: 'live', label: 'Live view', icon: 'grid_view', tone: 'indigo' },
+      { id: 'boundaries', label: 'Boundaries', icon: 'polyline', tone: 'purple' },
+      { id: 'cameras', label: 'Cameras', icon: 'videocam', tone: 'sky' },
     ],
   },
   {
     label: 'Review',
     items: [
-      { id: 'history', label: 'Alert history', icon: ListIcon },
-      { id: 'evidence', label: 'Evidence', icon: FilmIcon },
-      { id: 'recognition', label: 'Recognition log', icon: ScanIcon },
+      { id: 'history', label: 'Alert history', icon: 'notifications_active', tone: 'rose' },
+      { id: 'evidence', label: 'Evidence', icon: 'folder_special', tone: 'amber' },
+      { id: 'recognition', label: 'Recognition log', icon: 'badge', tone: 'teal' },
     ],
   },
   {
     label: 'Configure',
     items: [
-      { id: 'videotest', label: 'Video test', icon: TestIcon, feature: 'video_test', admin: true },
-      { id: 'alerts', label: 'Alert rules', icon: BellIcon, admin: true },
-      { id: 'persons', label: 'People', icon: IdIcon, admin: true },
-      { id: 'users', label: 'Accounts', icon: UserIcon, admin: true },
-      { id: 'settings', label: 'Settings', icon: GearIcon, admin: true },
+      { id: 'videotest', label: 'Video test', icon: 'movie', tone: 'pink', feature: 'video_test', admin: true },
+      { id: 'alerts', label: 'Alert rules', icon: 'rule', tone: 'violet', admin: true },
+      { id: 'persons', label: 'People', icon: 'group', tone: 'emerald', admin: true },
+      { id: 'users', label: 'Accounts', icon: 'manage_accounts', tone: 'blue', admin: true },
+      { id: 'settings', label: 'Settings', icon: 'settings', tone: 'slate', admin: true },
     ],
   },
 ]
+
+const VIEW_META = Object.fromEntries(GROUPS.flatMap((g) => g.items).map((i) => [i.id, i]))
 
 const COLLAPSE_KEY = 'perimeter.sidebar.collapsed'
 const readCollapsed = () => {
@@ -55,6 +59,7 @@ export default function Shell({
   children,
 }) {
   const [collapsed, setCollapsed] = useState(readCollapsed)
+  const [theme, setThemeState] = useState(getTheme)
   const toggleCollapsed = () =>
     setCollapsed((current) => {
       try {
@@ -107,26 +112,29 @@ export default function Shell({
               >
                 {group.label}
               </p>
-              {group.items.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  data-view={id}
-                  title={collapsed ? label : undefined}
-                  onClick={() => onNavigate(id)}
-                  aria-current={view === id ? 'page' : undefined}
-                  className={cx(
-                    'flex h-8 shrink-0 items-center gap-2.5 rounded-lg border px-3 text-left text-[13px] transition-colors',
-                    collapsed && 'md:justify-center md:px-0',
-                    view === id
-                      ? 'border-brand-500/30 bg-brand-900 font-medium text-brand-100'
-                      : 'border-transparent text-ink-300 hover:bg-ink-800 hover:text-ink-100',
-                  )}
-                >
-                  <Icon />
-                  <span className={cx(collapsed && 'md:hidden')}>{label}</span>
-                </button>
-              ))}
+              {group.items.map(({ id, label, icon, tone }) => {
+                const on = view === id
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    data-view={id}
+                    title={collapsed ? label : undefined}
+                    onClick={() => onNavigate(id)}
+                    aria-current={on ? 'page' : undefined}
+                    className={cx(
+                      'flex h-9 shrink-0 items-center gap-2.5 rounded-lg border px-2 text-left text-[13px] transition-colors',
+                      collapsed && 'md:justify-center md:px-0',
+                      on
+                        ? cx('border-brand-500/30 bg-brand-900 font-medium text-brand-100 light:shadow-xs', TONES[tone].row)
+                        : 'border-transparent text-ink-300 hover:bg-ink-800 hover:text-ink-100 light:hover:bg-slate-50',
+                    )}
+                  >
+                    <IconTile icon={icon} tone={tone} size="sm" active={on} className="bg-transparent" />
+                    <span className={cx(collapsed && 'md:hidden')}>{label}</span>
+                  </button>
+                )
+              })}
             </div>
           ))}
         </nav>
@@ -157,12 +165,28 @@ export default function Shell({
       </aside>
 
       <main className="flex min-w-0 flex-col">
-        <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-ink-700 bg-ink-900 px-6 py-3">
+        <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-ink-700 bg-ink-900 px-6 py-3 light:shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+          {VIEW_META[view] && (
+            <span className="hidden h-10 w-10 shrink-0 place-items-center rounded-xl text-white shadow-sm light:grid light:bg-gradient-to-br light:from-indigo-500 light:to-violet-600">
+              <Icon name={VIEW_META[view].icon} size={22} />
+            </span>
+          )}
           <div className="min-w-0">
-            <h1 className="truncate text-[17px] font-semibold tracking-tight">{title}</h1>
+            <h1 className="truncate text-[17px] font-semibold tracking-tight light:text-[20px] light:font-bold">{title}</h1>
             <p className="mt-0.5 text-[12px] text-ink-400">{subtitle}</p>
           </div>
-          <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {actions}
+            <button
+              type="button"
+              onClick={() => setThemeState(setTheme(theme === 'light' ? 'dark' : 'light'))}
+              aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+              title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+              className="grid h-8 w-8 place-items-center rounded-lg border border-ink-700 bg-ink-900 text-ink-300 transition-colors hover:border-ink-hover hover:text-ink-100"
+            >
+              <Icon name={theme === 'light' ? 'dark_mode' : 'light_mode'} size={18} />
+            </button>
+          </div>
         </header>
         <div className="min-w-0 flex-1 p-6 pb-20">{children}</div>
       </main>
@@ -172,18 +196,8 @@ export default function Shell({
 
 function Logo() {
   return (
-    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand-500 text-white">
-      <svg
-        viewBox="0 0 16 16"
-        width="15"
-        height="15"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      >
-        <path d="M8 1.8 13.5 4v4c0 3.2-2.3 5.2-5.5 6.2C4.8 13.2 2.5 11.2 2.5 8V4z" />
-      </svg>
+    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-brand-500/30 bg-brand-900 text-brand-400 light:border-transparent light:bg-[image:var(--aura)] light:text-white light:shadow-sm">
+      <Icon name="security" size={19} fill />
     </span>
   )
 }
@@ -204,7 +218,7 @@ function StatusRail({ health }) {
   const dbTone = db.connected ? 'ok' : db.configured ? 'alarm' : null
 
   return (
-    <div className="rounded-lg border border-ink-700 bg-ink-850 px-3 py-2">
+    <div className="rounded-xl border border-ink-700 bg-ink-850 px-3 py-2 light:bg-slate-50/80">
       <p className="pb-1 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-500">Status</p>
       <Row
         tone={camerasTone}
@@ -248,116 +262,5 @@ function Row({ tone, live, label, value }) {
       <span className="flex-1 text-ink-400">{label}</span>
       <span className="font-mono text-[11px] tabular-nums text-ink-100">{value}</span>
     </div>
-  )
-}
-
-/* Inline SVG rather than an icon package: a dozen glyphs is not worth a dependency, a
- * licence row in NOTICE.md, or the bundle weight. */
-const iconProps = {
-  width: 15,
-  height: 15,
-  viewBox: '0 0 16 16',
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 1.5,
-  strokeLinecap: 'round',
-  strokeLinejoin: 'round',
-  className: 'shrink-0 opacity-80',
-}
-
-function PlayIcon() {
-  return (
-    <svg {...iconProps}>
-      <path d="M4.5 3.2v9.6l7.5-4.8z" />
-    </svg>
-  )
-}
-
-function ShapeIcon() {
-  return (
-    <svg {...iconProps}>
-      <path d="M2.5 5.5 8 2l5.5 3.5v5L8 14 2.5 10.5z" />
-    </svg>
-  )
-}
-
-function CameraIcon() {
-  return (
-    <svg {...iconProps}>
-      <rect x="1.8" y="4" width="12.4" height="8" rx="1.6" />
-      <circle cx="8" cy="8" r="2.2" />
-    </svg>
-  )
-}
-
-function FilmIcon() {
-  return (
-    <svg {...iconProps}>
-      <rect x="2" y="3" width="12" height="10" rx="1.5" />
-      <path d="M6.5 6v4l3.5-2z" />
-    </svg>
-  )
-}
-
-function TestIcon() {
-  return (
-    <svg {...iconProps}>
-      <path d="M6 2.5h4M7 2.5v4L3.5 12.5a1 1 0 0 0 .9 1.5h7.2a1 1 0 0 0 .9-1.5L9 6.5v-4" />
-    </svg>
-  )
-}
-
-function GearIcon() {
-  return (
-    <svg {...iconProps}>
-      <circle cx="8" cy="8" r="2" />
-      <path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.8 3.8l1 1M11.2 11.2l1 1M12.2 3.8l-1 1M4.8 11.2l-1 1" />
-    </svg>
-  )
-}
-
-function ListIcon() {
-  return (
-    <svg {...iconProps}>
-      <path d="M2.5 4h11M2.5 8h11M2.5 12h7" />
-    </svg>
-  )
-}
-
-function UserIcon() {
-  return (
-    <svg {...iconProps}>
-      <circle cx="8" cy="5.3" r="2.6" />
-      <path d="M2.8 13.4c0-2.7 2.3-4.4 5.2-4.4s5.2 1.7 5.2 4.4" />
-    </svg>
-  )
-}
-
-function IdIcon() {
-  return (
-    <svg {...iconProps}>
-      <rect x="1.8" y="3" width="12.4" height="10" rx="1.4" />
-      <circle cx="5.6" cy="7.4" r="1.6" />
-      <path d="M3.4 11.2c0-1.4 1-2.2 2.2-2.2s2.2.8 2.2 2.2" />
-      <path d="M9.6 6.4h3M9.6 8.8h3" />
-    </svg>
-  )
-}
-
-function ScanIcon() {
-  return (
-    <svg {...iconProps}>
-      <path d="M2 5V3a1 1 0 0 1 1-1h2M14 2h2a1 1 0 0 1 1 1v2M14 14h2a1 1 0 0 1-1 1h-2M2 11v2a1 1 0 0 0 1 1h2" />
-      <circle cx="8" cy="8" r="2.4" />
-    </svg>
-  )
-}
-
-function BellIcon() {
-  return (
-    <svg {...iconProps}>
-      <path d="M4 6.5a4 4 0 0 1 8 0c0 3.5 1.2 4.5 1.2 4.5H2.8S4 10 4 6.5Z" />
-      <path d="M6.5 13.2a1.5 1.5 0 0 0 3 0" />
-    </svg>
   )
 }

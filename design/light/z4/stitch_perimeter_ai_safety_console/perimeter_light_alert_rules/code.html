@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={"darkMode":"class","theme":{"extend":{"colors":{"tertiary-fixed-dim":"#ffb0cd","on-primary-fixed":"#07006c","on-secondary-fixed":"#23005c","error":"#ba1a1a","on-tertiary-fixed-variant":"#8c0053","tertiary-fixed":"#ffd9e4","on-secondary-fixed-variant":"#5516be","on-primary":"#ffffff","secondary":"#6b38d4","surface-container":"#eaedff","surface-variant":"#dae2fd","on-error-container":"#93000a","primary-fixed":"#e1e0ff","secondary-container":"#8455ef","on-tertiary-container":"#fffbff","surface-container-high":"#e2e7ff","tertiary":"#b10e6b","outline-variant":"#c7c4d7","on-primary-fixed-variant":"#2f2ebe","on-tertiary-fixed":"#3e0022","surface-container-highest":"#dae2fd","surface-dim":"#d2d9f4","on-surface-variant":"#464554","on-surface":"#131b2e","primary-container":"#6063ee","on-tertiary":"#ffffff","surface-bright":"#faf8ff","surface-tint":"#494bd6","inverse-on-surface":"#eef0ff","primary":"#4648d4","outline":"#767586","on-primary-container":"#fffbff","inverse-primary":"#c0c1ff","on-secondary":"#ffffff","error-container":"#ffdad6","inverse-surface":"#283044","on-background":"#131b2e","on-error":"#ffffff","tertiary-container":"#d23284","primary-fixed-dim":"#c0c1ff","surface":"#faf8ff","on-secondary-container":"#fffbff","surface-container-lowest":"#ffffff","secondary-fixed-dim":"#d0bcff","secondary-fixed":"#e9ddff","surface-container-low":"#f2f3ff","background":"#faf8ff"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"space-xl":"1.5rem","margin-sm":"1rem","space-sm":"0.5rem","space-xs":"0.25rem","gutter-lg":"1.5rem","margin":"1.5rem","space-lg":"1rem","gutter":"1rem","space-md":"0.75rem"},"fontFamily":{"body-lg":["Inter"],"telemetry-sm":["JetBrains Mono"],"telemetry-md":["JetBrains Mono"],"telemetry-lg":["JetBrains Mono"],"headline-md":["Inter"],"display-lg":["Inter"],"display-sm":["Inter"],"label-md":["Inter"],"body-md":["Inter"],"headline-sm":["Inter"],"body-sm":["Inter"]},"fontSize":{"body-lg":["16px",{"lineHeight":"24px","fontWeight":"400"}],"telemetry-sm":["11px",{"lineHeight":"14px","fontWeight":"500"}],"telemetry-md":["13px",{"lineHeight":"18px","fontWeight":"500"}],"telemetry-lg":["20px",{"lineHeight":"28px","letterSpacing":"-0.02em","fontWeight":"600"}],"headline-md":["20px",{"lineHeight":"28px","letterSpacing":"-0.01em","fontWeight":"600"}],"display-lg":["32px",{"lineHeight":"40px","letterSpacing":"-0.02em","fontWeight":"700"}],"display-sm":["24px",{"lineHeight":"32px","letterSpacing":"-0.015em","fontWeight":"600"}],"label-md":["12px",{"lineHeight":"16px","letterSpacing":"0.02em","fontWeight":"600"}],"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"headline-sm":["16px",{"lineHeight":"24px","letterSpacing":"-0.005em","fontWeight":"600"}],"body-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}]}}}};</script></head><body class="bg-background font-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-screen w-64 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex flex-col justify-between py-space-md"><div class="flex flex-col min-h-0"><div class="flex items-center gap-space-sm px-space-lg py-space-sm mb-space-sm"><div class="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shadow-sm"><span class="material-symbols-outlined text-on-primary text-[22px]">shield_with_heart</span></div><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-on-surface tracking-tight leading-none">Perimeter Light</span><span class="font-label-md text-label-md text-outline font-normal uppercase tracking-wider mt-1">AI Safety Console</span></div></div><div class="overflow-y-auto px-space-sm space-y-1"><nav class="flex flex-col gap-1" data-active-classes="bg-surface-container-low text-on-surface font-semibold shadow-sm border-l-2 border-primary"><a class="flex items-center gap-space-md px-space-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors group" data-path="live-view" href="#"><div class="w-9 h-9 rounded-lg bg-[#e0f2fe] text-[#0284c7] flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[20px]">videocam</span></div><span class="font-body-md text-body-md truncate">Live view</span></a><a class="flex items-center gap-space-md px-space-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors group" data-path="boundaries" href="#"><div class="w-9 h-9 rounded-lg bg-[#ede9fe] text-[#7c3aed] flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[20px]">crop_free</span></div><span class="font-body-md text-body-md truncate">Boundaries</span></a><a class="flex items-center gap-space-md px-space-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors group" data-path="cameras" href="#"><div class="w-9 h-9 rounded-lg bg-[#fef3c7] text-[#d97706] flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[20px]">photo_camera</span></div><span class="font-body-md text-body-md truncate">Cameras</span></a><a class="flex items-center gap-space-md px-space-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors group" data-path="alert-history" href="#"><div class="w-9 h-9 rounded-lg bg-[#ffe4e6] text-[#e11d48] flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[20px]">notification_important</span></div><span class="font-body-md text-body-md truncate">Alert history</span></a><a class="flex items-center gap-space-md px-space-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors group" data-path="evidence" href="#"><div class="w-9 h-9 rounded-lg bg-[#e0e7ff] text-[#4338ca] flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[20px]">folder_special</span></div><span class="font-body-md text-body-md truncate">Evidence</span></a><a class="flex items-center gap-space-md px-space-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors group" data-path="recognition-log" href="#"><div class="w-9 h-9 rounded-lg bg-[#d1fae5] text-[#059669] flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[20px]">csv</span></div><span class="font-body-md text-body-md truncate">Recognition log</span></a><a class="flex items-center gap-space-md px-space-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors group" data-path="video-test" href="#"><div class="w-9 h-9 rounded-lg bg-[#e0f2fe] text-[#2563eb] flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[20px]">play_circle</span></div><span class="font-body-md text-body-md truncate">Video test</span></a><a aria-current="page" class="flex items-center gap-space-md px-space-sm py-2 rounded-lg transition-colors group bg-surface-container-low text-on-surface font-semibold shadow-sm border-l-2 border-primary" data-path="alert-rules" href="#"><div class="w-9 h-9 rounded-lg bg-[#ffe4e6] text-[#db2777] flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[20px]">rule_settings</span></div><span class="font-body-md text-body-md truncate">Alert rules</span></a><a class="flex items-center gap-space-md px-space-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors group" data-path="people" href="#"><div class="w-9 h-9 rounded-lg bg-[#d1fae5] text-[#047857] flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[20px]">badge</span></div><span class="font-body-md text-body-md truncate">People</span></a><a class="flex items-center gap-space-md px-space-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors group" data-path="accounts" href="#"><div class="w-9 h-9 rounded-lg bg-[#ede9fe] text-[#4f46e5] flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[20px]">admin_panel_settings</span></div><span class="font-body-md text-body-md truncate">Accounts</span></a><a class="flex items-center gap-space-md px-space-sm py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors group" data-path="settings" href="#"><div class="w-9 h-9 rounded-lg bg-[#fef3c7] text-[#ea580c] flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[20px]">tune</span></div><span class="font-body-md text-body-md truncate">Settings</span></a></nav></div></div><div class="px-space-md pt-space-xs"><div class="p-space-sm bg-surface-container-low rounded-xl flex items-center justify-between"><div class="flex items-center gap-2"><span class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10b981] opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#10b981]"></span></span><span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant uppercase tracking-wider">Node 04-A Online</span></div><span class="font-telemetry-sm text-telemetry-sm text-outline">v2.8.4</span></div></div></aside><div class="pl-64"><header class="fixed top-0 left-64 right-0 h-16 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-lg"><div class="flex items-center gap-space-md flex-1 max-w-2xl"><div class="flex items-center gap-2 px-space-sm py-1.5 bg-surface-container-low rounded-lg"><span class="material-symbols-outlined text-outline text-[18px]">drive_file_stream</span><span class="font-body-md text-body-md font-semibold text-on-surface truncate">Sector 4A - North Perimeter Gate</span><span class="material-symbols-outlined text-outline text-[16px]">expand_more</span></div><div class="relative flex-1"><span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span><input class="w-full pl-9 pr-4 py-1.5 bg-surface-container-low rounded-lg font-body-md text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="Search incidents, tag IDs, cameras, rules..." type="text"/></div></div><div class="flex items-center gap-space-md"><div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#fef3c7] text-[#92400e] rounded-full"><span class="w-2 h-2 rounded-full bg-[#d97706]"></span><span class="font-telemetry-sm text-telemetry-sm font-semibold uppercase tracking-wider">HAZARD: GUARDED</span></div><div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#d1fae5] text-[#065f46] rounded-full"><span class="material-symbols-outlined text-[15px] text-[#059669]">wifi</span><span class="font-telemetry-sm text-telemetry-sm font-semibold">24ms</span></div><button class="inline-flex items-center gap-2 px-space-md py-1.5 bg-gradient-to-r from-primary to-tertiary text-on-primary rounded-lg shadow-sm hover:opacity-95 transition-opacity"><span class="material-symbols-outlined text-[18px]">auto_awesome</span><span class="font-headline-sm text-headline-sm font-medium">Safety Copilot</span></button><div class="flex items-center gap-2.5 pl-2"><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div><div class="hidden xl:flex flex-col text-left"><span class="font-body-md text-body-md font-semibold text-on-surface leading-tight">Marcus Vance</span><span class="font-label-md text-label-md text-outline leading-tight">Safety Lead</span></div></div></div></header><main class="relative w-full pt-16 bg-background px-space-lg py-space-lg"><div class="flex flex-col w-full">
+<!-- TOP BREADCRUMB & METADATA BAR -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-sm mb-space-md">
+<div class="flex items-center flex-wrap gap-space-sm">
+<span class="font-telemetry-sm text-telemetry-sm uppercase tracking-wider text-outline">
+        INFERENCE GOVERNANCE // SITE ALPHA — 01
+      </span>
+<span class="text-outline-variant text-[10px]">•</span>
+<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-container text-on-surface">
+<span class="w-2 h-2 rounded-full bg-[#10b981] animate-pulse"></span>
+<span class="font-telemetry-sm text-telemetry-sm font-semibold tracking-wide">
+          ENGINE ACTIVE: YOLO-SENTINEL v4.2 (TENSORRT-INT8) · 24/24 EDGES COMMITTED
+        </span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-telemetry-sm text-telemetry-sm text-outline">HASH: 88F92-INT8-STABLE</span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#d1fae5] text-[#065f46] font-telemetry-sm text-telemetry-sm font-semibold">
+<span class="material-symbols-outlined text-[13px]">verified_user</span> SYNCED
+      </span>
+</div>
+</div>
+<!-- MAIN PAGE HEADER -->
+<div class="flex flex-col lg:flex-row lg:items-end justify-between gap-space-lg mb-space-xl">
+<div class="space-y-1">
+<h1 class="font-display-lg text-display-lg text-on-surface tracking-tight leading-none font-bold">
+        AI Safety Rules &amp; Detection Thresholds
+      </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-3xl">
+        Global neural network inference policies, tripwire sensitivity, and breach logic for edge video processors across Site Alpha.
+      </p>
+</div>
+<!-- ACTIONS -->
+<div class="flex items-center flex-wrap gap-space-sm shrink-0">
+<button class="inline-flex items-center gap-2 px-space-md py-2 bg-surface-container-lowest text-on-surface rounded-lg shadow-sm hover:bg-surface-container-low transition-colors font-headline-sm text-headline-sm">
+<span class="material-symbols-outlined text-[18px] text-outline">history</span>
+<span>Diff History</span>
+</button>
+<button class="inline-flex items-center gap-1.5 px-space-md py-2 bg-surface-container-lowest text-primary rounded-lg shadow-sm hover:bg-surface-container-low transition-colors font-headline-sm text-headline-sm">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>New Policy</span>
+</button>
+<button class="inline-flex items-center gap-2 px-space-lg py-2 bg-gradient-to-r from-primary via-secondary to-tertiary text-on-primary rounded-lg shadow-md hover:opacity-95 transition-opacity font-headline-sm text-headline-sm">
+<span class="material-symbols-outlined text-[18px]">bolt</span>
+<span>Deploy to Edge Nodes</span>
+</button>
+</div>
+</div>
+<!-- CATEGORY FILTER / SEGMENTED TABS -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-md p-1.5 bg-surface-container-lowest rounded-xl shadow-sm mb-space-lg">
+<div class="flex items-center overflow-x-auto gap-1">
+<button class="inline-flex items-center gap-2 px-space-md py-1.5 rounded-lg bg-surface-container text-primary font-headline-sm text-headline-sm whitespace-nowrap shadow-sm">
+<span class="material-symbols-outlined text-[18px]">security</span>
+<span>PPE Compliance (5 Checks)</span>
+</button>
+<button class="inline-flex items-center gap-2 px-space-md py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors font-body-md text-body-md whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px]">crop_free</span>
+<span>Zone &amp; Intrusion (4 Rules)</span>
+</button>
+<button class="inline-flex items-center gap-2 px-space-md py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors font-body-md text-body-md whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px] text-[#e11d48]">local_fire_department</span>
+<span>Hazard &amp; Thermal</span>
+<span class="px-1.5 py-0.2 rounded-full bg-[#ffe4e6] text-[#9f1239] font-telemetry-sm text-telemetry-sm">CRITICAL</span>
+</button>
+<button class="inline-flex items-center gap-2 px-space-md py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors font-body-md text-body-md whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px]">groups</span>
+<span>Crowd &amp; Bottlenecks</span>
+</button>
+</div>
+<div class="flex items-center gap-space-sm pl-2 shrink-0">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface font-telemetry-sm text-telemetry-sm font-semibold uppercase tracking-wider">
+<span class="material-symbols-outlined text-[14px] text-primary">policy</span>
+        Strictness: OSHA ENHANCED
+      </div>
+<button class="w-8 h-8 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center justify-center text-outline hover:text-on-surface transition-colors" title="Export Policy Manifest">
+<span class="material-symbols-outlined text-[18px]">ios_share</span>
+</button>
+</div>
+</div>
+<!-- MAIN 2-COLUMN LAYOUT -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
+<!-- LEFT COLUMN: RULE CONFIGURATOR & SIMULATION (65% ~ 8 cols) -->
+<div class="lg:col-span-8 flex flex-col gap-space-lg">
+<!-- RULE CARD #1: PPE MANDATORY FIVE-POINT -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg flex flex-col gap-space-md">
+<!-- HEADER -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm pb-space-sm bg-surface-container-low/40 p-space-sm rounded-lg">
+<div class="flex items-start gap-space-md">
+<div class="w-10 h-10 rounded-lg bg-[#ede9fe] text-[#7c3aed] flex items-center justify-center shrink-0 shadow-sm">
+<span class="material-symbols-outlined text-[22px]">health_and_safety</span>
+</div>
+<div>
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-headline-md text-headline-md text-on-surface font-semibold">
+                  Rule #PPE-01: Mandatory Industrial Five-Point Verification
+                </span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#d1fae5] text-[#065f46] font-telemetry-sm text-telemetry-sm font-semibold uppercase tracking-wide">
+<span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span> ENFORCED SITE-WIDE
+                </span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+                Continuous inference pipeline running over Rail Bay 01–08, Heavy Gantry Crane &amp; Maintenance Pits.
+              </p>
+</div>
+</div>
+<div class="flex items-center gap-space-sm self-end sm:self-center">
+<!-- TOGGLE SWITCH -->
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+<button class="w-8 h-8 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center justify-center text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+<!-- 5 SUB-DETECTOR ROWS -->
+<div class="flex flex-col gap-space-sm">
+<!-- SUB-RULE 1: HARD HAT -->
+<div class="p-space-sm rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-md min-w-[240px]">
+<div class="w-9 h-9 rounded-lg bg-[#e0f2fe] text-[#0284c7] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">hardware</span>
+</div>
+<div>
+<div class="font-headline-sm text-headline-sm text-on-surface leading-snug">01. Industrial Hard Hat / Helmet</div>
+<div class="font-telemetry-sm text-telemetry-sm text-outline">Class E/G High Dielectric · Head BBox</div>
+</div>
+</div>
+<!-- SLIDER & CONFIDENCE -->
+<div class="flex-1 max-w-xs flex flex-col gap-1">
+<div class="flex justify-between items-center text-on-surface">
+<span class="font-label-md text-label-md text-on-surface-variant">Min Confidence</span>
+<span class="font-telemetry-md text-telemetry-md font-semibold text-primary" id="val-hh">92%</span>
+</div>
+<div class="relative flex items-center">
+<input class="w-full h-1.5 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary" max="99" min="50" oninput="document.getElementById('val-hh').innerText = this.value + '%'" type="range" value="92"/>
+</div>
+</div>
+<!-- ABSENCE PROTOCOL & EDIT -->
+<div class="flex items-center gap-space-sm justify-between md:justify-end">
+<span class="px-2.5 py-1 rounded-full bg-[#ffe4e6] text-[#9f1239] font-telemetry-sm text-telemetry-sm uppercase font-semibold">
+                WARN + STROBE AUDIO
+              </span>
+<button class="px-space-sm py-1 rounded-lg bg-surface-container-lowest text-on-surface hover:text-primary font-label-md text-label-md shadow-sm transition-colors">
+                Edit
+              </button>
+</div>
+</div>
+<!-- SUB-RULE 2: HIGH-VIS VEST -->
+<div class="p-space-sm rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-md min-w-[240px]">
+<div class="w-9 h-9 rounded-lg bg-[#d1fae5] text-[#059669] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">arrow_left</span>
+</div>
+<div>
+<div class="font-headline-sm text-headline-sm text-on-surface leading-snug">02. High-Visibility Safety Vest</div>
+<div class="font-telemetry-sm text-telemetry-sm text-outline">Class 2/3 Fluorescent Orange/Yellow</div>
+</div>
+</div>
+<div class="flex-1 max-w-xs flex flex-col gap-1">
+<div class="flex justify-between items-center text-on-surface">
+<span class="font-label-md text-label-md text-on-surface-variant">Min Confidence</span>
+<span class="font-telemetry-md text-telemetry-md font-semibold text-primary" id="val-vest">88%</span>
+</div>
+<div class="relative flex items-center">
+<input class="w-full h-1.5 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary" max="99" min="50" oninput="document.getElementById('val-vest').innerText = this.value + '%'" type="range" value="88"/>
+</div>
+</div>
+<div class="flex items-center gap-space-sm justify-between md:justify-end">
+<span class="px-2.5 py-1 rounded-full bg-[#fef3c7] text-[#92400e] font-telemetry-sm text-telemetry-sm uppercase font-semibold">
+                WARN AUDIO CHIME
+              </span>
+<button class="px-space-sm py-1 rounded-lg bg-surface-container-lowest text-on-surface hover:text-primary font-label-md text-label-md shadow-sm transition-colors">
+                Edit
+              </button>
+</div>
+</div>
+<!-- SUB-RULE 3: GLOVES -->
+<div class="p-space-sm rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-md min-w-[240px]">
+<div class="w-9 h-9 rounded-lg bg-[#ede9fe] text-[#7c3aed] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">pan_tool</span>
+</div>
+<div>
+<div class="font-headline-sm text-headline-sm text-on-surface leading-snug">03. Heavy Industrial Gloves</div>
+<div class="font-telemetry-sm text-telemetry-sm text-outline">Critical: Welding &amp; Machining Pits</div>
+</div>
+</div>
+<div class="flex-1 max-w-xs flex flex-col gap-1">
+<div class="flex justify-between items-center text-on-surface">
+<span class="font-label-md text-label-md text-on-surface-variant">Min Confidence</span>
+<span class="font-telemetry-md text-telemetry-md font-semibold text-primary" id="val-gloves">84%</span>
+</div>
+<div class="relative flex items-center">
+<input class="w-full h-1.5 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary" max="99" min="50" oninput="document.getElementById('val-gloves').innerText = this.value + '%'" type="range" value="84"/>
+</div>
+</div>
+<div class="flex items-center gap-space-sm justify-between md:justify-end">
+<span class="px-2.5 py-1 rounded-full bg-surface-container-highest text-secondary font-telemetry-sm text-telemetry-sm uppercase font-semibold">
+                DISPATCH WORKSTATION LOG
+              </span>
+<button class="px-space-sm py-1 rounded-lg bg-surface-container-lowest text-on-surface hover:text-primary font-label-md text-label-md shadow-sm transition-colors">
+                Edit
+              </button>
+</div>
+</div>
+<!-- SUB-RULE 4: SAFETY BOOTS -->
+<div class="p-space-sm rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-md min-w-[240px]">
+<div class="w-9 h-9 rounded-lg bg-[#e0f2fe] text-[#0369a1] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">footprint</span>
+</div>
+<div>
+<div class="font-headline-sm text-headline-sm text-on-surface leading-snug">04. Steel-Toe Safety Boots</div>
+<div class="font-telemetry-sm text-telemetry-sm text-outline">Ground-Plane CAM-08/12 Inclined</div>
+</div>
+</div>
+<div class="flex-1 max-w-xs flex flex-col gap-1">
+<div class="flex justify-between items-center text-on-surface">
+<span class="font-label-md text-label-md text-on-surface-variant">Min Confidence</span>
+<span class="font-telemetry-md text-telemetry-md font-semibold text-primary" id="val-boots">85%</span>
+</div>
+<div class="relative flex items-center">
+<input class="w-full h-1.5 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary" max="99" min="50" oninput="document.getElementById('val-boots').innerText = this.value + '%'" type="range" value="85"/>
+</div>
+</div>
+<div class="flex items-center gap-space-sm justify-between md:justify-end">
+<span class="px-2.5 py-1 rounded-full bg-[#e0f2fe] text-[#0369a1] font-telemetry-sm text-telemetry-sm uppercase font-semibold">
+                ALERT OPERATOR DISPLAY
+              </span>
+<button class="px-space-sm py-1 rounded-lg bg-surface-container-lowest text-on-surface hover:text-primary font-label-md text-label-md shadow-sm transition-colors">
+                Edit
+              </button>
+</div>
+</div>
+<!-- SUB-RULE 5: PROTECTIVE EYEWEAR -->
+<div class="p-space-sm rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-md min-w-[240px]">
+<div class="w-9 h-9 rounded-lg bg-[#ccfbf1] text-[#0f766e] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</div>
+<div>
+<div class="font-headline-sm text-headline-sm text-on-surface leading-snug">05. ANSI Z87.1 Protective Eyewear</div>
+<div class="font-telemetry-sm text-telemetry-sm text-outline">Facial Pose Estimation Harness</div>
+</div>
+</div>
+<div class="flex-1 max-w-xs flex flex-col gap-1">
+<div class="flex justify-between items-center text-on-surface">
+<span class="font-label-md text-label-md text-on-surface-variant">Min Confidence</span>
+<span class="font-telemetry-md text-telemetry-md font-semibold text-primary" id="val-glasses">80%</span>
+</div>
+<div class="relative flex items-center">
+<input class="w-full h-1.5 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary" max="99" min="50" oninput="document.getElementById('val-glasses').innerText = this.value + '%'" type="range" value="80"/>
+</div>
+</div>
+<div class="flex items-center gap-space-sm justify-between md:justify-end">
+<span class="px-2.5 py-1 rounded-full bg-surface-container-highest text-primary font-telemetry-sm text-telemetry-sm uppercase font-semibold">
+                FLAG SUPERVISOR CONSOLE
+              </span>
+<button class="px-space-sm py-1 rounded-lg bg-surface-container-lowest text-on-surface hover:text-primary font-label-md text-label-md shadow-sm transition-colors">
+                Edit
+              </button>
+</div>
+</div>
+</div>
+</div>
+<!-- TWO PARALLEL SECONDARY RULES (2-COL SUBGRID) -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-lg">
+<!-- CARD A: FIRE & SMOKE -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg flex flex-col justify-between gap-space-md">
+<div class="space-y-space-sm">
+<div class="flex items-center justify-between">
+<div class="w-10 h-10 rounded-lg bg-[#ffe4e6] text-[#e11d48] flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[22px]">local_fire_department</span>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-[#ffe4e6] text-[#9f1239] font-telemetry-sm text-telemetry-sm uppercase font-semibold">
+                CRITICAL PRIORITY
+              </span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface font-semibold">
+                Fire &amp; Optical Smoke Detection
+              </h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">
+                Multimodal inference fusing optical diffusion masks with FLIR radiometric feeds in Foundry &amp; Engine Testing Bays.
+              </p>
+</div>
+<!-- TELEMETRY STATS -->
+<div class="p-space-sm bg-surface-container-low rounded-lg space-y-1.5 font-telemetry-sm text-telemetry-sm">
+<div class="flex justify-between">
+<span class="text-outline">Optical Smoke Lag:</span>
+<span class="font-semibold text-on-surface">3.0 SEC CONTINUOUS</span>
+</div>
+<div class="flex justify-between">
+<span class="text-outline">Thermal Radiance Delta:</span>
+<span class="font-semibold text-[#d97706]">&gt; +42.0°C RADIANCE</span>
+</div>
+<div class="flex justify-between">
+<span class="text-outline">Automated Foam Dump:</span>
+<span class="font-semibold text-on-surface">MANUAL CONFIRM ONLY</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-xs">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-[#10b981]"></span>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">Active on 6 Thermal Cams</span>
+</div>
+<button class="px-space-md py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-headline-sm text-headline-sm transition-colors">
+              Config Trigger
+            </button>
+</div>
+</div>
+<!-- CARD B: CROWD DENSITY -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg flex flex-col justify-between gap-space-md">
+<div class="space-y-space-sm">
+<div class="flex items-center justify-between">
+<div class="w-10 h-10 rounded-lg bg-[#e0f2fe] text-[#0284c7] flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[22px]">groups</span>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#0369a1] font-telemetry-sm text-telemetry-sm uppercase font-semibold">
+                REGULATORY
+              </span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface font-semibold">
+                Crowd Density &amp; Bottlenecks
+              </h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">
+                Tracks personnel density around pinch points, rail crossings, and emergency egress corridors to prevent crush risk.
+              </p>
+</div>
+<!-- TELEMETRY STATS -->
+<div class="p-space-sm bg-surface-container-low rounded-lg space-y-1.5 font-telemetry-sm text-telemetry-sm">
+<div class="flex justify-between">
+<span class="text-outline">Threshold Limit:</span>
+<span class="font-semibold text-on-surface">&gt; 5 WORKERS / 4m RAD</span>
+</div>
+<div class="flex justify-between">
+<span class="text-outline">Sustained Duration:</span>
+<span class="font-semibold text-on-surface">60 SECONDS</span>
+</div>
+<div class="flex justify-between">
+<span class="text-outline">Exclusion Windows:</span>
+<span class="font-semibold text-on-surface">SHIFT HANDOVER (07:00 / 15:00)</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-xs">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-[#10b981]"></span>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">Active on Gates &amp; Aisle 4</span>
+</div>
+<button class="px-space-md py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-headline-sm text-headline-sm transition-colors">
+              Edit Corridors
+            </button>
+</div>
+</div>
+</div>
+<!-- EDGE SANDBOX & SIMULATOR CARD -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg flex flex-col gap-space-md">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-lg bg-surface-container text-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">science</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface font-semibold">
+                Edge Sandbox &amp; Bounding Box Simulator
+              </h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                Simulate current rule weights against recorded workshop frame snippets before deploying changes.
+              </p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<select class="px-space-sm py-1.5 bg-surface-container-low rounded-lg font-telemetry-sm text-telemetry-sm text-on-surface focus:outline-none">
+<option>SAMPLE: FRAME_0892_BAY4_CRANE_DROP.mp4</option>
+<option>SAMPLE: FRAME_1042_GANTRY_WELD_NIGHT.mp4</option>
+<option>SAMPLE: FRAME_0311_TURNOUT_PASSING.mp4</option>
+</select>
+</div>
+</div>
+<!-- SIMULATOR VIEWPORT: SLEEK DARK CONTAINER FOR VIDEO MONITORS -->
+<div class="relative w-full aspect-video sm:h-80 bg-[#0a0e13] rounded-xl overflow-hidden flex flex-col justify-between p-space-md shadow-inner">
+<!-- INDUSTRIAL VIDEO BACKGROUND PLACEHOLDER -->
+<div class="absolute inset-0 bg-cover bg-center opacity-40 mix-blend-luminosity pointer-events-none" data-alt="Wide industrial rail fabrication warehouse overhead security camera view with high ceilings, gantry crane rails, and bright sodium workshop illumination in daylight." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDgeV_0BwVklEQDw8RpV0Z4htkM-Vu8b5G3En9uXCnaVkXDKbUJZIEpyJoNKpx4fI4FBxqShJEkT0GSGhr4GWtIhEEs6pAVmOhm9IwYuLFcnmXwvJUqyGIjZbduuxUgyAiNehmvvedsNIuHmgLGHaEwr5BNlsGt6WoGMgW0wqoe15hGchIbQtZkCzTFWhijhdEDEbcam4LtCUMXBPG4V3WojxLMqkIffFfcdG-YmKE')"></div>
+<!-- TOP STREAM OVERLAYS -->
+<div class="relative z-10 flex items-center justify-between flex-wrap gap-2">
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-black/60 backdrop-blur text-white font-telemetry-sm text-telemetry-sm uppercase tracking-wider">
+                SIMULATION BUFFER
+              </span>
+<span class="px-2 py-0.5 rounded bg-black/60 backdrop-blur text-[#c0c1ff] font-telemetry-sm text-telemetry-sm">
+                CAM-08 [HIGH BAY CRANE]
+              </span>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-black/60 backdrop-blur text-white font-telemetry-sm text-telemetry-sm">
+                1920x1080 @ 30fps
+              </span>
+<span class="px-2 py-0.5 rounded bg-black/60 backdrop-blur text-[#10b981] font-telemetry-sm text-telemetry-sm">
+                INFERENCE: 13.8ms | TENSORRT-FP16
+              </span>
+</div>
+</div>
+<!-- BOUNDING BOX OVERLAYS -->
+<div class="relative z-10 flex-1 my-2 relative">
+<!-- BOX 1: PASSING WORKER (NEON GREEN) -->
+<div class="absolute left-[15%] top-[20%] w-36 h-48 bg-emerald-500/10 rounded flex flex-col justify-between p-1 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+<span class="bg-[#10b981] text-black font-telemetry-sm text-[10px] font-bold px-1 rounded-sm w-fit leading-tight">
+                WORKER #804 [96%] PASS | HELMET: 94% | VEST: 91%
+              </span>
+<div class="flex justify-between items-end font-telemetry-sm text-[9px] text-[#10b981]">
+<span>CONF: 0.96</span>
+<span>Z-INDEX: 3.4m</span>
+</div>
+</div>
+<!-- BOX 2: VIOLATION WORKER (RED) -->
+<div class="absolute right-[22%] top-[30%] w-40 h-52 bg-rose-500/10 rounded flex flex-col justify-between p-1 shadow-[0_0_15px_rgba(244,63,94,0.4)] animate-pulse">
+<span class="bg-[#f43f5e] text-white font-telemetry-sm text-[10px] font-bold px-1 rounded-sm w-fit leading-tight">
+                VIOLATION: NO HARD HAT | VEST: 89%
+              </span>
+<div class="flex justify-between items-end font-telemetry-sm text-[9px] text-[#f43f5e]">
+<span>RULE #PPE-01 BREACH</span>
+<span>CONF: 0.91</span>
+</div>
+</div>
+<!-- CRANE HOOK BOUNDING BOX -->
+<div class="absolute left-[54%] top-[10%] w-24 h-24 bg-amber-500/10 rounded flex flex-col justify-between p-1">
+<span class="bg-[#d97706] text-black font-telemetry-sm text-[9px] font-semibold px-1 rounded-sm w-fit">
+                CRANE HOOK [ID 04]
+              </span>
+</div>
+</div>
+<!-- PLAYBACK BAR CONTROLS -->
+<div class="relative z-10 flex items-center justify-between gap-space-md p-2 rounded-lg bg-black/75 backdrop-blur text-white">
+<div class="flex items-center gap-space-sm">
+<button class="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 text-white transition-colors">
+<span class="material-symbols-outlined text-[20px]">play_arrow</span>
+</button>
+<button class="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 text-white transition-colors">
+<span class="material-symbols-outlined text-[18px]">replay_10</span>
+</button>
+<span class="font-telemetry-sm text-telemetry-sm text-slate-300">00:14.28 / 01:00.00</span>
+</div>
+<div class="flex-1 mx-space-md h-1.5 bg-white/20 rounded-full relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-[24%] bg-gradient-to-r from-primary to-tertiary"></div>
+</div>
+<div class="font-telemetry-sm text-telemetry-sm text-[#38bdf8] shrink-0">
+              DETECTIONS IN FRAME: 2 WORKERS, 1 CRANE HOOK
+            </div>
+</div>
+</div>
+</div>
+</div>
+<!-- RIGHT COLUMN: HARDWARE NODES, RELAYS & AUDIT LOG (35% ~ 4 cols) -->
+<div class="lg:col-span-4 flex flex-col gap-space-lg">
+<!-- CARD 1: EDGE TENSORRT NODES -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg flex flex-col gap-space-md">
+<div class="flex items-center justify-between pb-space-xs">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-lg bg-[#e0f2fe] text-[#0284c7] flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">memory</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">
+                Edge TensorRT Nodes
+              </h3>
+<p class="font-telemetry-sm text-telemetry-sm text-outline">Perimeter Rig Compute</p>
+</div>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-[#d1fae5] text-[#065f46] font-telemetry-sm text-telemetry-sm font-semibold uppercase">
+            2 NODES HEALTHY
+          </span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+          Industrial compute rigs handling low-latency vision pipelines locally at the rail yard perimeter.
+        </p>
+<!-- NODE 1 -->
+<div class="p-space-sm rounded-lg bg-surface-container-low flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-[#10b981]"></span>
+<span class="font-telemetry-md text-telemetry-md font-semibold text-on-surface">EDGE-BOX-01 (AGX ORIN)</span>
+</div>
+<span class="font-telemetry-sm text-telemetry-sm text-outline">12 CAMS ALLOCATED</span>
+</div>
+<div class="grid grid-cols-3 gap-2 py-1 text-center font-telemetry-sm text-telemetry-sm">
+<div class="p-1 rounded bg-surface-container-lowest">
+<span class="text-outline block text-[10px]">GPU LOAD</span>
+<span class="font-semibold text-on-surface">68%</span>
+</div>
+<div class="p-1 rounded bg-surface-container-lowest">
+<span class="text-outline block text-[10px]">CORE TEMP</span>
+<span class="font-semibold text-on-surface">54°C</span>
+</div>
+<div class="p-1 rounded bg-surface-container-lowest">
+<span class="text-outline block text-[10px]">INFERENCE</span>
+<span class="font-semibold text-[#0284c7]">14.1ms</span>
+</div>
+</div>
+<div class="space-y-1">
+<div class="flex justify-between font-telemetry-sm text-telemetry-sm">
+<span class="text-outline">VRAM Allocation</span>
+<span class="text-on-surface font-semibold">24.2 / 64 GB (37%)</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full w-[37%] bg-gradient-to-r from-primary to-secondary"></div>
+</div>
+</div>
+</div>
+<!-- NODE 2 -->
+<div class="p-space-sm rounded-lg bg-surface-container-low flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-[#10b981]"></span>
+<span class="font-telemetry-md text-telemetry-md font-semibold text-on-surface">EDGE-BOX-02 (AGX ORIN)</span>
+</div>
+<span class="font-telemetry-sm text-telemetry-sm text-outline">12 CAMS ALLOCATED</span>
+</div>
+<div class="grid grid-cols-3 gap-2 py-1 text-center font-telemetry-sm text-telemetry-sm">
+<div class="p-1 rounded bg-surface-container-lowest">
+<span class="text-outline block text-[10px]">GPU LOAD</span>
+<span class="font-semibold text-on-surface">72%</span>
+</div>
+<div class="p-1 rounded bg-surface-container-lowest">
+<span class="text-outline block text-[10px]">CORE TEMP</span>
+<span class="font-semibold text-on-surface">56°C</span>
+</div>
+<div class="p-1 rounded bg-surface-container-lowest">
+<span class="text-outline block text-[10px]">INFERENCE</span>
+<span class="font-semibold text-[#0284c7]">16.4ms</span>
+</div>
+</div>
+<div class="space-y-1">
+<div class="flex justify-between font-telemetry-sm text-telemetry-sm">
+<span class="text-outline">VRAM Allocation</span>
+<span class="text-on-surface font-semibold">26.8 / 64 GB (41%)</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full w-[41%] bg-gradient-to-r from-primary to-tertiary"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- CARD 2: PHYSICAL RELAYS & ALARMS -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg flex flex-col gap-space-md">
+<div class="flex items-center justify-between pb-space-xs">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-lg bg-[#fef3c7] text-[#d97706] flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">flash_on</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">
+                Physical Relays &amp; Alarms
+              </h3>
+<p class="font-telemetry-sm text-telemetry-sm text-outline">GPIO OPTO-ISOLATED</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline text-[18px]">sensors</span>
+</div>
+<div class="flex flex-col gap-space-xs">
+<!-- RELAY 1 -->
+<div class="flex items-center justify-between p-2 rounded-lg bg-surface-container-low">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]">volume_up</span>
+<div>
+<span class="font-body-md text-body-md font-semibold text-on-surface block leading-tight">
+                  Strobe Siren Beacon #04
+                </span>
+<span class="font-telemetry-sm text-telemetry-sm text-outline">Bay 04 Crane Gantry</span>
+</div>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-[#d1fae5] text-[#065f46] font-telemetry-sm text-telemetry-sm font-semibold">
+              ARMED
+            </span>
+</div>
+<!-- RELAY 2 -->
+<div class="flex items-center justify-between p-2 rounded-lg bg-surface-container-low">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]">door_front</span>
+<div>
+<span class="font-body-md text-body-md font-semibold text-on-surface block leading-tight">
+                  Auto-Interlock Turnstiles
+                </span>
+<span class="font-telemetry-sm text-telemetry-sm text-outline">Security Perimeter East</span>
+</div>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-[#d1fae5] text-[#065f46] font-telemetry-sm text-telemetry-sm font-semibold">
+              ARMED
+            </span>
+</div>
+<!-- RELAY 3 -->
+<div class="flex items-center justify-between p-2 rounded-lg bg-surface-container-low">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-[18px]">phone_in_talk</span>
+<div>
+<span class="font-body-md text-body-md font-semibold text-on-surface block leading-tight">
+                  Emergency Services Auto-Dial
+                </span>
+<span class="font-telemetry-sm text-telemetry-sm text-outline">Fire / Critical Toxic Smoke</span>
+</div>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-highest text-on-surface-variant font-telemetry-sm text-telemetry-sm font-semibold">
+              DISARMED
+            </span>
+</div>
+</div>
+</div>
+<!-- CARD 3: POLICY CHANGE AUDIT -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg flex flex-col gap-space-md">
+<div class="flex items-center justify-between pb-space-xs">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-lg bg-surface-container text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">verified</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">
+                Policy Change Audit
+              </h3>
+<p class="font-telemetry-sm text-telemetry-sm text-outline">SEC-LOG VERIFIED</p>
+</div>
+</div>
+<span class="font-telemetry-sm text-telemetry-sm text-primary font-semibold">LIVE LOG</span>
+</div>
+<!-- TIMELINE ENTRIES -->
+<div class="flex flex-col gap-space-sm relative">
+<!-- TIMELINE ITEM 1 -->
+<div class="flex items-start gap-space-sm">
+<div class="w-2.5 h-2.5 rounded-full bg-primary mt-1.5 shrink-0 shadow-sm"></div>
+<div>
+<p class="font-body-sm text-body-sm text-on-surface leading-snug">
+<strong>Operator M. Vance</strong> elevated Hard Hat threshold from 88% to 92%.
+              </p>
+<span class="font-telemetry-sm text-telemetry-sm text-outline block mt-0.5">
+                Yesterday 18:40:12 UTC · via Workstation-SEC02
+              </span>
+</div>
+</div>
+<!-- TIMELINE ITEM 2 -->
+<div class="flex items-start gap-space-sm">
+<div class="w-2.5 h-2.5 rounded-full bg-secondary mt-1.5 shrink-0 shadow-sm"></div>
+<div>
+<p class="font-body-sm text-body-sm text-on-surface leading-snug">
+                System auto-calibrated thermal diffusion baseline for Crane Bay 03.
+              </p>
+<span class="font-telemetry-sm text-telemetry-sm text-outline block mt-0.5">
+                2 days ago 04:12:00 · System Engine Cron
+              </span>
+</div>
+</div>
+<!-- TIMELINE ITEM 3 -->
+<div class="flex items-start gap-space-sm">
+<div class="w-2.5 h-2.5 rounded-full bg-tertiary mt-1.5 shrink-0 shadow-sm"></div>
+<div>
+<p class="font-body-sm text-body-sm text-on-surface leading-snug">
+<strong>Operator E. Zhang</strong> deployed version 4.2 TensorRT model package to Edge 01 &amp; 02.
+              </p>
+<span class="font-telemetry-sm text-telemetry-sm text-outline block mt-0.5">
+                3 days ago 11:22:45 · Prod Commit #88F92
+              </span>
+</div>
+</div>
+</div>
+<button class="w-full py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-headline-sm text-headline-sm text-center transition-colors">
+          View Complete Immutable Ledger
+        </button>
+</div>
+</div>
+</div>
+</div></main></div></body></html>
