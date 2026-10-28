@@ -13,7 +13,7 @@ import Evidence from './pages/Evidence'
 import VideoTest from './pages/VideoTest'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
-import { Button, Select } from './components/ui'
+import { Button, Select, SegmentedControl } from './components/ui'
 import { ToastProvider, useToast } from './components/Toast'
 import ErrorBoundary from './components/ErrorBoundary'
 import FireAlertOverlay from './components/FireAlertOverlay'
@@ -141,7 +141,7 @@ function Dashboard({ user, onLogout }) {
         setCameraId(e.target.value)
         setLiveGrid(false)
       }}
-      className="w-auto py-1.5"
+      className="w-44!"
     >
       {cameras.map((camera) => (
         <option key={camera.id} value={camera.id}>
@@ -154,25 +154,14 @@ function Dashboard({ user, onLogout }) {
   // Grid ("see all cameras") only makes sense in Live view - Boundaries edits one
   // camera's zones at a time, so switching it there would have nothing to show.
   const liveModeToggle = view === 'live' && cameras.length > 1 && (
-    <div className="flex overflow-hidden rounded-lg border border-ink-700">
-      {[
-        [false, 'Single'],
-        [true, 'All cameras'],
-      ].map(([value, label]) => (
-        <button
-          key={label}
-          type="button"
-          onClick={() => setLiveGrid(value)}
-          className={`px-3 py-1.5 text-[12.5px] transition-colors not-first:border-l not-first:border-ink-700 ${
-            liveGrid === value
-              ? 'bg-brand-500 font-semibold text-on-brand'
-              : 'bg-ink-800 text-ink-200 hover:bg-ink-700'
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
+    <SegmentedControl
+      value={liveGrid}
+      onChange={setLiveGrid}
+      options={[
+        { value: false, label: 'Single' },
+        { value: true, label: 'All cameras' },
+      ]}
+    />
   )
 
   const actions = (

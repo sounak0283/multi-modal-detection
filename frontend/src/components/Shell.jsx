@@ -162,7 +162,7 @@ export default function Shell({
             <h1 className="truncate text-[17px] font-semibold tracking-tight">{title}</h1>
             <p className="mt-0.5 text-[12px] text-ink-400">{subtitle}</p>
           </div>
-          <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+          <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>
         </header>
         <div className="min-w-0 flex-1 p-6">{children}</div>
       </main>
