@@ -66,7 +66,15 @@ export default function ZoneProperties({ zone, onChange, onDelete }) {
 
   return (
     <Card>
-      <CardHead title="Properties" aside={<span className="text-[11px] text-ink-400">{spec.label}</span>} />
+      <CardHead
+        title="Properties"
+        aside={
+          <span className="flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-[0.04em] text-ink-300">
+            <i className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: spec.colour }} />
+            {spec.label}
+          </span>
+        }
+      />
       <CardBody className="space-y-3.5">
         <Field label="Name">
           <Input
@@ -129,6 +137,7 @@ export default function ZoneProperties({ zone, onChange, onDelete }) {
                 >
                   <input
                     type="checkbox"
+                    className="accent-brand-500"
                     checked={restrictedIds.includes(person.id)}
                     onChange={() => toggleAuthorized(person.id)}
                   />
@@ -195,7 +204,7 @@ export default function ZoneProperties({ zone, onChange, onDelete }) {
 
         {zone.type === 'polygon' && (
           <fieldset className="rounded-lg border border-ink-700 p-3">
-            <legend className="px-1.5 text-[11px] uppercase tracking-[0.06em] text-ink-400">
+            <legend className="px-1.5 font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-400">
               Crowd formation
             </legend>
             <Toggle
@@ -247,7 +256,7 @@ export default function ZoneProperties({ zone, onChange, onDelete }) {
 
         {zone.type === 'polygon' && (
           <fieldset className="rounded-lg border border-ink-700 p-3">
-            <legend className="px-1.5 text-[11px] uppercase tracking-[0.06em] text-ink-400">
+            <legend className="px-1.5 font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-400">
               PPE required
             </legend>
             <ChipGroup
@@ -264,7 +273,7 @@ export default function ZoneProperties({ zone, onChange, onDelete }) {
         )}
 
         <fieldset className="rounded-lg border border-ink-700 p-3">
-          <legend className="px-1.5 text-[11px] uppercase tracking-[0.06em] text-ink-400">
+          <legend className="px-1.5 font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-400">
             Active hours
           </legend>
           <Toggle
@@ -306,10 +315,10 @@ export default function ZoneProperties({ zone, onChange, onDelete }) {
                           days: on ? days.filter((d) => d !== day) : [...days, day],
                         })
                       }
-                      className={`rounded-md border px-2 py-1 text-[11.5px] capitalize transition-colors ${
+                      className={`h-6 rounded-md border px-2 text-[11.5px] capitalize transition-colors ${
                         on
                           ? 'border-brand-500 bg-brand-500 font-semibold text-on-brand'
-                          : 'border-ink-700 bg-ink-800 text-ink-300 hover:border-ink-600'
+                          : 'border-ink-700 bg-ink-950 text-ink-300 hover:border-ink-hover'
                       }`}
                     >
                       {day}

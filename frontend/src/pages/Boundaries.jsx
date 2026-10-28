@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import BoundaryCanvas from '../components/BoundaryCanvas'
 import ZoneProperties from '../components/ZoneProperties'
-import { Card, CardHead, EmptyState } from '../components/ui'
+import { Badge, Button, Card, CardHead, EmptyState } from '../components/ui'
 import { snapshotUrl } from '../api'
 import { ZONE_TYPES, newZone, typeForPoints, typeOf } from '../lib/zones'
 import { useToast } from '../components/Toast'
@@ -58,7 +58,7 @@ export default function Boundaries({
       : ''
     : zones.length
       ? 'Click a boundary to select · drag a handle to move · right-click a handle to delete'
-      : 'Press Draw boundary below to draw your first one'
+      : 'Press Draw boundary above to draw your first one'
 
   const removeAt = useCallback(
     (index) => {
@@ -83,8 +83,40 @@ export default function Boundaries({
   }, [zones, update, setSelected])
 
   return (
-    <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
-      <div className="flex min-w-0 flex-col gap-4">
+    <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="flex min-w-0 flex-col gap-3">
+        {!readOnly && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-700 bg-ink-900 px-3 py-2">
+            <button
+              type="button"
+              data-type="draft"
+              onClick={() => {
+                setDrawing({ type: 'draft', points: [] })
+                setSelected(-1)
+              }}
+              className={`flex h-8 items-center gap-2 rounded-lg border px-3 text-[13px] font-medium transition-colors ${
+                drawing
+                  ? 'border-brand-500 bg-brand-900 text-brand-100'
+                  : 'border-ink-700 bg-ink-950 text-ink-100 hover:border-ink-hover'
+              }`}
+            >
+              <i className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: ZONE_TYPES.draft.colour }} />
+              Draw boundary
+            </button>
+            {drawing && (
+              <>
+                <Button id="btn-finish" onClick={() => finish(drawing.points)}>
+                  Finish shape
+                </Button>
+                <Button onClick={() => setDrawing(null)}>Cancel</Button>
+              </>
+            )}
+            <p className="ml-auto text-[12px] text-ink-400">
+              Draw the shape first, then choose which model uses it in its properties.
+            </p>
+          </div>
+        )}
+
         <Card className="p-0">
           <BoundaryCanvas
             src={backdrop}
@@ -99,61 +131,13 @@ export default function Boundaries({
             onFinish={finish}
           />
         </Card>
-
-        {!readOnly && (
-          <Card>
-            <CardHead title="Add boundary" />
-            <div className="flex flex-wrap items-center gap-3 p-4">
-              <button
-                type="button"
-                data-type="draft"
-                onClick={() => {
-                  setDrawing({ type: 'draft', points: [] })
-                  setSelected(-1)
-                }}
-                className={`flex items-center gap-2.5 rounded-lg border px-4 py-2.5 text-left transition-colors ${
-                  drawing ? 'border-brand-500 bg-brand-900' : 'border-ink-700 bg-ink-800 hover:border-ink-600'
-                }`}
-              >
-                <i className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: ZONE_TYPES.draft.colour }} />
-                <strong className="text-[13px] font-semibold">Draw boundary</strong>
-              </button>
-              <p className="text-[12px] text-ink-400">
-                Draw the shape first, then choose which model uses it in its properties.
-              </p>
-            </div>
-            {drawing && (
-              <div className="flex gap-2 border-t border-ink-800 px-4 py-3">
-                <button
-                  type="button"
-                  id="btn-finish"
-                  onClick={() => finish(drawing.points)}
-                  className="rounded-lg border border-ink-700 bg-ink-800 px-3 py-1.5 text-[13px] hover:bg-ink-700"
-                >
-                  Finish shape
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDrawing(null)}
-                  className="rounded-lg border border-ink-700 bg-ink-800 px-3 py-1.5 text-[13px] hover:bg-ink-700"
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
-          </Card>
-        )}
       </div>
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
         <Card>
           <CardHead
             title="Boundaries"
-            aside={
-              <span className="rounded-full bg-ink-700 px-2 py-0.5 text-[11px] text-ink-200">
-                {zones.length}
-              </span>
-            }
+            aside={<Badge>{zones.length}</Badge>}
           >
             {zones.length > 0 && !readOnly && (
               <button
@@ -174,7 +158,7 @@ export default function Boundaries({
                   <div
                     className={`group flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 transition-colors ${
                       index === selected
-                        ? 'border-brand-600 bg-brand-900'
+                        ? 'border-brand-500/40 bg-brand-900'
                         : 'border-transparent hover:bg-ink-800'
                     }`}
                   >
@@ -190,7 +174,7 @@ export default function Boundaries({
                       <span className="min-w-0 flex-1 truncate text-[13px]">
                         {zone.name || zone.id}
                       </span>
-                      <span className="shrink-0 text-[11px] text-ink-400">
+                      <span className="shrink-0 font-mono text-[10.5px] uppercase tracking-[0.04em] text-ink-400">
                         {typeOf(zone).label}
                       </span>
                     </button>
