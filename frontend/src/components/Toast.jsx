@@ -29,7 +29,7 @@ export function ToastProvider({ children }) {
         <div
           role="status"
           key={toast.key}
-          className={`fixed bottom-6 left-1/2 z-50 max-w-[72vw] -translate-x-1/2 rounded-xl border border-ink-700 border-l-[3px] bg-ink-700 px-4 py-2.5 text-[13px] shadow-2xl ${accent}`}
+          className={`fixed bottom-6 left-1/2 z-50 max-w-[72vw] -translate-x-1/2 rounded-lg border border-ink-600 border-l-[3px] bg-ink-800 px-4 py-2.5 text-[13px] text-ink-100 shadow-[var(--level2-shadow)] ${accent}`}
         >
           {toast.message}
         </div>

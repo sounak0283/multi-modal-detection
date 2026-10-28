@@ -1,0 +1,297 @@
+<!DOCTYPE html><html lang="en" class="h-full"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perimeter — Sign In</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            slate: {
+              950: '#070A0E',
+              900: '#0B0F14',
+              850: '#101419',
+              800: '#121821',
+              750: '#181E29',
+              700: '#1F2833',
+              600: '#2A3644',
+            },
+            indigo: {
+              500: '#6366F1',
+              600: '#4F46E5',
+              700: '#4338CA',
+            },
+            emerald: {
+              400: '#34D399',
+              500: '#10B981',
+            },
+            amber: {
+              400: '#FBBF24',
+              500: '#F59E0B',
+            },
+            rose: {
+              500: '#EF4444',
+            },
+            cyan: {
+              400: '#22D3EE',
+              500: '#06B6D4',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #0B0F14;
+      color: #E2E8F0;
+      font-family: 'Inter', sans-serif;
+    }
+    .cctv-scanline {
+      background: linear-gradient(
+        to bottom,
+        rgba(255,255,255,0),
+        rgba(255,255,255,0) 50%,
+        rgba(0, 0, 0, 0.28) 50%,
+        rgba(0, 0, 0, 0.28)
+      );
+      background-size: 100% 4px;
+    }
+    .hud-glow {
+      box-shadow: 0 0 15px -3px rgba(16, 185, 129, 0.25);
+    }
+  </style>
+</head>
+<body class="h-full w-full overflow-hidden select-none bg-slate-900 text-slate-100 flex flex-col md:flex-row">
+
+  <!-- LEFT 55%: CCTV Industrial Backdrop & Neural Overlay Telemetry -->
+  <div class="relative w-full md:w-[55%] h-64 md:h-full overflow-hidden bg-slate-950 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-700/70">
+    
+    <!-- Background CCTV Image with blur, desaturation & tint -->
+    <div class="absolute inset-0 z-0">
+      <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZiP3XM5VVv57rNoCZHWZ7zG1pZg7lWnikT6lBmsa4PBbz7B0wI2LgIYJbej9uhOsUL-t_55uTGFzeLcKSrz7T84JBUi1D26yS-HbZ1gSmA4jP5bem2H_0CVc2aNrRM-K-35EwC2wTQrN9hg1NwMz2MQv1s1aTAD6RnRzVYtGr85XzvUH5wQAsuJI939m77jYJqBUC-ZvQc9W0P2wo4nt5Dh6zchR0hs3IdH1AY20" alt="Perimeter CCTV Feed - Rail Workshop" class="w-full h-full object-cover object-center filter grayscale-[80%] contrast-125 brightness-[0.42] blur-[1.5px] scale-105">
+      <!-- Vignette and dark gradient overlays -->
+      <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-slate-950/75 mix-blend-multiply"></div>
+      <div class="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-transparent to-slate-950/90"></div>
+      <div class="absolute inset-0 cctv-scanline pointer-events-none opacity-40"></div>
+    </div>
+
+    <!-- Telemetry HUD & AI Overlays on CCTV feed -->
+    <div class="absolute inset-0 z-10 pointer-events-none p-6 md:p-10 flex flex-col justify-between">
+      
+      <!-- Top Left Brand & Tagline -->
+      <div class="space-y-4">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-indigo-500/15 border border-indigo-500/40 flex items-center justify-center text-indigo-400 shadow-lg shadow-indigo-500/10">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              <circle cx="12" cy="11" r="3"></circle>
+            </svg>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span class="text-lg font-bold tracking-tight text-white font-sans">PERIMETER</span>
+            <span class="font-mono text-[10px] text-slate-400 bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-700/60 uppercase tracking-widest">v4.2</span>
+          </div>
+        </div>
+
+        <div class="space-y-1 pt-1">
+          <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-slate-100">Every boundary, watched.</h1>
+          <p class="font-mono text-xs text-slate-400 flex items-center gap-2 tracking-wide">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            2 cameras · edge inference online
+          </p>
+        </div>
+      </div>
+
+      <!-- Faint Emerald Boundary Polygons and Bounding Boxes Overlaid in Workshop Space -->
+      <div class="relative w-full h-44 md:h-80 my-auto">
+        <!-- SVG Polygon Boundary (Restricted Zone / Crane Exclusion Arc) -->
+        <svg class="absolute inset-0 w-full h-full" viewBox="0 0 600 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Zone Polygon Perimeter -->
+          <polygon points="70,90 280,60 390,140 440,260 210,310 90,240" class="stroke-emerald-400/50 fill-emerald-500/[0.04]" stroke-width="1.5" stroke-dasharray="6 4"></polygon>
+          <!-- Zone Vertices Pins -->
+          <circle cx="70" cy="90" r="3" class="fill-emerald-400"></circle>
+          <circle cx="280" cy="60" r="3" class="fill-emerald-400"></circle>
+          <circle cx="390" cy="140" r="3" class="fill-emerald-400"></circle>
+          <circle cx="440" cy="260" r="3" class="fill-emerald-400"></circle>
+          <circle cx="210" cy="310" r="3" class="fill-emerald-400"></circle>
+          <circle cx="90" cy="240" r="3" class="fill-emerald-400"></circle>
+          
+          <!-- Virtual Tripwire Optical Line -->
+          <line x1="280" y1="60" x2="520" y2="180" class="stroke-cyan-400/40" stroke-width="1.5" stroke-dasharray="4 4"></line>
+          <text x="360" y="110" class="font-mono text-[9px] fill-cyan-400/70 tracking-widest uppercase">TRIPWIRE-01 [GANTRY_SWEEP]</text>
+        </svg>
+
+        <!-- Neural Bounding Box #1: Crane Gantry Zone -->
+        <div class="absolute top-8 left-[18%] border border-emerald-400/60 bg-emerald-500/[0.06] rounded-sm p-1.5 backdrop-blur-[1px] hud-glow">
+          <div class="flex items-center gap-1.5 text-[10px] font-mono text-emerald-300 font-medium">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span class="">ZONE_A [CRANE SWING]</span>
+            <span class="text-emerald-400/70 ml-1 text-[9px]">IOU 0.96</span>
+          </div>
+          <div class="text-[9px] font-mono text-emerald-400/60 mt-0.5">STATUS: NOMINAL · 0 BREACHES</div>
+        </div>
+
+        <!-- Neural Bounding Box #2: Detected Machinery / Locomotive Unit -->
+        <div class="absolute bottom-10 left-[34%] border border-slate-500/40 bg-slate-900/40 rounded-sm p-1.5">
+          <div class="flex items-center gap-1.5 text-[9px] font-mono text-slate-300">
+            <span class="text-cyan-400 font-semibold">ASSET_441</span>
+            <span class="text-slate-400">CLASS: HEAVY_RAIL</span>
+            <span class="text-slate-500">99.2%</span>
+          </div>
+        </div>
+
+        <!-- Live Camera Feed Telemetry Badge -->
+        <div class="absolute bottom-2 left-2 flex items-center gap-3 bg-slate-900/80 border border-slate-700/60 px-2.5 py-1 rounded backdrop-blur-md">
+          <span class="flex items-center gap-1 text-[10px] font-mono text-rose-400 font-semibold tracking-wider">
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
+            REC · LIVE
+          </span>
+          <span class="text-[10px] font-mono text-slate-400">CAM-01 [BAY_03]</span>
+          <span class="text-[10px] font-mono text-slate-400 border-l border-slate-700/80 pl-2">30.0 FPS · 14.1ms</span>
+        </div>
+      </div>
+
+      <!-- Bottom Stream Technical Stamp -->
+      <div class="flex items-center justify-between font-mono text-[10px] text-slate-400 pt-2 border-t border-slate-800/80">
+        <div class="">ORIN-AGX-01 // TENSORRT-INT8</div>
+        <div class="hidden sm:block">ENCODER: NVENC H.265 (HEVC-MAIN10)</div>
+        <div class="text-emerald-400 font-medium">99.8% ACCURACY</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT 45%: Compact Operator Authentication Card -->
+  <div class="relative w-full md:w-[45%] h-full flex flex-col justify-between bg-slate-900 p-6 sm:p-10 lg:p-14 overflow-y-auto">
+    
+    <!-- Top Bar Secondary Utility / Status -->
+    <div class="flex items-center justify-between text-xs text-slate-400">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span class="font-mono text-[11px] text-slate-300 tracking-wide uppercase">FACILITY: SITE ALPHA</span>
+      </div>
+      <div class="font-mono text-[11px] text-slate-400">
+        CONSOLE AUTH · SEC-OPS
+      </div>
+    </div>
+
+    <!-- Centered Sign-In Container Card -->
+    <div class="w-full max-w-[400px] mx-auto my-auto py-8">
+      
+      <!-- Card Container with 8px radius, hairline border and dark slate elevated surface -->
+      <div class="bg-slate-800/90 border border-slate-700/80 rounded-lg p-7 sm:p-8 shadow-2xl shadow-black/60 relative">
+        
+        <!-- Header Info -->
+        <div class="mb-6 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-[11px] font-semibold uppercase tracking-widest text-indigo-400">SIGN IN</span>
+            <span class="text-[11px] font-mono text-slate-400 bg-slate-700/50 px-2 py-0.5 rounded border border-slate-600/40">PORTAL v4.2</span>
+          </div>
+          <h2 class="text-xl font-semibold text-white tracking-tight">Sign in to Perimeter</h2>
+          <p class="text-xs text-slate-400">Enter your credentials to access the safety console.</p>
+        </div>
+
+        <!-- Form Elements -->
+        <form class="space-y-4" onsubmit="event.preventDefault();">
+          
+          <!-- Email / Username Field -->
+          <div class="space-y-1.5">
+            <label for="email" class="block text-xs font-medium text-slate-300">Email</label>
+            <div class="relative rounded-md shadow-sm">
+              <input type="email" id="email" name="email" value="" class="w-full bg-slate-850 border border-slate-700 rounded-md px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-colors font-sans" placeholder="name@company" required="">
+              <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-500">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.206"></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Password Field with Show/Hide Toggle -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label for="password" class="block text-xs font-medium text-slate-300">
+                Password
+              </label>
+              <a href="#" class="text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors font-medium">
+                Forgot password?
+              </a>
+            </div>
+            <div class="relative rounded-md shadow-sm">
+              <input type="password" id="password" name="password" value="" class="w-full bg-slate-850 border border-slate-700 rounded-md px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-colors font-sans pr-10" placeholder="••••••••" required="">
+              <!-- Show/Hide Toggle Button -->
+              <button type="button" id="togglePassword" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200 focus:outline-none" aria-label="Toggle password visibility" onclick="const pwd = document.getElementById('password'); const isPwd = pwd.type === 'password'; pwd.type = isPwd ? 'text' : 'password'; document.getElementById('eyeIcon').classList.toggle('hidden'); document.getElementById('eyeSlashIcon').classList.toggle('hidden');">
+                <!-- Eye Open Icon -->
+                <svg id="eyeIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                </svg>
+                <!-- Eye Slash Icon (hidden initially) -->
+                <svg id="eyeSlashIcon" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Remember this device checkbox -->
+          <div class="flex items-center pt-1">
+            <label class="flex items-center gap-2.5 cursor-pointer">
+              <input type="checkbox" checked="" class="w-4 h-4 rounded border-slate-700 bg-slate-850 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-slate-900 rounded-[3px] accent-indigo-500 cursor-pointer">
+              <span class="text-xs text-slate-300 font-normal">Remember this device</span>
+            </label>
+          </div>
+
+          <!-- Full-width Indigo Sign In Button -->
+          <div class="pt-2">
+            <button type="submit" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-medium text-xs py-2.5 px-4 rounded-md transition-all shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2 group active:scale-[0.99]">
+              <span class="">Sign in</span>
+              <svg class="w-3.5 h-3.5 text-indigo-200 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+              </svg>
+            </button>
+          </div>
+
+        </form>
+
+        <!-- Hardware Key / SSO alternative line -->
+        
+
+      </div>
+
+      <!-- Quick Guidance & Help Text Below Card -->
+      
+
+    </div>
+
+    <!-- Right Side Footer: Green dot "All systems operational" & Version Number in Mono -->
+    <div class="pt-4 border-t border-slate-700/60 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
+      <div class="flex items-center gap-2">
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        <span class="text-slate-300 font-medium text-[11px]">All systems operational</span>
+      </div>
+      
+      <div class="font-mono text-[11px] text-slate-400 flex items-center gap-3">
+        <span class="">LATENCY: 14ms</span>
+        <span class="text-slate-600">·</span>
+        <span class="">BUILD v4.2.1-PROD</span>
+      </div>
+    </div>
+
+  </div>
+
+
+
+
+</body></html>

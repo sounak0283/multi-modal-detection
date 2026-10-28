@@ -1,23 +1,46 @@
-import { Dot } from './ui'
+import { useState } from 'react'
+import { Dot, cx } from './ui'
 
-/* Application shell: sidebar navigation, page header, and a persistent status rail. */
+/* Application shell: grouped sidebar navigation (240px, collapsible to 56px), top bar,
+ * and a persistent system-health + signed-in-user footer. */
 
-const NAV = [
-  { id: 'live', label: 'Live view', icon: PlayIcon },
-  { id: 'boundaries', label: 'Boundaries', icon: ShapeIcon },
-  { id: 'cameras', label: 'Cameras', icon: CameraIcon },
-  { id: 'history', label: 'Alert history', icon: ListIcon },
-  { id: 'evidence', label: 'Evidence', icon: FilmIcon },
-  { id: 'recognition', label: 'Recognition log', icon: ScanIcon },
+const GROUPS = [
+  {
+    label: 'Monitor',
+    items: [
+      { id: 'live', label: 'Live view', icon: PlayIcon },
+      { id: 'boundaries', label: 'Boundaries', icon: ShapeIcon },
+      { id: 'cameras', label: 'Cameras', icon: CameraIcon },
+    ],
+  },
+  {
+    label: 'Review',
+    items: [
+      { id: 'history', label: 'Alert history', icon: ListIcon },
+      { id: 'evidence', label: 'Evidence', icon: FilmIcon },
+      { id: 'recognition', label: 'Recognition log', icon: ScanIcon },
+    ],
+  },
+  {
+    label: 'Configure',
+    items: [
+      { id: 'videotest', label: 'Video test', icon: TestIcon, feature: 'video_test', admin: true },
+      { id: 'alerts', label: 'Alert rules', icon: BellIcon, admin: true },
+      { id: 'persons', label: 'People', icon: IdIcon, admin: true },
+      { id: 'users', label: 'Accounts', icon: UserIcon, admin: true },
+      { id: 'settings', label: 'Settings', icon: GearIcon, admin: true },
+    ],
+  },
 ]
 
-const ADMIN_NAV = [
-  { id: 'videotest', label: 'Video test', icon: TestIcon, feature: 'video_test' },
-  { id: 'alerts', label: 'Alerts', icon: BellIcon },
-  { id: 'persons', label: 'People', icon: IdIcon },
-  { id: 'users', label: 'Accounts', icon: UserIcon },
-  { id: 'settings', label: 'Settings', icon: GearIcon },
-]
+const COLLAPSE_KEY = 'perimeter.sidebar.collapsed'
+const readCollapsed = () => {
+  try {
+    return localStorage.getItem(COLLAPSE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
 
 export default function Shell({
   view,
@@ -31,58 +54,137 @@ export default function Shell({
   onLogout,
   children,
 }) {
-  const nav =
-    user?.role === 'admin'
-      ? [...NAV, ...ADMIN_NAV.filter((item) => !item.feature || features?.[item.feature] !== false)]
-      : NAV
+  const [collapsed, setCollapsed] = useState(readCollapsed)
+  const toggleCollapsed = () =>
+    setCollapsed((current) => {
+      try {
+        localStorage.setItem(COLLAPSE_KEY, current ? '0' : '1')
+      } catch {
+        /* storage blocked - applies for this page view only */
+      }
+      return !current
+    })
+
+  const isAdmin = user?.role === 'admin'
+  const groups = GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter(
+      (item) => (!item.admin || isAdmin) && (!item.feature || features?.[item.feature] !== false),
+    ),
+  })).filter((group) => group.items.length > 0)
+
   return (
-    <div className="grid min-h-full grid-cols-1 md:grid-cols-[232px_minmax(0,1fr)]">
+    <div
+      className={cx(
+        'grid min-h-full grid-cols-1',
+        collapsed ? 'md:grid-cols-[56px_minmax(0,1fr)]' : 'md:grid-cols-[240px_minmax(0,1fr)]',
+      )}
+    >
       <aside className="flex flex-col border-r border-ink-700 bg-ink-900 md:sticky md:top-0 md:h-screen">
-        <div className="flex items-center gap-2.5 border-b border-ink-800 px-4 py-4">
-          <span className="h-[26px] w-[26px] shrink-0 rounded-lg bg-gradient-to-br from-brand-500 to-[#7c5cff]" />
-          <span className="min-w-0 leading-tight">
-            <strong className="block text-[14px] tracking-tight">Perimeter</strong>
-            <small className="block text-[10.5px] text-ink-400">Fire, smoke &amp; boundary</small>
+        <div
+          className={cx(
+            'flex items-center gap-2.5 border-b border-ink-700 py-3.5',
+            collapsed ? 'px-4 md:justify-center md:px-0' : 'px-4',
+          )}
+        >
+          <Logo />
+          <span className={cx('min-w-0 leading-tight', collapsed && 'md:hidden')}>
+            <strong className="block text-[14px] font-semibold tracking-[0.04em]">PERIMETER</strong>
+            <small className="block font-mono text-[10px] uppercase tracking-[0.08em] text-ink-400">
+              Fire, smoke &amp; boundary
+            </small>
           </span>
         </div>
 
-        <nav className="flex flex-1 flex-row gap-0.5 overflow-x-auto p-2.5 md:flex-col md:overflow-visible">
-          {nav.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              data-view={id}
-              onClick={() => onNavigate(id)}
-              aria-current={view === id ? 'page' : undefined}
-              className={`flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13.5px] transition-colors ${
-                view === id
-                  ? 'bg-brand-900 font-medium text-brand-100'
-                  : 'text-ink-300 hover:bg-ink-800 hover:text-ink-100'
-              }`}
-            >
-              <Icon />
-              {label}
-            </button>
+        <nav className="flex flex-1 flex-row gap-1 overflow-x-auto p-2 md:flex-col md:gap-0 md:overflow-y-auto md:overflow-x-hidden">
+          {groups.map((group) => (
+            <div key={group.label} className="flex flex-row gap-0.5 md:mb-3 md:flex-col">
+              <p
+                className={cx(
+                  'hidden px-3 pb-1 pt-2 font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-ink-500 md:block',
+                  collapsed && 'md:invisible md:h-2 md:overflow-hidden md:p-0',
+                )}
+              >
+                {group.label}
+              </p>
+              {group.items.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  data-view={id}
+                  title={collapsed ? label : undefined}
+                  onClick={() => onNavigate(id)}
+                  aria-current={view === id ? 'page' : undefined}
+                  className={cx(
+                    'flex h-8 shrink-0 items-center gap-2.5 rounded-lg border px-3 text-left text-[13px] transition-colors',
+                    collapsed && 'md:justify-center md:px-0',
+                    view === id
+                      ? 'border-brand-500/30 bg-brand-900 font-medium text-brand-100'
+                      : 'border-transparent text-ink-300 hover:bg-ink-800 hover:text-ink-100',
+                  )}
+                >
+                  <Icon />
+                  <span className={cx(collapsed && 'md:hidden')}>{label}</span>
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
 
-        <div className="hidden space-y-2 p-2.5 md:block">
-          <StatusRail health={health} />
-          {user && <AccountRow user={user} onLogout={onLogout} />}
+        <div className="hidden space-y-2 border-t border-ink-700 p-2 md:block">
+          {!collapsed && <StatusRail health={health} />}
+          {!collapsed && user && <AccountRow user={user} onLogout={onLogout} />}
+          {collapsed && user && (
+            <button
+              type="button"
+              onClick={onLogout}
+              title={`Log out (${user.email})`}
+              aria-label="Log out"
+              className="flex h-8 w-full items-center justify-center rounded-lg text-[13px] text-ink-300 hover:bg-ink-800 hover:text-ink-100"
+            >
+              ⎋
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="flex h-7 w-full items-center justify-center rounded-lg text-[11px] text-ink-400 transition-colors hover:bg-ink-800 hover:text-ink-100"
+          >
+            {collapsed ? '»' : '« Collapse'}
+          </button>
         </div>
       </aside>
 
       <main className="flex min-w-0 flex-col">
-        <header className="flex items-center gap-4 border-b border-ink-700 bg-ink-900 px-6 py-4">
+        <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-ink-700 bg-ink-900 px-6 py-3">
           <div className="min-w-0">
             <h1 className="truncate text-[17px] font-semibold tracking-tight">{title}</h1>
-            <p className="mt-0.5 text-[12.5px] text-ink-400">{subtitle}</p>
+            <p className="mt-0.5 text-[12px] text-ink-400">{subtitle}</p>
           </div>
-          <div className="ml-auto flex shrink-0 gap-2">{actions}</div>
+          <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
         </header>
         <div className="min-w-0 flex-1 p-6">{children}</div>
       </main>
     </div>
+  )
+}
+
+function Logo() {
+  return (
+    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand-500 text-white">
+      <svg
+        viewBox="0 0 16 16"
+        width="15"
+        height="15"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      >
+        <path d="M8 1.8 13.5 4v4c0 3.2-2.3 5.2-5.5 6.2C4.8 13.2 2.5 11.2 2.5 8V4z" />
+      </svg>
+    </span>
   )
 }
 
@@ -102,8 +204,14 @@ function StatusRail({ health }) {
   const dbTone = db.connected ? 'ok' : db.configured ? 'alarm' : null
 
   return (
-    <div className="rounded-lg border border-ink-700 bg-ink-800 px-3 py-2.5">
-      <Row tone={camerasTone} label="Cameras" value={`${running}/${enabled} running`} />
+    <div className="rounded-lg border border-ink-700 bg-ink-850 px-3 py-2">
+      <p className="pb-1 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-500">Status</p>
+      <Row
+        tone={camerasTone}
+        live={camerasTone === 'ok'}
+        label="Cameras"
+        value={`${running}/${enabled} running`}
+      />
       <Row
         tone={dbTone}
         label="Recording"
@@ -115,10 +223,12 @@ function StatusRail({ health }) {
 
 function AccountRow({ user, onLogout }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-ink-700 bg-ink-800 px-3 py-2.5">
+    <div className="flex items-center gap-2 rounded-lg border border-ink-700 bg-ink-850 px-3 py-2">
       <div className="min-w-0 flex-1">
         <p className="truncate text-[12px] text-ink-100">{user.email}</p>
-        <p className="text-[10.5px] capitalize text-ink-400">{user.role}</p>
+        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-400">
+          {user.role}
+        </p>
       </div>
       <button
         type="button"
@@ -131,17 +241,17 @@ function AccountRow({ user, onLogout }) {
   )
 }
 
-function Row({ tone, label, value }) {
+function Row({ tone, live, label, value }) {
   return (
     <div className="flex items-center gap-2 py-[3px] text-[12px]">
-      <Dot tone={tone} />
+      <Dot tone={tone} live={live} />
       <span className="flex-1 text-ink-400">{label}</span>
-      <span className="tabular-nums text-ink-100">{value}</span>
+      <span className="font-mono text-[11px] tabular-nums text-ink-100">{value}</span>
     </div>
   )
 }
 
-/* Inline SVG rather than an icon package: six glyphs is not worth a dependency, a
+/* Inline SVG rather than an icon package: a dozen glyphs is not worth a dependency, a
  * licence row in NOTICE.md, or the bundle weight. */
 const iconProps = {
   width: 15,

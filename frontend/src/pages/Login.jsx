@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Card, CardBody, CardHead, Field, Input, Button } from '../components/ui'
+import { Card, CardBody, Field, Input, Button } from '../components/ui'
 import { api } from '../api'
 
 /* Shown instead of the dashboard whenever there is no valid session (Expansion Plan
@@ -28,19 +28,38 @@ export default function Login({ onSuccess }) {
   }
 
   return (
-    <div className="flex min-h-full items-center justify-center bg-ink-950 px-4 py-16">
-      <Card className="w-full max-w-[360px]">
-        <CardHead
-          title="Sign in"
-          aside={
-            <span className="flex items-center gap-2">
-              <span className="h-[22px] w-[22px] shrink-0 rounded-lg bg-gradient-to-br from-brand-500 to-[#7c5cff]" />
-              <strong className="text-[13.5px] tracking-tight">Perimeter</strong>
-            </span>
-          }
-        />
-        <CardBody>
-          <form className="space-y-3.5" onSubmit={submit}>
+    <div className="relative flex min-h-full items-center justify-center overflow-hidden bg-ink-950 px-4 py-16">
+      {/* Faint grid + indigo glow: atmosphere only, no data. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.35]"
+        style={{
+          backgroundImage:
+            'linear-gradient(var(--color-ink-700) 1px, transparent 1px), linear-gradient(90deg, var(--color-ink-700) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+          maskImage: 'radial-gradient(ellipse at center, #000 20%, transparent 70%)',
+          WebkitMaskImage: 'radial-gradient(ellipse at center, #000 20%, transparent 70%)',
+        }}
+      />
+      <div className="relative w-full max-w-[380px]">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <span className="mb-3 grid h-10 w-10 place-items-center rounded-lg bg-brand-500 text-white">
+            <svg viewBox="0 0 16 16" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
+              <path d="M8 1.8 13.5 4v4c0 3.2-2.3 5.2-5.5 6.2C4.8 13.2 2.5 11.2 2.5 8V4z" />
+            </svg>
+          </span>
+          <strong className="text-[15px] font-semibold tracking-[0.08em]">PERIMETER</strong>
+          <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.1em] text-ink-400">
+            Every boundary, watched.
+          </p>
+        </div>
+        <Card className="shadow-[var(--level2-shadow)]">
+          <CardBody className="p-6">
+            <h1 className="text-[18px] font-semibold tracking-tight">Sign in to Perimeter</h1>
+            <p className="mb-5 mt-1 text-[12.5px] text-ink-400">
+              Enter your credentials to access the safety console.
+            </p>
+            <form className="space-y-3.5" onSubmit={submit}>
             <Field label="Email">
               <Input
                 type="email"
@@ -68,9 +87,10 @@ export default function Login({ onSuccess }) {
             <Button type="submit" variant="primary" className="w-full justify-center" disabled={busy}>
               {busy ? 'Signing in…' : 'Sign in'}
             </Button>
-          </form>
-        </CardBody>
-      </Card>
+            </form>
+          </CardBody>
+        </Card>
+      </div>
     </div>
   )
 }

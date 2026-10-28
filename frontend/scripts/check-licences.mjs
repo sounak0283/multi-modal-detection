@@ -33,6 +33,11 @@ const ALLOWED = new Set([
   // which CSS prefixes to emit. Attribution is required and is recorded in NOTICE.md.
   // Data, not code, and not shipped.
   'CC-BY-4.0',
+
+  // OFL-1.1: the Inter and JetBrains Mono font files bundled via @fontsource. Embedding
+  // an OFL font in software is permitted; the licence only forbids selling the font
+  // on its own. Recorded in NOTICE.md.
+  'OFL-1.1',
 ])
 
 const FORBIDDEN = /GPL|AGPL|LGPL|CC-BY-NC|CC-BY-SA|SSPL|BUSL|Commons Clause|Proprietary/i

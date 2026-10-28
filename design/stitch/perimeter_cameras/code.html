@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}@keyframes pulse-ring{0%{transform:scale(0.95);opacity:0.8;}50%{transform:scale(1.3);opacity:0.2;}100%{transform:scale(0.95);opacity:0.8;}}.animate-pulse-ring{animation:pulse-ring 2s cubic-bezier(0.4,0,0.6,1) infinite;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "surface-variant": "#31353b", "on-secondary-fixed-variant": "#004e5c", "inverse-primary": "#494bd6", "on-surface-variant": "#c7c4d7", "error-container": "#93000a", "on-secondary": "#003640", "on-primary": "#1000a9", "surface-container": "#1c2025", "primary": "#c0c1ff", "tertiary-container": "#00885d", "on-tertiary-fixed-variant": "#005236", "surface-bright": "#36393f", "tertiary": "#4edea3", "outline-variant": "#464554", "primary-fixed-dim": "#c0c1ff", "primary-container": "#8083ff", "on-error-container": "#ffdad6", "surface-container-lowest": "#0a0e13", "tertiary-fixed-dim": "#4edea3", "secondary-container": "#03b5d3", "surface-tint": "#c0c1ff", "on-secondary-fixed": "#001f26", "secondary-fixed": "#acedff", "on-primary-fixed-variant": "#2f2ebe", "secondary-fixed-dim": "#4cd7f6", "on-background": "#e0e2ea", "on-surface": "#e0e2ea", "inverse-on-surface": "#2d3136", "surface-container-highest": "#31353b", "secondary": "#4cd7f6", "outline": "#908fa0", "on-error": "#690005", "surface-container-high": "#262a30", "background": "#101419", "on-tertiary-container": "#000703", "primary-fixed": "#e1e0ff", "on-tertiary-fixed": "#002113", "error": "#ffb4ab", "on-primary-container": "#0d0096", "surface-container-low": "#181c21", "surface": "#101419", "tertiary-fixed": "#6ffbbe", "on-tertiary": "#003824", "inverse-surface": "#e0e2ea", "on-primary-fixed": "#07006c", "surface-dim": "#101419", "on-secondary-container": "#00424e" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "space-xs": "0.25rem", "space-md": "0.75rem", "space-lg": "1rem", "space-xl": "1.5rem", "space-sm": "0.5rem", "margin": "1rem", "gutter": "0.75rem" }, "fontFamily": { "tracker-tag": ["JetBrains Mono"], "body-md": ["Inter"], "body-sm": ["Inter"], "headline-sm": ["Inter"], "headline-md": ["Inter"], "body-lg": ["Inter"], "telemetry-lg": ["JetBrains Mono"], "headline-xl": ["Inter"], "headline-lg": ["Inter"], "telemetry-md": ["JetBrains Mono"], "telemetry-sm": ["JetBrains Mono"] }, "fontSize": { "tracker-tag": ["10px", { "lineHeight": "12px", "letterSpacing": "0.08em", "fontWeight": "600" }], "body-md": ["13px", { "lineHeight": "18px", "fontWeight": "400" }], "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }], "headline-sm": ["15px", { "lineHeight": "20px", "fontWeight": "600" }], "headline-md": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "body-lg": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], "telemetry-lg": ["14px", { "lineHeight": "18px", "fontWeight": "500" }], "headline-xl": ["28px", { "lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "600" }], "headline-lg": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }], "telemetry-md": ["12px", { "lineHeight": "16px", "fontWeight": "500" }], "telemetry-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "500" }] } } } };</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased selection:bg-primary selection:text-on-primary"><aside class="fixed left-0 top-0 h-screen w-64 bg-surface-container-lowest border-r border-surface-container-high z-50 flex flex-col justify-between overflow-y-auto"><div class="flex flex-col"><div class="h-16 px-space-lg flex items-center justify-between border-b border-surface-container-high bg-surface-container-lowest/80"><div class="flex items-center gap-space-sm"><div class="w-7 h-7 rounded-lg bg-surface-container-high flex items-center justify-center p-1"><span class="material-symbols-outlined text-secondary text-[18px]">shield</span></div><div class="flex flex-col"><span class="font-headline-sm text-headline-sm font-bold tracking-wider text-on-surface">PERIMETER</span><span class="font-tracker-tag text-tracker-tag text-outline tracking-wider">SURVEILLANCE AI</span></div></div><div class="px-1.5 py-0.5 rounded bg-surface-container-high border border-surface-variant flex items-center"><span class="font-telemetry-sm text-telemetry-sm text-secondary">v4.2</span></div></div><nav class="flex flex-col gap-space-md p-space-md" data-active-classes="bg-surface-container-high text-on-surface border-l-2 border-primary font-medium"><div class="flex flex-col gap-space-xs"><span class="px-space-sm py-1 font-tracker-tag text-tracker-tag text-outline uppercase tracking-widest">MONITOR</span><a class="flex items-center px-space-sm py-1.5 rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="live-view" href="#">Live view</a><a class="flex items-center px-space-sm py-1.5 rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="boundaries" href="#">Boundaries</a><a class="flex items-center px-space-sm py-1.5 rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="cameras" href="#">Cameras</a></div><div class="flex flex-col gap-space-xs"><span class="px-space-sm py-1 font-tracker-tag text-tracker-tag text-outline uppercase tracking-widest">REVIEW</span><a class="flex items-center px-space-sm py-1.5 rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="alert-history" href="#">Alert history</a><a class="flex items-center px-space-sm py-1.5 rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="evidence" href="#">Evidence</a><a class="flex items-center px-space-sm py-1.5 rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="recognition-log" href="#">Recognition log</a></div><div class="flex flex-col gap-space-xs"><span class="px-space-sm py-1 font-tracker-tag text-tracker-tag text-outline uppercase tracking-widest">CONFIGURE</span><a class="flex items-center px-space-sm py-1.5 rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="video-test" href="#">Video test</a><a class="flex items-center px-space-sm py-1.5 rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="alert-rules" href="#">Alert rules</a><a class="flex items-center px-space-sm py-1.5 rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="people" href="#">People</a><a class="flex items-center px-space-sm py-1.5 rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="accounts" href="#">Accounts</a><a class="flex items-center px-space-sm py-1.5 rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="settings" href="#">Settings</a></div></nav></div><div class="flex flex-col p-space-md gap-space-sm border-t border-surface-container-high bg-surface-container-lowest"><div class="p-space-sm rounded-lg bg-surface-container-low border border-surface-container flex flex-col gap-1.5"><div class="flex items-center justify-between"><span class="font-telemetry-sm text-telemetry-sm text-outline">STATUS</span><div class="flex items-center gap-1.5"><span class="relative flex h-2 w-2"><span class="animate-pulse-ring absolute inline-flex h-full w-full rounded-full bg-tertiary opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-tertiary"></span></span><span class="font-tracker-tag text-tracker-tag text-tertiary uppercase">RECORDING</span></div></div><div class="flex items-center justify-between font-telemetry-sm text-telemetry-sm"><span class="text-outline">CAMERAS:</span><span class="text-on-surface">24/24 ONLINE</span></div><div class="flex items-center justify-between font-telemetry-sm text-telemetry-sm"><span class="text-outline">STORAGE:</span><span class="text-on-surface">84% (NAS-02)</span></div><div class="flex items-center justify-between font-telemetry-sm text-telemetry-sm"><span class="text-outline">INFERENCE:</span><span class="text-secondary">18.2ms</span></div></div><div class="flex items-center gap-space-sm p-1.5 rounded-lg bg-surface-container-low border border-surface-container"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1UU9DoT84t0w01AzbtvBeaUJZ7wsLz9lZKLKs3okiV9IZMdU2uiAk1Rje6PWa9UtwWro4RqQB70j35heI0zyS8W7ZExIQIhBfH4MUcbPJVl4gs0VTw5PY826UczXh7kaiy_7FVy0CEfg8IDFirN6yOISlolOXeijypTnwW6uaC0B3jlcPOXkufj_Tlq7qzBEOtVtkjqZDDps4i5WrSibzuH-_85j9uynKHNpA9ndkgP"/><div class="flex flex-col min-w-0 flex-1"><span class="font-body-sm text-body-sm font-medium text-on-surface truncate">Marcus Vance</span><span class="font-tracker-tag text-tracker-tag text-outline truncate">SAFETY LEAD / SEC-OPS</span></div><button aria-label="Profile Options" class="text-outline hover:text-on-surface transition-colors p-1"><span class="material-symbols-outlined text-[16px]">more_vert</span></button></div></div></aside><div class="pl-64 flex flex-col min-h-screen"><header class="fixed top-0 left-64 right-0 h-16 bg-surface-container-lowest/90 backdrop-blur-md border-b border-surface-container-high z-40 px-space-lg flex items-center justify-between gap-space-lg"><div class="flex items-center gap-space-lg flex-1 min-w-0"><div class="flex items-center gap-2 font-telemetry-md text-telemetry-md text-outline truncate"><span class="hover:text-on-surface cursor-pointer">Site Alpha</span><span class="text-surface-variant">/</span><span class="hover:text-on-surface cursor-pointer">Safety Matrix</span><span class="text-surface-variant">/</span><span class="text-on-surface font-semibold">Cameras</span></div><div class="hidden xl:flex items-center bg-surface-container-low border border-surface-container-high rounded px-2.5 py-1.5 gap-2 cursor-pointer hover:border-outline-variant transition-colors"><span class="w-2 h-2 rounded-full bg-tertiary"></span><span class="font-telemetry-sm text-telemetry-sm text-on-surface">CAM-08 [HIGH BAY CRANE]</span><span class="font-tracker-tag text-tracker-tag text-tertiary uppercase">Active</span><span class="material-symbols-outlined text-outline text-[16px]">expand_more</span></div><div class="hidden md:flex items-center flex-1 max-w-md bg-surface-container px-3 py-1.5 rounded border border-surface-container-high text-outline hover:border-outline-variant cursor-pointer transition-colors"><span class="material-symbols-outlined text-[18px] mr-2 text-outline">search</span><span class="font-body-sm text-body-sm truncate flex-1">Command search or jump to camera / worker ID...</span><kbd class="font-telemetry-sm text-telemetry-sm bg-surface-container-high px-1.5 py-0.5 rounded text-on-surface-variant">⌘K</kbd></div></div><div class="flex items-center gap-space-md"><div class="hidden lg:flex items-center gap-space-xs font-telemetry-sm text-telemetry-sm"><div class="px-2 py-1 rounded bg-surface-container-low border border-surface-container-high flex items-center gap-1.5"><span class="text-outline">HAZARD LVL:</span><span class="text-tertiary font-semibold">LOW</span></div><div class="px-2 py-1 rounded bg-surface-container-low border border-surface-container-high flex items-center gap-1.5"><span class="text-outline">LATENCY:</span><span class="text-secondary font-semibold">24ms</span></div></div><button aria-label="Notifications" class="relative p-2 rounded hover:bg-surface-container text-outline hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-error text-on-error font-telemetry-sm text-[10px] flex items-center justify-center font-bold">3</span></button><button aria-label="Toggle AI Assistant Drawer" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest border border-surface-variant text-on-surface transition-all"><span class="material-symbols-outlined text-secondary text-[18px]">auto_awesome</span><span class="font-body-sm text-body-sm font-medium">AI Assistant</span><span class="material-symbols-outlined text-outline text-[16px]">dock_to_left</span></button><div class="flex items-center pl-2 border-l border-surface-container-high"><img alt="Profile" class="w-8 h-8 rounded-full object-cover ring-1 ring-surface-variant" src="https://lh3.googleusercontent.com/aida/AEtjO1UU9DoT84t0w01AzbtvBeaUJZ7wsLz9lZKLKs3okiV9IZMdU2uiAk1Rje6PWa9UtwWro4RqQB70j35heI0zyS8W7ZExIQIhBfH4MUcbPJVl4gs0VTw5PY826UczXh7kaiy_7FVy0CEfg8IDFirN6yOISlolOXeijypTnwW6uaC0B3jlcPOXkufj_Tlq7qzBEOtVtkjqZDDps4i5WrSibzuH-_85j9uynKHNpA9ndkgP"/></div></div></header><main class="w-full pt-16 bg-surface flex-1 flex flex-col"><div class="flex flex-col w-full">
+<div class="flex flex-col lg:flex-row w-full gap-space-lg p-space-lg pb-24">
+<!-- LEFT COLUMN: Connected Nodes & Feeds -->
+<div class="w-full lg:w-80 flex-shrink-0 flex flex-col gap-space-md">
+<!-- Section Header -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-on-surface">Connected Nodes &amp; Feeds</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-secondary font-telemetry-sm text-telemetry-sm">4 Configured</span>
+</div>
+</div>
+<!-- Action Button -->
+<button class="w-full flex items-center justify-center gap-2 py-2 px-space-md rounded-lg bg-surface-container hover:bg-surface-container-high text-primary font-headline-sm text-headline-sm transition-all shadow-sm">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>+ Add camera</span>
+</button>
+<!-- Filter/Search -->
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-outline text-[16px]">search</span>
+<input class="w-full bg-surface-container pl-8 pr-3 py-1.5 rounded text-body-sm font-body-sm text-on-surface placeholder-outline focus:outline-none focus:bg-surface-container-high transition-colors" placeholder="Filter feeds by name or node..." type="text"/>
+</div>
+<!-- Camera Cards List -->
+<div class="flex flex-col gap-space-sm" id="camera-feed-list">
+<!-- Card 1 (Active/Selected) -->
+<div class="group cursor-pointer rounded-lg bg-surface-container-low p-space-sm transition-all shadow-md relative" data-cam-id="CAM-01">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-lg"></div>
+<div class="flex gap-space-sm">
+<div class="relative w-24 h-16 rounded overflow-hidden bg-surface-container-lowest flex-shrink-0">
+<img class="w-full h-full object-cover opacity-80" data-alt="High-angle CCTV view of an industrial rail bay terminal with overhead cranes, heavy machinery, ambient sodium-vapor lighting, cool cyan and slate tones, surveillance timestamp" src="https://lh3.googleusercontent.com/aida-public/AB6AXuANj3btR3a-e-HHh0a23rYtOEdLgzsj3JfL4KMdSmQS_n-H7wA2srY3niAIZZCUWlpDVjgwspafL_uKRLN5_UwRZZl2HlOhG8S9l4PDSc9pZ2sSY5nBD2BsyjzrJSgsLrgK7aAw0Xmwp2mMqBNWoM4RYQXiIL62jFO7ppj7oQTec4d7b-Rz3FbhAnNqzbWispuigrS0aF1sVZ0CdoJXXy9FhtPcHGjB0rDXwNLUrks"/>
+<div class="absolute top-1 left-1 flex items-center gap-1 bg-surface-container-lowest/80 px-1 py-0.5 rounded">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
+<span class="font-tracker-tag text-[9px] text-tertiary">LIVE</span>
+</div>
+</div>
+<div class="flex flex-col justify-between min-w-0 flex-1">
+<div class="flex items-start justify-between gap-1">
+<span class="font-headline-sm text-body-sm text-on-surface truncate font-semibold">CAM-01 [Rail Bay North]</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-tertiary-container/30 text-tertiary font-tracker-tag text-[10px]">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span> Running
+                </span>
+</div>
+<div class="font-telemetry-sm text-[10px] text-outline truncate">
+                FPS: 30.0 | RTT: 18.2ms | 1080p RTSP
+              </div>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="group cursor-pointer rounded-lg bg-surface-container-low hover:bg-surface-container p-space-sm transition-all" data-cam-id="CAM-02">
+<div class="flex gap-space-sm">
+<div class="relative w-24 h-16 rounded overflow-hidden bg-surface-container-lowest flex-shrink-0">
+<img class="w-full h-full object-cover opacity-75" data-alt="Office workstation operator desk viewed from a standard USB wide-angle webcam, industrial control monitors visible, low moody ambient light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-51KWcPXfBUPklKxsC88Bxxm6d0j8TAz7CtNb8weH33MflKfvyXzNewAVbAOpG4Mge53bJtS-aX2Aw56dhAp4fauwT6toYLXlQgU3ZeyS-X-cWD1AGCshGSnuvV4db2oZ-Kr4TFLe23Syom-HoFAvPDjep52_K8B7v83ZcOKmp8Ty4wmwsX0UIVqtuG2vS-Dsb1a6gZyQIp9fCv_1ZzfOtV9snqmhvoAX8ed9Bdo"/>
+<div class="absolute top-1 left-1 flex items-center gap-1 bg-surface-container-lowest/80 px-1 py-0.5 rounded">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="font-tracker-tag text-[9px] text-tertiary">LIVE</span>
+</div>
+</div>
+<div class="flex flex-col justify-between min-w-0 flex-1">
+<span class="font-headline-sm text-body-sm text-on-surface truncate">CAM-02 [Desk / USB Webcam]</span>
+<div class="flex items-center gap-1.5">
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-tertiary-container/30 text-tertiary font-tracker-tag text-[10px]">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span> Running
+                </span>
+</div>
+<div class="font-telemetry-sm text-[10px] text-outline truncate">
+                FPS: 24.0 | DEV: /dev/video0
+              </div>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="group cursor-pointer rounded-lg bg-surface-container-low hover:bg-surface-container p-space-sm transition-all opacity-80" data-cam-id="CAM-03">
+<div class="flex gap-space-sm">
+<div class="relative w-24 h-16 rounded overflow-hidden bg-surface-container-lowest flex-shrink-0 flex items-center justify-center">
+<div class="flex flex-col items-center justify-center text-outline">
+<span class="material-symbols-outlined text-[20px]">videocam_off</span>
+<span class="font-tracker-tag text-[8px]">NO SIGNAL</span>
+</div>
+</div>
+<div class="flex flex-col justify-between min-w-0 flex-1">
+<span class="font-headline-sm text-body-sm text-on-surface truncate">CAM-03 [Foundry Gate 04]</span>
+<div class="flex items-center gap-1.5">
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-variant text-outline font-tracker-tag text-[10px]">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span> Offline
+                </span>
+</div>
+<div class="font-telemetry-sm text-[10px] text-outline truncate">
+                RTSP TIMEOUT (Last: 2h ago)
+              </div>
+</div>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="group cursor-pointer rounded-lg bg-surface-container-low hover:bg-surface-container p-space-sm transition-all" data-cam-id="CAM-04">
+<div class="flex gap-space-sm">
+<div class="relative w-24 h-16 rounded overflow-hidden bg-surface-container-lowest flex-shrink-0">
+<img class="w-full h-full object-cover opacity-60" data-alt="Industrial robotic arm welding gantry feed with digital artifacts, frame tear lines, heavy orange arc flashes reflecting off dark machinery surfaces" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA7t5IPgvMN7NE5jkdj437T5MPW8pbNJR9boftSsHKeGIHdNHjBcXOOUjU4H0ujCwrOdGfSPgcPaLgGdAc_5zeAHkaK29cOeT85XNucJbuKUD6TORfPO58xTUJdWcPFl0RKrTuMEMM5eFzMfxZ5ueL0dZEoj6MfyqJTRw3o-kw39Pi1ZSOm5j8sxAKIoxtCpo2sgkwfLMqEWEXpZFJIAfMEZ7agxHRy15iXAt6B82Y"/>
+<div class="absolute inset-0 bg-error-container/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-error text-[18px]">warning</span>
+</div>
+</div>
+<div class="flex flex-col justify-between min-w-0 flex-1">
+<span class="font-headline-sm text-body-sm text-on-surface truncate">CAM-04 [Robotic Cell #2]</span>
+<div class="flex items-center gap-1.5">
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-error-container text-error font-tracker-tag text-[10px]">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span> Degraded
+                </span>
+</div>
+<div class="font-telemetry-sm text-[10px] text-error font-medium truncate">
+                LOSS 14.8% | H.264 CORRUPT
+              </div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- MAIN CONFIGURATION AREA -->
+<div class="flex-1 flex flex-col gap-space-lg min-w-0">
+<!-- Camera Header Banner -->
+<div class="bg-surface-container-low rounded-xl p-space-lg flex flex-col gap-space-md shadow-md">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[24px]">videocam</span>
+</div>
+<div class="flex flex-col">
+<div class="font-telemetry-sm text-[10px] text-outline tracking-wider uppercase">SITE ALPHA &gt; SECTOR 01 &gt; HEAVY CRANE YARD</div>
+<span class="font-headline-lg text-headline-md sm:text-headline-lg text-on-surface font-bold">CAM-01 [Rail Bay North]</span>
+</div>
+</div>
+<div class="flex flex-wrap items-center gap-2">
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-tertiary-container/20 text-tertiary font-telemetry-sm text-telemetry-sm font-semibold">
+<span class="material-symbols-outlined text-[16px]">check_circle</span> Enabled
+            </div>
+<div class="px-2 py-1 rounded bg-surface-container font-telemetry-sm text-telemetry-sm text-outline">
+              ID: <span class="text-on-surface font-mono">CAM-01</span>
+</div>
+<div class="px-2 py-1 rounded bg-surface-container font-telemetry-sm text-telemetry-sm text-outline">
+              FW: <span class="text-secondary font-mono">v4.2.1-edge</span>
+</div>
+</div>
+</div>
+<!-- Live Preview Viewport -->
+<div class="relative w-full aspect-video sm:h-80 rounded-lg overflow-hidden bg-surface-container-lowest group">
+<img class="w-full h-full object-cover" data-alt="High quality 16:9 industrial rail bay camera feed with automated yellow boundary tripwire overlays, tracked safety vests and forklift telemetry HUD bounding boxes, dark architectural setting with vivid green and cyan detection coordinates" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAN9imC8EeypxeA0BZyq3HzzEUwBILNbfGIRCPw7cC0ptHIN4O1CPPCD-37L7RnuHetcfwbT31wEm27qL2ZKBvir63ZEymV8nrKXht7qTbR9StFc3bhbHbQja8f1Mdz5NPfgbq3uSPMoR35UrFB2Vg7jRQI1IUjxv0rQhPsJOkkXaXl22_c_9It9tAgcPcAo_bVNM8pd0yuyDQ6u0KPT6pS7ZLqbEz7M8_UfwWIVgA"/>
+<!-- Synthetic HUD Overlay Lines -->
+<div class="absolute inset-0 pointer-events-none p-space-md flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2 bg-surface-container-lowest/80 backdrop-blur px-2 py-1 rounded">
+<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
+<span class="font-telemetry-sm text-telemetry-sm text-tertiary font-semibold">LIVE EDGE INFERENCE</span>
+<span class="text-surface-variant font-telemetry-sm">|</span>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface">30.0 FPS</span>
+<span class="text-surface-variant font-telemetry-sm">|</span>
+<span class="font-telemetry-sm text-telemetry-sm text-secondary">1920×1080</span>
+</div>
+<div class="font-telemetry-sm text-telemetry-sm bg-surface-container-lowest/80 backdrop-blur px-2 py-1 rounded text-outline font-mono">
+                2025-05-18 14:32:09.412 UTC
+              </div>
+</div>
+<!-- Bounding Box Overlays -->
+<div class="relative w-full h-full my-2">
+<div class="absolute left-1/4 top-1/3 w-32 h-44 rounded-sm bg-primary/10">
+<div class="absolute -top-5 left-0 bg-primary text-on-primary font-tracker-tag text-[9px] px-1.5 py-0.5 rounded-t flex items-center gap-1">
+<span>OPERATOR_94</span>
+<span class="text-on-primary/80">98%</span>
+</div>
+</div>
+<div class="absolute right-1/3 bottom-1/4 w-48 h-32 rounded-sm bg-tertiary/10">
+<div class="absolute -top-5 left-0 bg-tertiary text-on-tertiary-container font-tracker-tag text-[9px] px-1.5 py-0.5 rounded-t font-semibold flex items-center gap-1">
+<span>FORKLIFT_ALPHA</span>
+<span>94%</span>
+</div>
+</div>
+</div>
+<!-- Viewport Control Strip -->
+<div class="flex items-center justify-between pointer-events-auto">
+<div class="flex items-center gap-1 bg-surface-container-lowest/80 backdrop-blur p-1 rounded">
+<button class="px-2 py-1 rounded text-body-sm font-tracker-tag text-xs bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">view_in_ar</span> HUD Overlays: ON
+                </button>
+<button class="p-1 rounded text-outline hover:text-on-surface transition-colors" title="Trigger Manual Snapshot">
+<span class="material-symbols-outlined text-[18px]">photo_camera</span>
+</button>
+</div>
+<div class="flex items-center gap-1 bg-surface-container-lowest/80 backdrop-blur p-1 rounded">
+<button class="p-1 rounded text-outline hover:text-on-surface transition-colors" title="Stream Telemetry Diagnostics">
+<span class="material-symbols-outlined text-[18px]">query_stats</span>
+</button>
+<button class="p-1 rounded text-outline hover:text-on-surface transition-colors" title="Expand Fullscreen">
+<span class="material-symbols-outlined text-[18px]">fullscreen</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- SECTION 1: Source & Hardware Card -->
+<div class="bg-surface-container-low rounded-xl p-space-lg flex flex-col gap-space-md shadow-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">settings_input_component</span>
+<span class="font-headline-md text-headline-sm sm:text-headline-md text-on-surface font-semibold">Feed Source &amp; Connection Parameters</span>
+</div>
+<span class="font-telemetry-sm text-telemetry-sm text-outline">TRANSPORT: RTSP over TCP</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<!-- Camera ID -->
+<div class="flex flex-col gap-1.5">
+<label class="font-telemetry-sm text-telemetry-sm text-outline flex items-center gap-1">
+<span>Internal Camera Ref (Immutable)</span>
+<span class="material-symbols-outlined text-[14px]">lock</span>
+</label>
+<div class="w-full bg-surface-container-lowest px-3 py-2 rounded text-outline font-telemetry-md text-telemetry-md flex items-center justify-between">
+<span>CAM-01</span>
+<span class="material-symbols-outlined text-[16px] text-surface-variant">lock_outline</span>
+</div>
+</div>
+<!-- Display Name -->
+<div class="flex flex-col gap-1.5">
+<label class="font-telemetry-sm text-telemetry-sm text-outline">Display Name</label>
+<input class="w-full bg-surface-container px-3 py-2 rounded text-body-md font-body-md text-on-surface focus:outline-none focus:bg-surface-container-high transition-colors" type="text" value="CAM-01 [Rail Bay North]"/>
+</div>
+</div>
+<!-- Segmented Control: Stream Type -->
+<div class="flex flex-col gap-1.5">
+<label class="font-telemetry-sm text-telemetry-sm text-outline">Source Capture Ingestion Mode</label>
+<div class="inline-flex max-w-md p-1 rounded-lg bg-surface-container-lowest">
+<button class="flex-1 py-1.5 px-3 rounded bg-surface-container-high text-on-surface font-body-sm text-body-sm font-semibold transition-all">
+              CCTV / RTSP (IP Stream)
+            </button>
+<button class="flex-1 py-1.5 px-3 rounded text-outline hover:text-on-surface font-body-sm text-body-sm transition-all">
+              Webcam / Local file (/dev/video*)
+            </button>
+</div>
+</div>
+<!-- Source Address / RTSP URL -->
+<div class="flex flex-col gap-1.5">
+<label class="font-telemetry-sm text-telemetry-sm text-outline">Source Address / RTSP URL</label>
+<div class="flex items-center gap-2">
+<div class="flex-1 bg-surface-container px-3 py-2 rounded flex items-center justify-between font-telemetry-md text-telemetry-sm text-on-surface">
+<span class="truncate">rtsp://edge-gateway.internal:554/live/ch01_rail_bay_main</span>
+<button class="text-outline hover:text-on-surface p-1 transition-colors" title="Copy RTSP Link">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+</button>
+</div>
+<button class="px-4 py-2 rounded bg-surface-container-high hover:bg-surface-container-highest text-primary font-headline-sm text-headline-sm transition-all whitespace-nowrap">
+              Test connection
+            </button>
+</div>
+<span class="font-body-sm text-[11px] text-outline">Supports RTSP, RTMP, WebRTC, and ONVIF Profile S endpoints with embedded H.264/H.265.</span>
+</div>
+<!-- Connection Test Result Banner -->
+<div class="p-space-sm rounded bg-surface-container-lowest flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-tertiary text-[18px]">check_circle</span>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface font-medium">Connection Verified</span>
+<span class="text-surface-variant font-telemetry-sm">|</span>
+<span class="font-telemetry-sm text-telemetry-sm text-outline">Latency: <span class="text-tertiary">14.2ms</span></span>
+<span class="text-surface-variant font-telemetry-sm">|</span>
+<span class="font-telemetry-sm text-telemetry-sm text-outline">Codec: <span class="text-secondary">H.265 Main</span></span>
+<span class="text-surface-variant font-telemetry-sm">|</span>
+<span class="font-telemetry-sm text-telemetry-sm text-outline">Bitrate: <span class="text-on-surface">6.2 Mbps</span></span>
+</div>
+<span class="font-tracker-tag text-[9px] text-tertiary uppercase">SYNCHRONIZED</span>
+</div>
+</div>
+<!-- SECTION 2: Capture Pipeline & Downsampling Card -->
+<div class="bg-surface-container-low rounded-xl p-space-lg flex flex-col gap-space-md shadow-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[20px]">tune</span>
+<span class="font-headline-md text-headline-sm sm:text-headline-md text-on-surface font-semibold">Capture Pipeline &amp; Downsampling</span>
+</div>
+<span class="font-telemetry-sm text-telemetry-sm text-outline">ENGINE: TensorRT / DeepStream</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<!-- Resolution Select Dropdown -->
+<div class="flex flex-col gap-1.5">
+<label class="font-telemetry-sm text-telemetry-sm text-outline">Processing Frame Buffer Resolution</label>
+<div class="relative">
+<select class="w-full bg-surface-container px-3 py-2 rounded text-body-md font-body-md text-on-surface focus:outline-none appearance-none cursor-pointer">
+<option selected="">1280×720 (720p HD Recommended for Edge Inference)</option>
+<option>1920×1080 (1080p FHD Native Stream)</option>
+<option>640×480 (SD Ultra-Low Latency Mode)</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[18px]">expand_more</span>
+</div>
+<span class="font-body-sm text-[11px] text-outline">Lower resolution conserves VRAM and stabilizes batch inference.</span>
+</div>
+<!-- Native FPS -->
+<div class="flex flex-col gap-1.5">
+<label class="font-telemetry-sm text-telemetry-sm text-outline">Native Camera Ingestion FPS</label>
+<div class="w-full bg-surface-container px-3 py-2 rounded flex items-center justify-between font-telemetry-md text-telemetry-md text-on-surface">
+<span>30 FPS</span>
+<span class="font-telemetry-sm text-[11px] text-tertiary">HARDWARE LOCKED</span>
+</div>
+<span class="font-body-sm text-[11px] text-outline">Received via RTSP SDP handshake.</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md pt-2">
+<!-- Neural Decode FPS & Frame Skip -->
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<label class="font-telemetry-sm text-telemetry-sm text-outline">Neural Decode FPS (Inference Target)</label>
+<span class="font-telemetry-sm text-telemetry-sm text-secondary font-bold">12 FPS</span>
+</div>
+<input class="w-full accent-primary bg-surface-container h-1.5 rounded appearance-none cursor-pointer" max="30" min="1" type="range" value="12"/>
+<span class="font-body-sm text-[11px] text-outline">Frame skip interval: 2.5 frames. Balances GPU load on NVIDIA Orin AGX.</span>
+</div>
+<!-- Hardware Decoder Selection -->
+<div class="flex flex-col gap-2">
+<label class="font-telemetry-sm text-telemetry-sm text-outline">Hardware Decoding Backend</label>
+<div class="flex items-center gap-2">
+<button class="flex-1 py-2 px-3 rounded bg-surface-container-high text-secondary font-telemetry-sm text-telemetry-sm font-semibold flex items-center justify-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">memory</span> NVIDIA NVDEC (Accel)
+              </button>
+<button class="flex-1 py-2 px-3 rounded bg-surface-container text-outline hover:text-on-surface font-telemetry-sm text-telemetry-sm flex items-center justify-center gap-1.5">
+                Software (CPU)
+              </button>
+</div>
+<span class="font-body-sm text-[11px] text-outline">Zero-copy unified NVMM memory pipeline.</span>
+</div>
+</div>
+<!-- Auto-start stream on reboot -->
+<div class="flex items-center justify-between pt-2">
+<div class="flex flex-col">
+<span class="font-headline-sm text-body-sm font-semibold text-on-surface">Auto-start stream on node reboot</span>
+<span class="font-body-sm text-[11px] text-outline">Rebind RTSP pipelines immediately upon edge daemon recovery or power cycle.</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container rounded-full peer peer-checked:bg-primary-container peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-on-primary-container after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+</label>
+</div>
+</div>
+<!-- SECTION 3: Detection Modules (Selectable Card Grid) -->
+<div class="bg-surface-container-low rounded-xl p-space-lg flex flex-col gap-space-md shadow-md">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+<div>
+<span class="font-headline-md text-headline-sm sm:text-headline-md text-on-surface font-semibold">Inference Detection Modules</span>
+<p class="font-body-sm text-body-sm text-outline">Select edge neural vision models to deploy on this stream pipeline</p>
+</div>
+<span class="font-telemetry-sm text-telemetry-sm px-2 py-1 rounded bg-surface-container text-secondary">3 Models Active</span>
+</div>
+<!-- Detection Modules Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-space-md">
+<!-- 1. Boundary / Restricted Area -->
+<div class="p-space-md rounded-lg bg-surface-container flex flex-col justify-between gap-3 cursor-pointer transition-all shadow-sm">
+<div class="flex items-start justify-between">
+<div class="w-9 h-9 rounded bg-surface-container-high text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">polyline</span>
+</div>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-tertiary-container/30 text-tertiary font-tracker-tag text-[10px]">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span> Active (2 Zones Assigned)
+              </span>
+</div>
+<div>
+<span class="font-headline-sm text-body-md font-semibold text-on-surface">Boundary / Restricted Area</span>
+<p class="font-body-sm text-[12px] text-outline mt-1">Spatial polygon exclusion and virtual tripwire breach detection.</p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="font-telemetry-sm text-[10px] text-outline font-mono">LATENCY: ~4.1ms</span>
+<span class="text-tertiary font-tracker-tag text-[10px] font-semibold">CONFIGURED</span>
+</div>
+</div>
+<!-- 2. Crowd Formation -->
+<div class="p-space-md rounded-lg bg-surface-container hover:bg-surface-container-high flex flex-col justify-between gap-3 cursor-pointer transition-all">
+<div class="flex items-start justify-between">
+<div class="w-9 h-9 rounded bg-surface-container-high text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">groups</span>
+</div>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-secondary-container/30 text-secondary font-tracker-tag text-[10px]">
+                Requires Boundary
+              </span>
+</div>
+<div>
+<span class="font-headline-sm text-body-md font-semibold text-on-surface">Crowd Formation</span>
+<p class="font-body-sm text-[12px] text-outline mt-1">Density clustering, bottleneck congestion, and group accumulation (&gt;4 persons).</p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="font-telemetry-sm text-[10px] text-outline font-mono">DEPENDS ON: #MOD-BOUND</span>
+<span class="text-secondary font-tracker-tag text-[10px]">ENABLE</span>
+</div>
+</div>
+<!-- 3. PPE Compliance -->
+<div class="p-space-md rounded-lg bg-surface-container hover:bg-surface-container-high flex flex-col justify-between gap-3 cursor-pointer transition-all">
+<div class="flex items-start justify-between">
+<div class="w-9 h-9 rounded bg-surface-container-high text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">safety_check</span>
+</div>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-variant text-error font-tracker-tag text-[10px]">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span> Model Missing
+              </span>
+</div>
+<div>
+<span class="font-headline-sm text-body-md font-semibold text-on-surface">PPE Compliance</span>
+<p class="font-body-sm text-[12px] text-outline mt-1">Class E/G helmet, high-vis vest, gloves, and protective eyewear verification.</p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="font-telemetry-sm text-[10px] text-error font-mono">Weights not cached on Edge-01</span>
+<span class="text-primary font-tracker-tag text-[10px] underline">DOWNLOAD</span>
+</div>
+</div>
+<!-- 4. Phone Near Ear -->
+<div class="p-space-md rounded-lg bg-surface-container opacity-50 flex flex-col justify-between gap-3 cursor-not-allowed">
+<div class="flex items-start justify-between">
+<div class="w-9 h-9 rounded bg-surface-container-high text-outline flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">phone_in_talk</span>
+</div>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-variant text-outline font-tracker-tag text-[10px]">
+                Coming Soon (v4.3)
+              </span>
+</div>
+<div>
+<span class="font-headline-sm text-body-md font-semibold text-on-surface">Phone Near Ear</span>
+<p class="font-body-sm text-[12px] text-outline mt-1">Distracted walking and machinery operation mobile handset usage detector.</p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="font-telemetry-sm text-[10px] text-outline font-mono">ROADMAP TARGET: Q3</span>
+<span class="text-outline font-tracker-tag text-[10px]">LOCKED</span>
+</div>
+</div>
+<!-- 5. Fire & Optical Smoke -->
+<div class="p-space-md rounded-lg bg-surface-container flex flex-col justify-between gap-3 cursor-pointer transition-all shadow-sm">
+<div class="flex items-start justify-between">
+<div class="w-9 h-9 rounded bg-surface-container-high text-error flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">local_fire_department</span>
+</div>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-error-container text-error font-tracker-tag text-[10px]">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span> Armed
+              </span>
+</div>
+<div>
+<span class="font-headline-sm text-body-md font-semibold text-on-surface">Fire &amp; Optical Smoke</span>
+<p class="font-body-sm text-[12px] text-outline mt-1">Optical particulate dispersion and rapid thermal plume detection.</p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="font-telemetry-sm text-[10px] text-outline font-mono">CONFIDENCE: &gt;92%</span>
+<span class="text-error font-tracker-tag text-[10px] font-semibold">ACTIVE</span>
+</div>
+</div>
+<!-- 6. Identity / Face Recognition -->
+<div class="p-space-md rounded-lg bg-surface-container hover:bg-surface-container-high flex flex-col justify-between gap-3 cursor-pointer transition-all">
+<div class="flex items-start justify-between">
+<div class="w-9 h-9 rounded bg-surface-container-high text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">face</span>
+</div>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-secondary-container/30 text-secondary font-tracker-tag text-[10px]">
+                Requires Boundary
+              </span>
+</div>
+<div>
+<span class="font-headline-sm text-body-md font-semibold text-on-surface">Identity / Face Recognition</span>
+<p class="font-body-sm text-[12px] text-outline mt-1">Authorized contractor roster matching against facility turnstile database.</p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="font-telemetry-sm text-[10px] text-outline font-mono">ROSTER: 1,420 VECTORS</span>
+<span class="text-secondary font-tracker-tag text-[10px]">ENABLE</span>
+</div>
+</div>
+<!-- 7. Welding Sparks & Hot Work -->
+<div class="p-space-md rounded-lg bg-surface-container flex flex-col justify-between gap-3 cursor-pointer transition-all shadow-sm">
+<div class="flex items-start justify-between">
+<div class="w-9 h-9 rounded bg-surface-container-high text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">electric_bolt</span>
+</div>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-variant text-secondary font-tracker-tag text-[10px]">
+                Soft Alert — 3s Sustain
+              </span>
+</div>
+<div>
+<span class="font-headline-sm text-body-md font-semibold text-on-surface">Welding Sparks &amp; Hot Work</span>
+<p class="font-body-sm text-[12px] text-outline mt-1">Arc flash detection and uncontained slag trajectory monitoring.</p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="font-telemetry-sm text-[10px] text-outline font-mono">FILTER: THERMAL CLIP</span>
+<span class="text-secondary font-tracker-tag text-[10px] font-semibold">ACTIVE</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- STICKY BOTTOM ACTION FOOTER -->
+<footer class="sticky bottom-0 left-0 right-0 w-full bg-surface-container-lowest/95 backdrop-blur-md px-space-lg py-3 z-30 shadow-xl">
+<div class="max-w-full flex items-center justify-between">
+<!-- Left side: Destructive -->
+<div>
+<button class="px-3 py-1.5 rounded text-error hover:bg-error-container/20 transition-all flex items-center gap-1.5 font-body-md text-body-sm">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+<span>Remove camera</span>
+</button>
+</div>
+<!-- Right side: Secondary + Primary -->
+<div class="flex items-center gap-space-sm">
+<button class="px-4 py-1.5 rounded bg-surface-container hover:bg-surface-container-high text-outline hover:text-on-surface transition-all font-body-md text-body-sm">
+          Discard changes
+        </button>
+<button class="px-4 py-1.5 rounded-lg bg-primary-container hover:bg-primary-container/80 text-on-primary-container font-headline-sm text-body-sm flex items-center gap-2 shadow-sm transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined text-[18px]">sync</span>
+<span>Save &amp; reconnect camera</span>
+</button>
+</div>
+</div>
+</footer>
+</div>
+<script>
+  // Interactive camera selection feedback
+  const cameraCards = document.querySelectorAll('#camera-feed-list > div');
+  cameraCards.forEach(card => {
+    card.addEventListener('click', () => {
+      cameraCards.forEach(c => {
+        c.classList.remove('shadow-md');
+        const bar = c.querySelector('.bg-primary');
+        if (bar) bar.remove();
+      });
+      card.classList.add('shadow-md');
+      const accent = document.createElement('div');
+      accent.className = 'absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-lg';
+      card.prepend(accent);
+    });
+  });
+</script></main></div></body></html>

@@ -1,49 +1,69 @@
 @import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
 
-/* Design tokens.
+/* Design tokens (Stitch redesign - see design/DESIGN.md prose, not its YAML palette).
  *
  * Dark by convention rather than taste: this sits alongside VMS software in a control
  * room, and a bright page next to a video wall is fatiguing over a long shift.
  *
  * The neutral ramp is deliberately low-chroma so that STATUS is the only saturated
  * colour on screen. A red dot means something because nothing else is red.
+ *
+ * Token names are kept from the previous theme (ink / brand / ok / warn / alarm) so every
+ * page follows the new palette without per-component edits. The ramp maps to roles:
+ *   950 canvas   900 surface L1   800 surface L2 / inputs   700 hairline   600 L2 border
+ *   500 disabled / placeholder    400 muted text   300 secondary text   100 primary text
  */
 @theme {
-  --color-ink-950: #0b0e13;
-  --color-ink-900: #10141b;
-  --color-ink-850: #141922;
-  --color-ink-800: #1a202a;
-  --color-ink-700: #232a36;
-  --color-ink-600: #2e3644;
-  --color-ink-500: #3d4756;
-  --color-ink-400: #6b7686;
-  --color-ink-300: #9aa5b5;
-  --color-ink-200: #c6cedb;
-  --color-ink-100: #e8ecf2;
+  --color-ink-950: #0b0f14;
+  --color-ink-900: #121821;
+  --color-ink-850: #151d29;
+  --color-ink-800: #182230;
+  --color-ink-700: #1f2833;
+  --color-ink-600: #2a3749;
+  --color-ink-500: #475569;
+  --color-ink-400: #64748b;
+  --color-ink-300: #94a3b8;
+  --color-ink-200: #cbd5e1;
+  --color-ink-100: #f1f5f9;
+  --color-ink-hover: #2e3d4e; /* hovered control border */
 
-  --color-brand-100: #cfe2ff; /* text on a brand-900 fill (the active nav item) */
-  --color-brand-500: #3d8bfd;
-  --color-brand-600: #2f6fd0;
-  --color-brand-900: #16304f;
-  --color-on-brand: #04122a; /* text on a brand-500 fill (primary buttons) */
-  --color-on-alarm: #2a0808; /* text on an alarm-400 fill */
+  --color-brand-100: #e0e7ff; /* text on a brand-900 fill (the active nav item) */
+  --color-brand-400: #818cf8; /* indigo as TEXT on a dark surface */
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-900: #1c2048;
+  --color-on-brand: #ffffff; /* text on a brand-500 fill (primary buttons) */
+  --color-on-alarm: #ffffff; /* text on an alarm-400 fill */
 
-  --color-ok-400: #34d399;
-  --color-ok-900: #10291f;
-  --color-warn-400: #fbbf24;
-  --color-warn-900: #2a2110;
-  --color-alarm-400: #f87171;
-  --color-alarm-900: #2a1414;
+  --color-ok-400: #10b981;
+  --color-ok-900: #0e2a25;
+  --color-warn-400: #f59e0b;
+  --color-warn-900: #2b2312;
+  --color-alarm-400: #ef4444;
+  --color-alarm-900: #2d171b;
+  --color-info-400: #06b6d4; /* sensor / crowd / telemetry */
+  --color-info-900: #0c2a34;
 
   /* Boundary types keep one colour across the canvas, the list and the legend, so an
      operator learns the mapping once. */
-  --color-zone-area: #34d399;
-  --color-zone-wire: #fbbf24;
-  --color-zone-mask: #f87171;
+  --color-zone-area: #10b981;
+  --color-zone-wire: #f59e0b;
+  --color-zone-mask: #ef4444;
   --color-zone-roi: #fb923c;
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Consolas, monospace;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Consolas, monospace;
+
+  /* Cards, inputs and viewports are 8px; chips and segments 4-6px (rounded-sm/md). */
+  --radius-xl: 0.5rem;
+
+  --animate-live-ping: live-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  @keyframes live-ping {
+    0% { transform: scale(1); opacity: 0.6; }
+    80%, 100% { transform: scale(2.3); opacity: 0; }
+  }
 }
 
 /* Light theme (Settings -> Appearance). Same token names, light values, so every page
@@ -54,53 +74,62 @@
 :root[data-theme="light"] {
   color-scheme: light;
 
-  --color-ink-950: #f3f5f9; /* page */
+  --color-ink-950: #f4f6fa; /* page */
   --color-ink-900: #ffffff; /* cards, sidebar */
   --color-ink-850: #f8fafc;
-  --color-ink-800: #f1f4f8; /* inputs, hovers, subtle fills */
-  --color-ink-700: #e2e7ef; /* borders */
-  --color-ink-600: #cbd3de;
-  --color-ink-500: #94a0b2;
+  --color-ink-800: #f1f5f9; /* inputs, hovers, subtle fills */
+  --color-ink-700: #e2e8f0; /* borders */
+  --color-ink-600: #cbd5e1;
+  --color-ink-500: #94a3b8;
   --color-ink-400: #64748b; /* muted text */
   --color-ink-300: #475569;
   --color-ink-200: #334155;
   --color-ink-100: #0f172a; /* primary text */
+  --color-ink-hover: #b6c2d2;
 
-  --color-brand-100: #1d4ed8;
-  --color-brand-500: #2563eb;
-  --color-brand-600: #1d4ed8;
-  --color-brand-900: #e8effd;
+  --color-brand-100: #4338ca;
+  --color-brand-400: #4f46e5;
+  --color-brand-500: #4f46e5;
+  --color-brand-600: #4338ca;
+  --color-brand-900: #eef2ff;
   --color-on-brand: #ffffff;
   --color-on-alarm: #ffffff;
 
-  --color-ok-400: #059669;
-  --color-ok-900: #dcf5e9;
+  --color-ok-400: #047857;
+  --color-ok-900: #d1fae5;
   --color-warn-400: #b45309;
-  --color-warn-900: #fdf1cf;
+  --color-warn-900: #fef3c7;
   --color-alarm-400: #dc2626;
-  --color-alarm-900: #fde2e2;
+  --color-alarm-900: #fee2e2;
+  --color-info-400: #0e7490;
+  --color-info-900: #cffafe;
 }
+
+/* Native video-wall controls always sit on a dark tile, in both themes. */
+:root { --level2-shadow: 0 4px 12px rgba(0, 0, 0, 0.45); }
+:root[data-theme="light"] { --level2-shadow: 0 4px 12px rgba(15, 23, 42, 0.12); }
 
 :root[data-theme="light"] select,
 :root[data-theme="light"] input[type="time"],
-:root[data-theme="light"] input[type="number"] { color-scheme: light; }
-
-:root[data-theme="light"] .perimeter-card {
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
-}
+:root[data-theme="light"] input[type="number"],
+:root[data-theme="light"] input[type="date"] { color-scheme: light; }
 
 html, body, #root { height: 100%; }
 
 body {
   background: var(--color-ink-950);
   color: var(--color-ink-100);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
 /* Native form controls do not inherit the dark palette on Windows, which leaves white
    dropdown arrows and light calendar icons on dark inputs. */
 select { color-scheme: dark; }
-input[type="time"], input[type="number"] { color-scheme: dark; }
+input[type="time"], input[type="number"], input[type="date"] { color-scheme: dark; }
+
+/* Telemetry values (fps, ms, timestamps, track and camera IDs) read as columns. */
+.telemetry { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: var(--color-ink-900); }
