@@ -265,9 +265,9 @@ export default function ZoneProperties({ zone, onChange, onDelete }) {
               onChange={(ppe_required) => set({ ppe_required })}
             />
             <p className="mt-2 text-[11.5px] leading-snug text-ink-400">
-              Anyone confirmed missing a selected item raises an alert. No trained model
-              ships in this repo yet (Expansion Plan Phase H) — checking stays inactive
-              until one is placed at <code>backend/models/ppe/model.onnx</code>.
+              Anyone confirmed missing a selected item raises an alert. The installed
+              model checks <strong>helmets</strong> only; vest, gloves, shoes and glasses
+              cannot be seen by it, so selecting them will not raise alerts.
             </p>
           </fieldset>
         )}

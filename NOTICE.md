@@ -185,6 +185,8 @@ so they are recorded here.
 | `vite` | MIT | Build tool. Not itself shipped, but its runtime helpers are inlined. |
 | `@vitejs/plugin-react` | MIT | Build only. |
 | `tailwindcss`, `@tailwindcss/vite` | MIT | Generates the shipped stylesheet. |
+| `@fontsource-variable/geist` | OFL-1.1 | Geist typeface (UI text). Font files are bundled and served locally, so the console needs no internet. OFL permits embedding in software. |
+| `@fontsource-variable/geist-mono` | OFL-1.1 | Geist Mono typeface (telemetry values). Same terms as above. |
 
 No icon or component library is used — the handful of navigation glyphs are inline SVG.
 That is a deliberate call: six icons are not worth a dependency, a licence row here, or

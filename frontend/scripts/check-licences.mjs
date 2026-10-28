@@ -34,7 +34,7 @@ const ALLOWED = new Set([
   // Data, not code, and not shipped.
   'CC-BY-4.0',
 
-  // OFL-1.1: the Inter and JetBrains Mono font files bundled via @fontsource. Embedding
+  // OFL-1.1: the Geist and Geist Mono font files bundled via @fontsource. Embedding
   // an OFL font in software is permitted; the licence only forbids selling the font
   // on its own. Recorded in NOTICE.md.
   'OFL-1.1',

@@ -32,12 +32,12 @@ const RESOLUTIONS = [
 // and streams. Boundary is the person detection and tracking the modules in
 // REQUIRES_BOUNDARY run on (mirrors backend cameras/models.py).
 // `note` is the standing state shown on the module card: dependencies come from
-// REQUIRES_BOUNDARY below, "needs a model" / "not built" mirror the notes this page has
-// always carried (there is no backend endpoint reporting model availability per module).
+// REQUIRES_BOUNDARY below; the PPE and "not built" notes are static facts about what the
+// backend ships (there is no endpoint reporting model availability per module).
 const MODULE_OPTIONS = [
   { value: 'boundary', label: 'Boundary / restricted area' },
   { value: 'crowd', label: 'Crowd formation', note: 'Requires Boundary', tone: 'neutral' },
-  { value: 'ppe', label: 'PPE compliance', note: 'Requires Boundary · needs a trained model on the server', tone: 'warn' },
+  { value: 'ppe', label: 'PPE compliance', note: 'Requires Boundary · helmet detection', tone: 'neutral' },
   { value: 'phone', label: 'Phone near ear', note: 'Not built yet', tone: 'warn', unavailable: true },
   { value: 'fire_smoke', label: 'Fire & smoke' },
   { value: 'identity', label: 'Identity / face recognition', note: 'Requires Boundary', tone: 'neutral' },
@@ -525,8 +525,8 @@ export default function Cameras({ devTools, onChanged, readOnly = false }) {
                 Nothing runs unless you select it. Boundary / restricted area detects and
                 tracks people for zone entry/exit alerts; crowd formation and identity/face
                 recognition build on it and turn it on automatically. Fire &amp; smoke runs
-                on its own. PPE compliance needs a trained model placed on the server
-                before it does anything (see backend/models/ppe/README.md). Phone-near-ear
+                on its own. PPE compliance checks helmets (the installed model cannot see vests, gloves,
+                shoes or glasses; see backend/models/ppe/README.md). Phone-near-ear
                 detection is not built yet.
               </p>
             </CardBody>

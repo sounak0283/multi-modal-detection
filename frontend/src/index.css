@@ -1,6 +1,6 @@
 @import "tailwindcss";
-@import "@fontsource-variable/inter";
-@import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
 
 /* Design tokens (Stitch redesign - see design/DESIGN.md prose, not its YAML palette).
  *
@@ -53,8 +53,8 @@
   --color-zone-mask: #ef4444;
   --color-zone-roi: #fb923c;
 
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Consolas, monospace;
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Consolas, monospace;
 
   /* Cards, inputs and viewports are 8px; chips and segments 4-6px (rounded-sm/md). */
   --radius-xl: 0.5rem;
