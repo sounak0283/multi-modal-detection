@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Badge, Button, Card, CardHead, Dot, EmptyState, Select } from '../components/ui'
+import { Badge, Button, Card, CardHead, Dot, EmptyState, Select, SeverityChip } from '../components/ui'
+import { copyToClipboard, maskStoragePath } from '../lib/secure'
 import { api, eventClipUrl, eventSnapshotUrl } from '../api'
 import { useToast } from '../components/Toast'
 import AlertAI from '../components/ai/AlertAI'
@@ -9,7 +10,8 @@ import AlertAI from '../components/ai/AlertAI'
  * Playback goes through /api/events/{id}/clip, which (for S3 evidence) redirects to a fresh
  * short-lived signed link - so this page never holds a link that can expire underneath it,
  * and only logged-in users can watch. The permanent reference shown in the details is the
- * s3:// address; the emailed link is shown only while it is still valid. */
+ * masked s3 path (never the real address); the signed link is only ever copied to the
+ * clipboard via "Copy secure link", not displayed. */
 
 const KIND_LABEL = {
   boundary: 'Boundary',
@@ -19,8 +21,6 @@ const KIND_LABEL = {
   ppe: 'PPE',
   access: 'Unauthorized access',
 }
-
-const SEVERITY_TONE = { critical: 'alarm', high: 'warn', medium: 'info', low: 'neutral' }
 
 const CLIP_STATE = {
   saved: { tone: 'ok', label: 'Video saved' },
@@ -72,12 +72,10 @@ export default function Evidence({ cameras }) {
     <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[380px_minmax(0,1fr)]">
       <Card>
         <CardHead title="Alerts with evidence">
-          <span className="rounded-full bg-ink-700 px-2 py-0.5 text-[11px] text-ink-200">
-            {visible.length}
-          </span>
+          <Badge>{visible.length}</Badge>
         </CardHead>
-        <div className="flex flex-wrap items-center gap-2 border-b border-ink-800 px-4 py-3">
-          <Select value={filters.cameraId} onChange={set('cameraId')} className="w-auto py-1.5">
+        <div className="flex flex-wrap items-center gap-2 border-b border-ink-700 px-4 py-3">
+          <Select value={filters.cameraId} onChange={set('cameraId')} className="w-auto!">
             <option value="">All cameras</option>
             {(cameras ?? []).map((camera) => (
               <option key={camera.id} value={camera.id}>
@@ -85,7 +83,7 @@ export default function Evidence({ cameras }) {
               </option>
             ))}
           </Select>
-          <Select value={filters.kind} onChange={set('kind')} className="w-auto py-1.5">
+          <Select value={filters.kind} onChange={set('kind')} className="w-auto!">
             <option value="">All types</option>
             {Object.entries(KIND_LABEL).map(([value, label]) => (
               <option key={value} value={value}>
@@ -96,6 +94,7 @@ export default function Evidence({ cameras }) {
           <label className="flex items-center gap-1.5 text-[12px] text-ink-300">
             <input
               type="checkbox"
+              className="accent-brand-500"
               checked={filters.onlyVideo}
               onChange={(e) => setFilters((f) => ({ ...f, onlyVideo: e.target.checked }))}
             />
@@ -116,7 +115,7 @@ export default function Evidence({ cameras }) {
                   onClick={() => setSelectedId(event.id)}
                   className={`flex w-full items-center gap-3 rounded-lg border px-2 py-2 text-left transition-colors ${
                     selected?.id === event.id
-                      ? 'border-brand-600 bg-brand-900'
+                      ? 'border-brand-500/40 bg-brand-900'
                       : 'border-transparent hover:bg-ink-800'
                   }`}
                 >
@@ -132,9 +131,10 @@ export default function Evidence({ cameras }) {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[12.5px] text-ink-100">{event.message}</span>
-                    <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-ink-400">
+                    <span className="mt-1 flex items-center gap-1.5 font-mono text-[10.5px] text-ink-400">
                       <Dot tone={CLIP_STATE[event.clip_status]?.tone ?? (event.clip_path ? 'ok' : null)} />
                       {formatWhen(event.ts)} · {cameraName(event.camera_id)}
+                      <SeverityChip severity={event.severity} className="ml-auto" />
                     </span>
                   </span>
                 </button>
@@ -164,18 +164,14 @@ function Detail({ event, cameraName }) {
     new Date(withUtc(event.clip_link_expires_at)) > new Date()
 
   const copy = async (text, what) => {
-    try {
-      await navigator.clipboard.writeText(text)
-      toast(`${what} copied.`, 'ok')
-    } catch {
-      toast('Could not copy - select the text and copy it manually.', 'error')
-    }
+    if (await copyToClipboard(text)) toast(`${what} copied.`, 'ok')
+    else toast('Could not copy to the clipboard in this browser.', 'error')
   }
 
   return (
     <div className="space-y-4">
       <Card className="p-0">
-        <div className="bg-[#05070a]">
+        <div className="bg-black">
           {event.clip_path ? (
             // eslint-disable-next-line jsx-a11y/media-has-caption
             <video
@@ -213,7 +209,7 @@ function Detail({ event, cameraName }) {
             href={eventClipUrl(event.id)}
             target="_blank"
             rel="noreferrer"
-            className="text-brand-500 underline"
+            className="text-brand-400 underline"
           >
             Open it in a new tab
           </a>
@@ -227,7 +223,7 @@ function Detail({ event, cameraName }) {
         <CardHead title="Alert details">
           <div className="flex items-center gap-2">
             {clip && <Badge tone={clip.tone}>{clip.label}</Badge>}
-            <Badge tone={SEVERITY_TONE[event.severity] ?? 'neutral'}>{event.severity}</Badge>
+            <SeverityChip severity={event.severity} />
           </div>
         </CardHead>
         <div className="space-y-3 p-4">
@@ -249,24 +245,25 @@ function Detail({ event, cameraName }) {
           </dl>
 
           {event.clip_uri && (
-            <Copyable
-              label="Stored at (permanent)"
-              text={event.clip_uri}
-              onCopy={() => copy(event.clip_uri, 'Address')}
-            />
+            <MaskedField label="Stored at" text={maskStoragePath(event.clip_uri)} />
           )}
-          {linkStillValid ? (
-            <Copyable
-              label={`Emailed link (valid until ${formatWhen(withUtc(event.clip_link_expires_at), true)})`}
-              text={event.clip_link_url}
-              onCopy={() => copy(event.clip_link_url, 'Link')}
-            />
-          ) : (
-            event.clip_link_url && (
-              <p className="text-[11.5px] text-ink-400">
-                The emailed link has expired. Use the player above - it signs a fresh link each time.
-              </p>
-            )
+          {event.clip_path && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                onClick={() =>
+                  linkStillValid
+                    ? copy(event.clip_link_url, 'Secure link')
+                    : copy(`${window.location.origin}${eventClipUrl(event.id)}`, 'Link')
+                }
+              >
+                Copy secure link
+              </Button>
+              <span className="text-[11.5px] text-ink-400">
+                {linkStillValid
+                  ? `Expires ${formatWhen(withUtc(event.clip_link_expires_at), true)}.`
+                  : 'Opens only for signed-in users; a fresh signed link is issued each time it is played.'}
+              </span>
+            </div>
           )}
         </div>
       </Card>
@@ -277,22 +274,19 @@ function Detail({ event, cameraName }) {
 function Row({ label, value }) {
   return (
     <div className="flex justify-between gap-3 border-b border-ink-800 py-1.5">
-      <dt className="text-ink-400">{label}</dt>
+      <dt className="font-mono text-[11px] uppercase tracking-[0.06em] text-ink-400">{label}</dt>
       <dd className="text-right text-ink-100">{value}</dd>
     </div>
   )
 }
 
-function Copyable({ label, text, onCopy }) {
+/* Shows a masked storage path. The real address / signed link is never rendered; the
+ * only way to get a link out is the "Copy secure link" button, straight to the clipboard. */
+function MaskedField({ label, text }) {
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between text-[11.5px] text-ink-400">
-        <span>{label}</span>
-        <Button variant="ghost" onClick={onCopy} className="px-2 py-0.5 text-[11.5px]">
-          Copy
-        </Button>
-      </div>
-      <p className="break-all rounded-lg border border-ink-800 bg-ink-800 px-3 py-2 font-mono text-[11px] text-ink-300">
+      <div className="mb-1 text-[11.5px] text-ink-400">{label}</div>
+      <p className="break-all rounded-lg border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-[11px] text-ink-300">
         {text}
       </p>
     </div>
