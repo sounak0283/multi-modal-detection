@@ -6,6 +6,7 @@ import {
   CardBody,
   CardFoot,
   CardHead,
+  Drawer,
   EmptyState,
   Field,
   Input,
@@ -45,6 +46,7 @@ export default function Persons({ identityEnabled }) {
   const [photos, setPhotos] = useState({}) // { [poseKey]: { dataUrl, fileName } }
   const [enrolling, setEnrolling] = useState(false)
   const [busyId, setBusyId] = useState(null)
+  const [inspectingId, setInspectingId] = useState(null)
   const fileInputRef = useRef(null)
   const toast = useToast()
   const allPosesCaptured = POSES.every((pose) => photos[pose.key])
@@ -131,49 +133,41 @@ export default function Persons({ identityEnabled }) {
     }
   }
 
+  const inspected = persons.find((p) => p.id === inspectingId) ?? null
+
   return (
     <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
       <Card>
         <CardHead
           title="Enrolled people"
-          aside={
-            <span className="rounded-full bg-ink-700 px-2 py-0.5 text-[11px] text-ink-200">
-              {persons.length}
-            </span>
-          }
+          aside={<Badge>{persons.length}</Badge>}
         />
         {persons.length === 0 ? (
           <EmptyState>No one is enrolled yet.</EmptyState>
         ) : (
-          <ul className="divide-y divide-ink-800">
+          <ul className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 2xl:grid-cols-3">
             {persons.map((person) => (
-              <li key={person.id} className="flex items-center gap-3 px-4 py-3">
-                <span
-                  className={`h-2 w-2 shrink-0 rounded-full ${person.active ? 'bg-ok-400' : 'bg-ink-600'}`}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px]">{person.name}</p>
-                  {person.external_id && (
-                    <p className="truncate text-[11px] text-ink-400">{person.external_id}</p>
-                  )}
-                </div>
-                <Badge tone={person.active ? 'ok' : 'neutral'}>
-                  {person.active ? 'Active' : 'Inactive'}
-                </Badge>
-                <Button
-                  className="ml-2"
-                  disabled={busyId === person.id}
-                  onClick={() => toggleActive(person)}
+              <li key={person.id}>
+                <button
+                  type="button"
+                  onClick={() => setInspectingId(person.id)}
+                  className="flex w-full items-center gap-3 rounded-lg border border-ink-700 bg-ink-850 p-3 text-left transition-colors hover:border-ink-hover hover:bg-ink-800"
                 >
-                  {person.active ? 'Deactivate' : 'Activate'}
-                </Button>
-                <Button
-                  variant="danger"
-                  disabled={busyId === person.id}
-                  onClick={() => remove(person)}
-                >
-                  Remove
-                </Button>
+                  <Avatar name={person.name} active={person.active} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-medium">{person.name}</span>
+                    {person.external_id && (
+                      <span className="block truncate font-mono text-[10.5px] text-ink-400">
+                        {person.external_id}
+                      </span>
+                    )}
+                    <span className="mt-1.5 block">
+                      <Badge tone={person.active ? 'ok' : 'neutral'}>
+                        {person.active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </span>
+                  </span>
+                </button>
               </li>
             ))}
           </ul>
@@ -246,6 +240,62 @@ export default function Persons({ identityEnabled }) {
           </Button>
         </CardFoot>
       </Card>
+
+      {inspected && (
+        <Drawer title={inspected.name} onClose={() => setInspectingId(null)}>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Avatar name={inspected.name} active={inspected.active} large />
+              <div className="min-w-0">
+                <p className="truncate text-[15px] font-semibold">{inspected.name}</p>
+                {inspected.external_id && (
+                  <p className="truncate font-mono text-[11px] text-ink-400">{inspected.external_id}</p>
+                )}
+              </div>
+              <Badge tone={inspected.active ? 'ok' : 'neutral'} className="ml-auto">
+                {inspected.active ? 'Active' : 'Inactive'}
+              </Badge>
+            </div>
+            <p className="text-[12px] leading-snug text-ink-400">
+              An inactive person is no longer matched, so entering a restricted boundary raises an
+              unauthorised-access alert. Removing someone also deletes their stored face data.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button disabled={busyId === inspected.id} onClick={() => toggleActive(inspected)}>
+                {inspected.active ? 'Deactivate' : 'Activate'}
+              </Button>
+              <Button
+                variant="danger"
+                disabled={busyId === inspected.id}
+                onClick={async () => {
+                  await remove(inspected)
+                  setInspectingId(null)
+                }}
+              >
+                Remove
+              </Button>
+            </div>
+          </div>
+        </Drawer>
+      )}
     </div>
+  )
+}
+
+function Avatar({ name, active, large = false }) {
+  const initials = (name || '?')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join('')
+  return (
+    <span
+      className={`grid shrink-0 place-items-center rounded-full border font-mono font-semibold ${
+        large ? 'h-12 w-12 text-[15px]' : 'h-10 w-10 text-[12px]'
+      } ${active ? 'border-brand-500/40 bg-brand-900 text-brand-400' : 'border-ink-600 bg-ink-800 text-ink-400'}`}
+    >
+      {initials}
+    </span>
   )
 }

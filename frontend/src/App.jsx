@@ -26,7 +26,7 @@ const VIEWS = {
   live: { title: 'Live view', subtitle: 'Detections and boundaries as they happen.' },
   boundaries: { title: 'Boundaries', subtitle: 'Draw the areas and lines that raise alerts.' },
   cameras: { title: 'Cameras', subtitle: 'Add cameras and choose which modules run on each.' },
-  alerts: { title: 'Alerts', subtitle: 'Who gets emailed, and the browser alert sound.' },
+  alerts: { title: 'Alert rules', subtitle: 'Who gets emailed, and the browser alert sound.' },
   persons: { title: 'People', subtitle: 'Enrol faces for restricted-zone access control.' },
   recognition: { title: 'Recognition log', subtitle: 'Every identity resolution, with camera and timestamp.' },
   users: { title: 'Accounts', subtitle: 'Who can sign in, and what they can change.' },

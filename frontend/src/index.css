@@ -135,3 +135,6 @@ input[type="time"], input[type="number"], input[type="date"] { color-scheme: dar
 ::-webkit-scrollbar-track { background: var(--color-ink-900); }
 ::-webkit-scrollbar-thumb { background: var(--color-ink-600); border-radius: 6px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-ink-500); }
+
+/* Checkboxes and radios take the brand colour instead of the OS blue. */
+input[type="checkbox"], input[type="radio"] { accent-color: var(--color-brand-500); }

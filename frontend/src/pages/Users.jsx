@@ -6,10 +6,13 @@ import {
   CardBody,
   CardFoot,
   CardHead,
+  Dot,
   EmptyState,
   Field,
   Input,
   Select,
+  Stat,
+  TextField,
   Toggle,
 } from '../components/ui'
 import { api } from '../api'
@@ -103,16 +106,21 @@ export default function Users({ currentUser }) {
     }
   }
 
+  const admins = users.filter((u) => u.role === 'admin').length
+
   return (
-    <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
+    <div className="space-y-4">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <Stat label="Accounts" value={users.length} />
+      <Stat label="Admins" value={admins} />
+      <Stat label="Operators" value={users.length - admins} />
+      <Stat label="Deactivated" value={users.filter((u) => !u.active).length} tone="warn" />
+    </div>
+    <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
       <Card>
         <CardHead
           title="Accounts"
-          aside={
-            <span className="rounded-full bg-ink-700 px-2 py-0.5 text-[11px] text-ink-200">
-              {users.length}
-            </span>
-          }
+          aside={<Badge>{users.length}</Badge>}
         />
         {users.length === 0 ? (
           <EmptyState>No accounts yet.</EmptyState>
@@ -125,13 +133,11 @@ export default function Users({ currentUser }) {
                   onClick={() => selectExisting(user)}
                   className={`flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-colors ${
                     selectedId === user.id
-                      ? 'border-brand-600 bg-brand-900'
+                      ? 'border-brand-500/40 bg-brand-900'
                       : 'border-transparent hover:bg-ink-800'
                   }`}
                 >
-                  <span
-                    className={`h-2 w-2 shrink-0 rounded-full ${user.active ? 'bg-ok-400' : 'bg-ink-600'}`}
-                  />
+                  <Dot tone={user.active ? 'ok' : null} />
                   <span className="min-w-0 flex-1 truncate text-[13px]">{user.email}</span>
                   <Badge tone={user.role === 'admin' ? 'info' : 'neutral'}>{user.role}</Badge>
                 </button>
@@ -155,11 +161,11 @@ export default function Users({ currentUser }) {
           <CardHead title={selectedId === '_new' ? 'New account' : form.email} />
           <CardBody className="space-y-3.5">
             <Field label="Email" hint={selectedId === '_new' ? undefined : 'Cannot be changed once created.'}>
-              <Input
+              <TextField
                 type="email"
                 value={form.email}
                 onChange={(e) => set({ email: e.target.value })}
-                disabled={selectedId !== '_new'}
+                locked={selectedId !== '_new'}
                 placeholder="name@example.com"
               />
             </Field>
@@ -210,6 +216,7 @@ export default function Users({ currentUser }) {
           </CardFoot>
         </Card>
       )}
+    </div>
     </div>
   )
 }

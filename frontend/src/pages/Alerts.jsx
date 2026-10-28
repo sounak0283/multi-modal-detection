@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  Badge,
   Button,
   Card,
   CardBody,
   CardFoot,
   CardHead,
   ChipGroup,
+  Dot,
   EmptyState,
   Field,
   Input,
@@ -141,7 +143,7 @@ export default function Alerts() {
   return (
     <div className="space-y-4">
       <Card>
-        <CardHead title="System sound" />
+        <CardHead title="System sound" aside={<Badge tone={config.sound_enabled ? 'ok' : 'neutral'}>{config.sound_enabled ? 'On' : 'Off'}</Badge>} />
         <CardBody className="space-y-3.5">
           <Toggle
             checked={config.sound_enabled}
@@ -172,11 +174,7 @@ export default function Alerts() {
         <Card>
           <CardHead
             title="Email rules"
-            aside={
-              <span className="rounded-full bg-ink-700 px-2 py-0.5 text-[11px] text-ink-200">
-                {(config.sinks || []).length}
-              </span>
-            }
+            aside={<Badge>{(config.sinks || []).length}</Badge>}
           />
           {(config.sinks || []).length === 0 ? (
             <EmptyState>No email alert rules yet.</EmptyState>
@@ -189,18 +187,16 @@ export default function Alerts() {
                     onClick={() => selectExisting(rule)}
                     className={`flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-colors ${
                       selectedId === rule.id
-                        ? 'border-brand-600 bg-brand-900'
+                        ? 'border-brand-500/40 bg-brand-900'
                         : 'border-transparent hover:bg-ink-800'
                     }`}
                   >
-                    <span
-                      className={`h-2 w-2 shrink-0 rounded-full ${rule.enabled ? 'bg-ok-400' : 'bg-ink-600'}`}
-                    />
+                    <Dot tone={rule.enabled ? 'ok' : null} />
                     <span className="min-w-0 flex-1 truncate text-left">
                       <span className="block truncate text-[13px]">
                         {rule.to.join(', ') || '(no recipients)'}
                       </span>
-                      <span className="block truncate text-[10.5px] text-ink-400">
+                      <span className="block truncate font-mono text-[10.5px] uppercase tracking-[0.04em] text-ink-400">
                         {kindsSummary(rule.kinds)}
                       </span>
                     </span>
