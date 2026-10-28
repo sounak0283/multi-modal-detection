@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Badge, Button, Card, CardFoot, CardHead, EmptyState, Select, Stat } from '../components/ui'
+import { Badge, Button, Card, CardFoot, CardHead, DataTable, EmptyState, Select, Stat, Td, Th, Tr } from '../components/ui'
 import { api, eventSnapshotUrl } from '../api'
 
 /* Every confirmed zone ENTRY with identity enabled resolves to one of three statuses
@@ -14,7 +14,7 @@ const STATUS_OPTIONS = [
   { value: 'unknown_face', label: 'Unrecognised only' },
 ]
 
-export default function RecognitionLog({ cameras }) {
+export default function RecognitionLog({ cameras, onEnroll }) {
   const [filters, setFilters] = useState({ cameraId: '', identityStatus: '', limit: 200 })
   const [events, setEvents] = useState([])
   const [error, setError] = useState(null)
@@ -57,19 +57,25 @@ export default function RecognitionLog({ cameras }) {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Recognised" value={knownCount} tone="ok" />
         <Stat label="Unrecognised" value={unknownCount} tone={unknownCount > 0 ? 'warn' : undefined} />
+        <Stat
+          label="Recognition rate"
+          value={events.length ? `${Math.round((knownCount / events.length) * 100)}%` : '—'}
+          tone="info"
+        />
+        <Stat label="Listed below" value={events.length} />
       </div>
 
       <Card>
         <CardHead title="Recognition log">
           <div className="flex flex-wrap gap-2">
-            <Select value={filters.identityStatus} onChange={set('identityStatus')} className="w-auto py-1.5">
+            <Select value={filters.identityStatus} onChange={set('identityStatus')} className="w-auto!">
               {STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
               ))}
             </Select>
-            <Select value={filters.cameraId} onChange={set('cameraId')} className="w-auto py-1.5">
+            <Select value={filters.cameraId} onChange={set('cameraId')} className="w-auto!">
               <option value="">All cameras</option>
               {(cameras ?? []).map((camera) => (
                 <option key={camera.id} value={camera.id}>
@@ -77,76 +83,66 @@ export default function RecognitionLog({ cameras }) {
                 </option>
               ))}
             </Select>
-            <Select value={filters.limit} onChange={set('limit')} className="w-auto py-1.5">
+            <Select value={filters.limit} onChange={set('limit')} className="w-auto!">
               <option value="50">Last 50</option>
               <option value="200">Last 200</option>
               <option value="500">Last 500</option>
             </Select>
             <Button onClick={load}>Refresh</Button>
+            {onEnroll && (
+              <Button variant="primary" onClick={onEnroll}>
+                Enroll people
+              </Button>
+            )}
           </div>
         </CardHead>
 
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-[13px]">
-            <thead>
-              <tr className="bg-ink-800">
-                {['Time', 'Person', 'Confidence', 'Camera', 'Boundary', 'Track', 'Evidence'].map((head) => (
-                  <th
-                    key={head}
-                    className="whitespace-nowrap px-4 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-400"
-                  >
-                    {head}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {events.map((event) => (
-                <tr key={event.id ?? event.ts} className="border-t border-ink-800 hover:bg-ink-800">
-                  <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-ink-300">
-                    {formatWhen(event.ts)}
-                  </td>
-                  <td className="min-w-[160px] px-4 py-2.5 font-medium">
-                    {event.identity_status === 'known' ? (
-                      <Badge tone="ok">{event.identity_name || 'Known'}</Badge>
-                    ) : (
-                      <Badge tone="warn">Unrecognised</Badge>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-ink-300">
-                    {formatConfidence(event.identity_confidence)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-ink-200">
-                    {cameraName(event.camera_id)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-ink-200">
-                    {event.zone_name || event.zone_id || '—'}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-ink-300">
-                    {event.track_id != null ? `#${event.track_id}` : '—'}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5">
-                    {event.snapshot_path ? (
-                      <button
-                        type="button"
-                        onClick={() => setViewing(event)}
-                        className="block h-10 w-14 overflow-hidden rounded-md border border-ink-700 transition-colors hover:border-brand-500"
-                      >
-                        <img
-                          src={eventSnapshotUrl(event.id)}
-                          alt="Recognition snapshot"
-                          className="h-full w-full object-cover"
-                        />
-                      </button>
-                    ) : (
-                      <span className="text-ink-500">—</span>
-                    )}
-                  </td>
-                </tr>
+        <DataTable>
+          <thead>
+            <tr>
+              {['Time', 'Person', 'Confidence', 'Camera', 'Boundary', 'Track', 'Evidence'].map((head) => (
+                <Th key={head}>{head}</Th>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </tr>
+          </thead>
+          <tbody>
+            {events.map((event) => (
+              <Tr key={event.id ?? event.ts}>
+                <Td mono>{formatWhen(event.ts)}</Td>
+                <Td className="min-w-[160px] font-medium">
+                  {event.identity_status === 'known' ? (
+                    <Badge tone="ok">{event.identity_name || 'Known'}</Badge>
+                  ) : (
+                    <Badge tone="warn">Unrecognised</Badge>
+                  )}
+                </Td>
+                <Td mono align="right">
+                  {formatConfidence(event.identity_confidence)}
+                </Td>
+                <Td className="text-ink-200">{cameraName(event.camera_id)}</Td>
+                <Td className="text-ink-200">{event.zone_name || event.zone_id || '—'}</Td>
+                <Td mono>{event.track_id != null ? `#${event.track_id}` : '—'}</Td>
+                <Td className="py-1">
+                  {event.snapshot_path ? (
+                    <button
+                      type="button"
+                      onClick={() => setViewing(event)}
+                      className="block h-8 w-12 overflow-hidden rounded-sm border border-ink-700 transition-colors hover:border-brand-500"
+                    >
+                      <img
+                        src={eventSnapshotUrl(event.id)}
+                        alt="Recognition snapshot"
+                        className="h-full w-full object-cover"
+                      />
+                    </button>
+                  ) : (
+                    <span className="text-ink-500">—</span>
+                  )}
+                </Td>
+              </Tr>
+            ))}
+          </tbody>
+        </DataTable>
 
         {events.length === 0 && (
           <EmptyState>

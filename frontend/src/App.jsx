@@ -229,7 +229,9 @@ function Dashboard({ user, onLogout }) {
         )}
         {view === 'alerts' && isAdmin && <Alerts />}
         {view === 'persons' && isAdmin && <Persons identityEnabled={health?.identity_enabled} />}
-        {view === 'recognition' && <RecognitionLog cameras={cameras} />}
+        {view === 'recognition' && (
+          <RecognitionLog cameras={cameras} onEnroll={isAdmin ? () => setView('persons') : undefined} />
+        )}
         {view === 'users' && isAdmin && <Users currentUser={user} />}
         {view === 'history' && <AlertHistory cameras={cameras} zones={zones} />}
         {view === 'evidence' && <Evidence cameras={cameras} />}
