@@ -164,7 +164,7 @@ export default function Shell({
           </div>
           <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>
         </header>
-        <div className="min-w-0 flex-1 p-6">{children}</div>
+        <div className="min-w-0 flex-1 p-6 pb-20">{children}</div>
       </main>
     </div>
   )

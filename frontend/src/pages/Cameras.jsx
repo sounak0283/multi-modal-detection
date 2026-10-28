@@ -1,18 +1,23 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  Badge,
   Button,
   Card,
   CardBody,
   CardFoot,
   CardHead,
-  ChipGroup,
+  Dot,
   EmptyState,
   Field,
   Input,
+  SegmentedControl,
   Select,
+  TelemetryChip,
+  TextField,
   Toggle,
+  cx,
 } from '../components/ui'
-import { api } from '../api'
+import { api, snapshotUrl } from '../api'
 import { useToast } from '../components/Toast'
 
 const RESOLUTIONS = [
@@ -26,13 +31,16 @@ const RESOLUTIONS = [
 // Every module is opt-in, boundary included - a camera with none selected only captures
 // and streams. Boundary is the person detection and tracking the modules in
 // REQUIRES_BOUNDARY run on (mirrors backend cameras/models.py).
+// `note` is the standing state shown on the module card: dependencies come from
+// REQUIRES_BOUNDARY below, "needs a model" / "not built" mirror the notes this page has
+// always carried (there is no backend endpoint reporting model availability per module).
 const MODULE_OPTIONS = [
   { value: 'boundary', label: 'Boundary / restricted area' },
-  { value: 'crowd', label: 'Crowd formation' },
-  { value: 'ppe', label: 'PPE compliance' },
-  { value: 'phone', label: 'Phone near ear' },
+  { value: 'crowd', label: 'Crowd formation', note: 'Requires Boundary', tone: 'neutral' },
+  { value: 'ppe', label: 'PPE compliance', note: 'Requires Boundary · needs a trained model on the server', tone: 'warn' },
+  { value: 'phone', label: 'Phone near ear', note: 'Not built yet', tone: 'warn', unavailable: true },
   { value: 'fire_smoke', label: 'Fire & smoke' },
-  { value: 'identity', label: 'Identity / face recognition' },
+  { value: 'identity', label: 'Identity / face recognition', note: 'Requires Boundary', tone: 'neutral' },
   { value: 'welding', label: 'Welding sparks (soft alert)' },
 ]
 
@@ -100,6 +108,7 @@ export default function Cameras({ devTools, onChanged, readOnly = false }) {
   const [deleting, setDeleting] = useState(false)
   const [result, setResult] = useState(null)
   const [simulating, setSimulating] = useState(null)
+  const [filter, setFilter] = useState('')
   const toast = useToast()
 
   const idValid = form ? VALID_ID.test(form.id.trim()) : false
@@ -217,54 +226,68 @@ export default function Cameras({ devTools, onChanged, readOnly = false }) {
   }
 
   return (
-    <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
       <Card>
-        <CardHead
-          title="Cameras"
-          aside={
-            <span className="rounded-full bg-ink-700 px-2 py-0.5 text-[11px] text-ink-200">
-              {cameras.length}
-            </span>
-          }
-        />
+        <CardHead title="Cameras" aside={<Badge>{cameras.length} configured</Badge>} />
+        {!readOnly && (
+          <div className="border-b border-ink-700 p-3">
+            <Button variant="primary" className="w-full" onClick={startNew}>
+              + Add camera
+            </Button>
+          </div>
+        )}
+        {cameras.length > 4 && (
+          <div className="border-b border-ink-700 p-3">
+            <Input
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Filter cameras by name or ID"
+            />
+          </div>
+        )}
         {cameras.length === 0 ? (
           <EmptyState>No cameras yet.</EmptyState>
         ) : (
-          <ul className="p-1.5">
-            {cameras.map((camera) => (
-              <li key={camera.id}>
-                <button
-                  type="button"
-                  onClick={() => selectExisting(camera)}
-                  className={`flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-colors ${
-                    selectedId === camera.id
-                      ? 'border-brand-600 bg-brand-900'
-                      : 'border-transparent hover:bg-ink-800'
-                  }`}
-                >
-                  <span
-                    className={`h-2 w-2 shrink-0 rounded-full ${
-                      camera.running ? 'bg-ok-400' : camera.enabled ? 'bg-warn-400' : 'bg-ink-600'
-                    }`}
-                    title={camera.running ? 'Running' : camera.enabled ? 'Enabled, not started' : 'Disabled'}
-                  />
-                  <span className="min-w-0 flex-1 text-left">
-                    <span className="block truncate text-[13px]">{camera.name || camera.id}</span>
-                    <span className="block truncate text-[10.5px] text-ink-400">
-                      {camera.running ? 'Running' : camera.enabled ? 'Enabled, not started' : 'Disabled'}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            ))}
+          <ul className="space-y-1.5 p-2">
+            {cameras
+              .filter((camera) =>
+                `${camera.name} ${camera.id}`.toLowerCase().includes(filter.trim().toLowerCase()),
+              )
+              .map((camera) => {
+                const state = camera.running
+                  ? { tone: 'ok', label: 'Running' }
+                  : camera.enabled
+                    ? { tone: 'warn', label: 'Enabled, not started' }
+                    : { tone: 'neutral', label: 'Disabled' }
+                return (
+                  <li key={camera.id}>
+                    <button
+                      type="button"
+                      onClick={() => selectExisting(camera)}
+                      className={cx(
+                        'flex w-full items-center gap-3 rounded-lg border p-2 text-left transition-colors',
+                        selectedId === camera.id
+                          ? 'border-brand-500/40 bg-brand-900'
+                          : 'border-transparent hover:bg-ink-800',
+                      )}
+                    >
+                      <CameraThumb camera={camera} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-medium">
+                          {camera.name || camera.id}
+                        </span>
+                        <span className="mt-1 flex items-center gap-1.5">
+                          <Badge tone={state.tone}>{state.label}</Badge>
+                        </span>
+                        <span className="mt-1 block truncate font-mono text-[10.5px] text-ink-400">
+                          {camera.id} · {camera.width}×{camera.height} · {camera.fps} fps
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
           </ul>
-        )}
-        {!readOnly && (
-          <CardFoot>
-            <Button className="w-full" onClick={startNew}>
-              + Add camera
-            </Button>
-          </CardFoot>
         )}
       </Card>
 
@@ -274,20 +297,23 @@ export default function Cameras({ devTools, onChanged, readOnly = false }) {
         </Card>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-center gap-2 px-1">
-            <h2 className="text-[15px] font-semibold text-ink-100">
+          <div className="flex flex-wrap items-center gap-2.5 px-1">
+            <h2 className="text-[20px] font-semibold tracking-tight text-ink-100">
               {selectedId === '_new' ? 'New camera' : form.name || form.id}
             </h2>
             {selectedId !== '_new' && (
-              <span
-                className={`rounded-full px-2 py-0.5 text-[10.5px] font-medium ${
-                  form.enabled ? 'bg-ok-900 text-ok-400' : 'bg-ink-700 text-ink-300'
-                }`}
-              >
-                {form.enabled ? 'Enabled' : 'Disabled'}
-              </span>
+              <>
+                <Badge tone={form.enabled ? 'ok' : 'neutral'}>
+                  {form.enabled ? 'Enabled' : 'Disabled'}
+                </Badge>
+                <TelemetryChip label="ID" className="ml-auto">
+                  {selectedId}
+                </TelemetryChip>
+              </>
             )}
           </div>
+
+          {selectedId !== '_new' && <CameraPreview key={selectedId} camera={cameras.find((c) => c.id === selectedId)} />}
 
           {devTools && !readOnly && selectedId && selectedId !== '_new' && (
             <Card className="border-alarm-900">
@@ -323,11 +349,11 @@ export default function Cameras({ devTools, onChanged, readOnly = false }) {
                       : 'Technical identifier used in the API and stored on every alert. Cannot be changed after creation.'
                   }
                 >
-                  <Input
+                  <TextField
                     value={form.id}
                     onChange={(e) => set({ id: e.target.value })}
                     placeholder="cam_02"
-                    disabled={selectedId !== '_new'}
+                    locked={selectedId !== '_new'}
                     className={form.id.trim() && !idValid ? 'border-alarm-400' : undefined}
                   />
                 </Field>
@@ -340,25 +366,15 @@ export default function Cameras({ devTools, onChanged, readOnly = false }) {
                 </Field>
 
                 <Field label="Source type">
-                  <div className="flex overflow-hidden rounded-lg border border-ink-700">
-                    {[
-                      ['webcam', 'Webcam / file'],
-                      ['rtsp', 'CCTV / RTSP'],
-                    ].map(([value, label]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => set({ source_type: value })}
-                        className={`flex-1 px-3 py-2 text-[12.5px] transition-colors not-first:border-l not-first:border-ink-700 ${
-                          form.source_type === value
-                            ? 'bg-brand-500 font-semibold text-on-brand'
-                            : 'bg-ink-800 text-ink-200 hover:bg-ink-700'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
+                  <SegmentedControl
+                    className="w-full [&>button]:flex-1"
+                    value={form.source_type}
+                    onChange={(source_type) => set({ source_type })}
+                    options={[
+                      { value: 'webcam', label: 'Webcam / file' },
+                      { value: 'rtsp', label: 'CCTV / RTSP' },
+                    ]}
+                  />
                 </Field>
 
                 {form.source_type === 'rtsp' ? (
@@ -453,13 +469,58 @@ export default function Cameras({ devTools, onChanged, readOnly = false }) {
               }
             />
             <CardBody>
-              <ChipGroup
-                options={MODULE_OPTIONS}
-                value={form.enabled_modules}
-                onChange={(next) =>
-                  set({ enabled_modules: withModuleDependencies(form.enabled_modules, next) })
-                }
-              />
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 2xl:grid-cols-3">
+                {MODULE_OPTIONS.map((option) => {
+                  const on = form.enabled_modules.includes(option.value)
+                  const toggle = () =>
+                    set({
+                      enabled_modules: withModuleDependencies(
+                        form.enabled_modules,
+                        on
+                          ? form.enabled_modules.filter((m) => m !== option.value)
+                          : [...form.enabled_modules, option.value],
+                      ),
+                    })
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={toggle}
+                      className={cx(
+                        'flex items-start gap-3 rounded-lg border p-3 text-left transition-colors',
+                        on
+                          ? 'border-brand-500 bg-brand-900'
+                          : 'border-ink-700 bg-ink-950 hover:border-ink-hover',
+                      )}
+                    >
+                      <span
+                        className={cx(
+                          'mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-sm border text-[10px] leading-none',
+                          on ? 'border-brand-500 bg-brand-500 text-white' : 'border-ink-500',
+                        )}
+                      >
+                        {on && '✓'}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[13px] font-medium text-ink-100">
+                          {option.label}
+                        </span>
+                        {option.note && (
+                          <span
+                            className={cx(
+                              'mt-1 block font-mono text-[10.5px] uppercase tracking-[0.04em]',
+                              option.tone === 'warn' ? 'text-warn-400' : 'text-ink-400',
+                            )}
+                          >
+                            {option.note}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
               <p className="mt-3 text-[11.5px] leading-snug text-ink-400">
                 Nothing runs unless you select it. Boundary / restricted area detects and
                 tracks people for zone entry/exit alerts; crowd formation and identity/face
@@ -528,5 +589,57 @@ export default function Cameras({ devTools, onChanged, readOnly = false }) {
         </div>
       )}
     </div>
+  )
+}
+
+/* Still frame from the camera's own snapshot endpoint (the one Boundaries uses as its
+ * backdrop). Taken once per mount rather than streamed: a list of live MJPEG tiles would
+ * hold one connection per camera open for no benefit on a settings page. */
+function useSnapshot(camera) {
+  const [bust] = useState(() => Date.now())
+  const [failed, setFailed] = useState(false)
+  const src = camera?.running && !failed ? snapshotUrl(camera.id, bust) : null
+  return { src, onError: () => setFailed(true) }
+}
+
+function CameraThumb({ camera }) {
+  const { src, onError } = useSnapshot(camera)
+  return (
+    <span className="relative grid h-14 w-24 shrink-0 place-items-center overflow-hidden rounded-md border border-ink-700 bg-black">
+      {src ? (
+        <img src={src} onError={onError} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <span className="font-mono text-[9.5px] uppercase tracking-[0.06em] text-ink-500">
+          No signal
+        </span>
+      )}
+    </span>
+  )
+}
+
+function CameraPreview({ camera }) {
+  const { src, onError } = useSnapshot(camera)
+  if (!camera) return null
+  return (
+    <Card className="relative">
+      <div className="grid aspect-[16/6] max-h-[300px] w-full place-items-center bg-black">
+        {src ? (
+          <img src={src} onError={onError} alt="Latest frame" className="h-full w-full object-contain" />
+        ) : (
+          <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-500">
+            No signal
+          </span>
+        )}
+      </div>
+      <div className="absolute left-3 top-3 flex items-center gap-2">
+        <span className="flex h-5 items-center gap-1.5 rounded-sm border border-ink-700 bg-black/70 px-1.5 font-mono text-[11px] uppercase text-white">
+          <Dot tone={camera.running ? 'ok' : camera.enabled ? 'warn' : null} live={camera.running} />
+          {camera.running ? 'Running' : camera.enabled ? 'Enabled, not started' : 'Disabled'}
+        </span>
+        <span className="flex h-5 items-center rounded-sm border border-ink-700 bg-black/70 px-1.5 font-mono text-[11px] text-white">
+          {camera.width}×{camera.height} · {camera.fps} fps
+        </span>
+      </div>
+    </Card>
   )
 }
