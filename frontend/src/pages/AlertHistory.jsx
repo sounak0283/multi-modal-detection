@@ -1,5 +1,22 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Badge, Button, Card, CardFoot, CardHead, EmptyState, Select, Stat } from '../components/ui'
+import {
+  Button,
+  Card,
+  CardFoot,
+  CardHead,
+  DataTable,
+  EmptyState,
+  EventPill,
+  Input,
+  SegmentedControl,
+  Select,
+  SeverityChip,
+  Stat,
+  Td,
+  Th,
+  Tr,
+} from '../components/ui'
+import { maskStoragePath } from '../lib/secure'
 import { api, eventClipUrl, eventSnapshotUrl } from '../api'
 import { emitsEvents } from '../lib/zones'
 import { useAIAvailable } from '../lib/useAIAvailable'
@@ -141,70 +158,50 @@ export default function AlertHistory({ cameras, zones }) {
           </div>
         </div>
 
-        {/* Wide content scrolls inside its own box; the page never scrolls sideways. */}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-[13px]">
-            <thead>
-              <tr className="bg-ink-800">
-                {['Time', 'Alert', 'Boundary', 'Event', 'Track', 'Severity', 'Evidence'].map((head) => (
-                  <th
-                    key={head}
-                    className="whitespace-nowrap px-4 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-400"
-                  >
-                    {head}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((event) => (
-                <tr key={event.id ?? event.ts} className="border-t border-ink-800 hover:bg-ink-800">
-                  <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-ink-300">
-                    {formatWhen(event.ts)}
-                  </td>
-                  <td className="min-w-[210px] px-4 py-2.5 font-medium">{event.message}</td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-ink-200">
-                    {event.zone_name || event.zone_id || '—'}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5">
-                    <Badge tone={toneFor(event)}>
-                      {event.subtype || KIND_LABEL[event.kind] || event.kind}
-                    </Badge>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-ink-300">
-                    {event.track_id != null ? `#${event.track_id}` : '—'}
-                  </td>
-                  <td
-                    className={`whitespace-nowrap px-4 py-2.5 ${
-                      { high: 'font-semibold text-alarm-400', medium: 'text-warn-400' }[
-                        event.severity
-                      ] || 'text-ink-400'
-                    }`}
-                  >
-                    {event.severity || '—'}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5">
-                    {event.snapshot_path ? (
-                      <button
-                        type="button"
-                        onClick={() => setViewing(event)}
-                        className="block h-10 w-14 overflow-hidden rounded-md border border-ink-700 transition-colors hover:border-brand-500"
-                      >
-                        <img
-                          src={eventSnapshotUrl(event.id)}
-                          alt="Alert snapshot"
-                          className="h-full w-full object-cover"
-                        />
-                      </button>
-                    ) : (
-                      <span className="text-ink-500">—</span>
-                    )}
-                  </td>
-                </tr>
+        <DataTable>
+          <thead>
+            <tr>
+              {['Time', 'Alert', 'Boundary', 'Event', 'Track', 'Severity', 'Evidence'].map((head) => (
+                <Th key={head}>{head}</Th>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((event) => (
+              <Tr key={event.id ?? event.ts}>
+                <Td mono>{formatWhen(event.ts)}</Td>
+                <Td className="min-w-[210px] whitespace-normal font-medium">{event.message}</Td>
+                <Td className="text-ink-200">{event.zone_name || event.zone_id || '—'}</Td>
+                <Td>
+                  <EventPill event={event}>
+                    {event.subtype || KIND_LABEL[event.kind] || event.kind}
+                  </EventPill>
+                </Td>
+                <Td mono>{event.track_id != null ? `#${event.track_id}` : '—'}</Td>
+                <Td>
+                  <SeverityChip severity={event.severity} />
+                </Td>
+                <Td className="py-1">
+                  {event.snapshot_path ? (
+                    <button
+                      type="button"
+                      onClick={() => setViewing(event)}
+                      className="block h-8 w-12 overflow-hidden rounded-sm border border-ink-700 transition-colors hover:border-brand-500"
+                    >
+                      <img
+                        src={eventSnapshotUrl(event.id)}
+                        alt="Alert snapshot"
+                        className="h-full w-full object-cover"
+                      />
+                    </button>
+                  ) : (
+                    <span className="text-ink-500">—</span>
+                  )}
+                </Td>
+              </Tr>
+            ))}
+          </tbody>
+        </DataTable>
 
         {shown.length === 0 && (
           <EmptyState>
@@ -280,11 +277,12 @@ function EvidenceLightbox({ event, onClose }) {
                     : 'No evidence was captured for this alert.'}
               </EmptyState>
             )}
-            {/* Permanent storage reference for admin audit; playback links are minted
-                fresh per view (they expire), so only the s3:// address is shown. */}
+            {/* Storage reference for admin audit, masked: the real bucket and key are not
+                shown on screen. Playback links are minted fresh per view (they expire). */}
             {event.clip_uri && (
               <p className="break-all text-[11.5px] text-ink-400">
-                Stored at <span className="font-mono text-ink-300">{event.clip_uri}</span>
+                Stored at{' '}
+                <span className="font-mono text-ink-300">{maskStoragePath(event.clip_uri)}</span>
               </p>
             )}
           </div>
@@ -308,12 +306,6 @@ function formatWhen(iso) {
     second: '2-digit',
     hour12: false,
   })
-}
-
-function toneFor(event) {
-  if (event.kind === 'fire' || event.kind === 'smoke') return 'alarm'
-  if (event.kind === 'health' || event.kind === 'welding') return 'info'
-  return event.subtype === 'entry' ? 'ok' : 'warn'
 }
 
 /** The cards count exactly what the list is filtered to: same period, camera and boundary
@@ -371,12 +363,12 @@ function AiSearch({ result, onResult }) {
   return (
     <Card>
       <form onSubmit={run} className="flex flex-wrap items-center gap-2 p-3">
-        <input
+        <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder='Search in plain English, e.g. "fire alerts on cam_01 last night"'
           aria-label="Search alerts in plain English"
-          className="min-w-55 flex-1 rounded-lg border border-ink-700 bg-ink-800 px-3 py-2 text-[13px] text-ink-100 placeholder:text-ink-500 focus:border-brand-500 focus:outline-none"
+          className="min-w-55 flex-1"
         />
         <Button type="submit" variant="primary" disabled={busy || !query.trim()}>
           {busy ? 'Searching…' : 'Search'}
@@ -409,35 +401,18 @@ function AiSearch({ result, onResult }) {
 
 function PeriodPills({ value, onChange }) {
   return (
-    <div
-      role="radiogroup"
-      aria-label="Period"
-      className="inline-flex flex-wrap overflow-hidden rounded-lg border border-ink-700"
-    >
-      {PERIODS.map(([period, label]) => (
-        <button
-          key={period || 'all'}
-          type="button"
-          role="radio"
-          aria-checked={value === period}
-          onClick={() => onChange(period)}
-          className={`px-3.5 py-1.5 text-[12.5px] transition-colors not-first:border-l not-first:border-ink-700 ${
-            value === period
-              ? 'bg-brand-500 font-semibold text-on-brand'
-              : 'bg-ink-800 text-ink-200 hover:bg-ink-700'
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
+    <SegmentedControl
+      value={value}
+      onChange={onChange}
+      options={PERIODS.map(([period, label]) => ({ value: period, label }))}
+    />
   )
 }
 
 function FilterSelect({ label, value, onChange, children }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-400">
+      <span className="mb-1 block font-mono text-[10.5px] font-medium uppercase tracking-[0.08em] text-ink-400">
         {label}
       </span>
       <Select value={value} onChange={(event) => onChange(event.target.value)}>
